@@ -1,0 +1,53 @@
+1
+
+   Abaqus 2022                                  Date 21-Dec-2022   Time 13:48:02
+   For use by UNIVERSITY OF MICHIGAN under license from Dassault Systemes or its subsidiary.
+
+                                                                                 
+                                                                                 
+ STEP    1     INCREMENT     1     STEP TIME    0.00    
+ 
+
+
+                        S T E P       1     M A T R I X   G E N E R A T E
+ 
+  THE FOLLOWING GLOBAL MATRICES WILL BE GENERATED AND WRITTEN TO Job-1_X1.sim
+
+    STIFFNESS
+ 
+  IF MULTI-POINT CONSTRAINTS ARE SPECIFIED IN THE MODEL, THEY WILL BE APPLIED
+ 
+  THE FOLLOWING GLOBAL MATRICES WILL BE WRITTEN TO THE FOLLOWING TEXT FILES
+
+    STIFFNESS          TO Job-1_STIF1.mtx
+ 
+  MATRIX OUTPUT FORMAT - COORDINATE
+
+
+          THE ANALYSIS HAS BEEN COMPLETED
+
+
+
+     ANALYSIS SUMMARY:
+     TOTAL OF          1  INCREMENTS
+                       0  CUTBACKS IN AUTOMATIC INCREMENTATION
+                       0  ITERATIONS INCLUDING CONTACT ITERATIONS IF PRESENT
+                       0  PASSES THROUGH THE EQUATION SOLVER OF WHICH 
+                       0  INVOLVE MATRIX DECOMPOSITION, INCLUDING
+                       0  DECOMPOSITION(S) OF THE MASS MATRIX
+                       1  REORDERING OF EQUATIONS TO MINIMIZE WAVEFRONT
+                       0  ADDITIONAL RESIDUAL EVALUATIONS FOR LINE SEARCHES
+                       0  ADDITIONAL OPERATOR EVALUATIONS FOR LINE SEARCHES
+                       0  WARNING MESSAGES DURING USER INPUT PROCESSING
+                       0  WARNING MESSAGES DURING ANALYSIS
+                       0  ANALYSIS WARNINGS ARE NUMERICAL PROBLEM MESSAGES
+                       0  ANALYSIS WARNINGS ARE NEGATIVE EIGENVALUE MESSAGES
+                       0  ERROR MESSAGES
+
+
+
+     JOB TIME SUMMARY
+       USER TIME (SEC)      =  0.70000    
+       SYSTEM TIME (SEC)    =  0.30000    
+       TOTAL CPU TIME (SEC) =   1.0000    
+       WALLCLOCK TIME (SEC) =          5

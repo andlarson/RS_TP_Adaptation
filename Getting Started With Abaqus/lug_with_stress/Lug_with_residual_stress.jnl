@@ -1,0 +1,572 @@
+# -*- coding: mbcs -*-
+from part import *
+from material import *
+from section import *
+from assembly import *
+from step import *
+from interaction import *
+from load import *
+from mesh import *
+from optimization import *
+from job import *
+from sketch import *
+from visualization import *
+from connectorBehavior import *
+mdb.models.changeKey(fromName='Model-1', toName='standard')
+mdb.models['standard'].ConstrainedSketch(name='__profile__', sheetSize=0.25)
+mdb.models['standard'].sketches['__profile__'].sketchOptions.setValues(
+    decimalPlaces=3)
+mdb.models['standard'].sketches['__profile__'].rectangle(point1=(-0.0275, 
+    0.0225), point2=(0.02125, -0.01375))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.02125, 
+    0.004375))
+mdb.models['standard'].sketches['__profile__'].delete(objectList=(
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.02125, 
+    0.004375), ), ))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.003125, 
+    -0.01375))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.003125, 
+    0.0225))
+mdb.models['standard'].sketches['__profile__'].EqualLengthConstraint(entity1=
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.003125, 
+    -0.01375), ), entity2=
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.003125, 
+    0.0225), ))
+mdb.models['standard'].sketches['__profile__'].vertices.findAt((-0.0275, 
+    -0.01375))
+mdb.models['standard'].sketches['__profile__'].vertices.findAt((0.02125, 
+    -0.01375))
+mdb.models['standard'].sketches['__profile__'].ObliqueDimension(textPoint=(
+    -0.010330107063055, -0.023654306307435), value=0.1, vertex1=
+    mdb.models['standard'].sketches['__profile__'].vertices.findAt((-0.0275, 
+    -0.01375), ), vertex2=
+    mdb.models['standard'].sketches['__profile__'].vertices.findAt((0.02125, 
+    -0.01375), ))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.0275, 
+    0.004375))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.0225, 
+    -0.01375))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.0225, 
+    0.0225))
+mdb.models['standard'].sketches['__profile__'].move(objectList=(
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.0275, 
+    0.004375), ), 
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.0225, 
+    -0.01375), ), 
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.0225, 
+    0.0225), )), vector=(-0.025625, 0.0))
+mdb.models['standard'].sketches['__profile__'].vertices.findAt((-0.053125, 
+    0.0225))
+mdb.models['standard'].sketches['__profile__'].vertices.findAt((-0.053125, 
+    -0.01375))
+mdb.models['standard'].sketches['__profile__'].ObliqueDimension(textPoint=(
+    -0.0564765408635139, 0.00896133482456207), value=0.05, vertex1=
+    mdb.models['standard'].sketches['__profile__'].vertices.findAt((-0.053125, 
+    0.0225), ), vertex2=
+    mdb.models['standard'].sketches['__profile__'].vertices.findAt((-0.053125, 
+    -0.01375), ))
+mdb.models['standard'].sketches['__profile__'].Arc3Points(point1=(0.046875, 
+    0.03625), point2=(0.046875, -0.01375), point3=(0.0625, 0.02375))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.003125, 
+    0.03625))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.0657, 
+    0.01125))
+mdb.models['standard'].sketches['__profile__'].TangentConstraint(entity1=
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.003125, 
+    0.03625), ), entity2=
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.0657, 
+    0.01125), ))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.053125, 
+    0.01125))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.003125, 
+    -0.01375))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.003125, 
+    0.03625))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.071875, 
+    0.01125))
+mdb.models['standard'].sketches['__profile__'].move(objectList=(
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.053125, 
+    0.01125), ), 
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.003125, 
+    -0.01375), ), 
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.003125, 
+    0.03625), ), 
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.071875, 
+    0.01125), )), vector=(-0.001797, 0.0))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.004922, 
+    -0.01375))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.070078, 
+    0.01125))
+mdb.models['standard'].sketches['__profile__'].TangentConstraint(entity1=
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.004922, 
+    -0.01375), ), entity2=
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.070078, 
+    0.01125), ))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.070078, 
+    0.01125))
+mdb.models['standard'].sketches['__profile__'].RadialDimension(curve=
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.070078, 
+    0.01125), ), radius=0.025, textPoint=(0.0655877739191055, 
+    -0.0193991288542748))
+mdb.models['standard'].sketches['__profile__'].dimensions[2].setValues(
+    reference=ON)
+mdb.models['standard'].sketches['__profile__'].CircleByCenterPerimeter(center=(
+    0.0425, 0.0125), point1=(0.0525, 0.01625))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.0325, 
+    0.00875))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.070078, 
+    0.01125))
+mdb.models['standard'].sketches['__profile__'].ConcentricConstraint(entity1=
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.0325, 
+    0.00875), ), entity2=
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.070078, 
+    0.01125), ))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.035078, 
+    0.0075))
+mdb.models['standard'].sketches['__profile__'].RadialDimension(curve=
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.035078, 
+    0.0075), ), radius=0.015, textPoint=(0.0297759883105755, 
+    0.0219836011528969))
+mdb.models['standard'].sketches['__profile__'].vertices.findAt((0.045078, 
+    0.01125))
+mdb.models['standard'].sketches['__profile__'].vertices.findAt((0.059123, 
+    0.016517))
+mdb.models['standard'].sketches['__profile__'].VerticalDimension(textPoint=(
+    0.0632773488759995, 0.0129371425136924), value=0.0, vertex1=
+    mdb.models['standard'].sketches['__profile__'].vertices.findAt((0.045078, 
+    0.01125), ), vertex2=
+    mdb.models['standard'].sketches['__profile__'].vertices.findAt((
+    0.0591229376635357, 0.0165168516238259), ))
+mdb.models['standard'].sketches['__profile__'].vertices.findAt((0.045078, 
+    0.01125))
+mdb.models['standard'].sketches['__profile__'].vertices.findAt((0.067003, 
+    0.023263))
+mdb.models['standard'].sketches['__profile__'].VerticalDimension(textPoint=(
+    0.0746369957923889, 0.012744665145874), value=0.0, vertex1=
+    mdb.models['standard'].sketches['__profile__'].vertices.findAt((0.045078, 
+    0.01125), ), vertex2=
+    mdb.models['standard'].sketches['__profile__'].vertices.findAt((
+    0.0670023934959005, 0.0232633662991235), ))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.054922, 
+    0.01125))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.004922, 
+    -0.01375))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.004922, 
+    0.03625))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.070078, 
+    0.01125))
+mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.030078, 
+    0.01125))
+mdb.models['standard'].sketches['__profile__'].move(objectList=(
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.054922, 
+    0.01125), ), 
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.004922, 
+    -0.01375), ), 
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((-0.004922, 
+    0.03625), ), 
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.070078, 
+    0.01125), ), 
+    mdb.models['standard'].sketches['__profile__'].geometry.findAt((0.030078, 
+    0.01125), )), vector=(0.034922, 0.00375))
+mdb.models['standard'].Part(dimensionality=THREE_D, name='Lug', type=
+    DEFORMABLE_BODY)
+mdb.models['standard'].parts['Lug'].BaseSolidExtrude(depth=0.02, sketch=
+    mdb.models['standard'].sketches['__profile__'])
+del mdb.models['standard'].sketches['__profile__']
+mdb.models['standard'].Material('Steel')
+mdb.models['standard'].materials['Steel'].Elastic(table=((200000000000.0, 0.3), 
+    ))
+mdb.models['standard'].HomogeneousSolidSection(material='Steel', name=
+    'LugSection', thickness=1.0)
+mdb.models['standard'].parts['Lug'].SectionAssignment(offset=0.0, region=
+    Region(cells=mdb.models['standard'].parts['Lug'].cells.findAt(((-0.02, 
+    0.006667, 0.013333), ), )), sectionName='LugSection')
+mdb.models['standard'].rootAssembly.DatumCsysByDefault(CARTESIAN)
+mdb.models['standard'].rootAssembly.Instance(dependent=ON, name='Lug-1', part=
+    mdb.models['standard'].parts['Lug'])
+mdb.models['standard'].StaticStep(description=
+    'Apply uniform pressure to the hole', name='LugLoad', previous='Initial')
+mdb.models['standard'].fieldOutputRequests['F-Output-1'].setValues(region=MODEL
+    , variables=('S', 'U', 'RF', 'NFORC'))
+del mdb.models['standard'].historyOutputRequests['H-Output-1']
+mdb.models['standard'].EncastreBC(createStepName='LugLoad', name='Fix left end'
+    , region=Region(
+    faces=mdb.models['standard'].rootAssembly.instances['Lug-1'].faces.findAt((
+    (-0.02, 0.006667, 0.013333), ), )))
+mdb.models['standard'].parts['Lug'].PartitionCellByPlaneThreePoints(cells=
+    mdb.models['standard'].parts['Lug'].cells.findAt(((-0.02, 0.006667, 
+    0.013333), )), point1=mdb.models['standard'].parts['Lug'].vertices.findAt((
+    0.095, 0.015, 0.02), ), point2=
+    mdb.models['standard'].parts['Lug'].InterestingPoint(
+    mdb.models['standard'].parts['Lug'].edges.findAt((0.08, 0.03, 0.02), ), 
+    MIDDLE), point3=mdb.models['standard'].parts['Lug'].InterestingPoint(
+    mdb.models['standard'].parts['Lug'].edges.findAt((0.08, 0.03, 0.0), ), 
+    MIDDLE))
+mdb.models['standard'].rootAssembly.regenerate()
+mdb.models['standard'].Pressure(createStepName='LugLoad', magnitude=50000000.0, 
+    name='Pressure load', region=Region(
+    side1Faces=mdb.models['standard'].rootAssembly.instances['Lug-1'].faces.findAt(
+    ((0.094899, 0.013267, 0.006667), ), )))
+mdb.models['standard'].parts['Lug'].PartitionCellByPlaneThreePoints(cells=
+    mdb.models['standard'].parts['Lug'].cells.findAt(((-0.02, 0.006667, 
+    0.006667), ), ((-0.02, 0.023333, 0.013333), ), ), point1=
+    mdb.models['standard'].parts['Lug'].InterestingPoint(
+    mdb.models['standard'].parts['Lug'].edges.findAt((0.069393, 0.004393, 0.0), 
+    ), MIDDLE), point2=mdb.models['standard'].parts['Lug'].InterestingPoint(
+    mdb.models['standard'].parts['Lug'].edges.findAt((0.069393, 0.004393, 
+    0.02), ), MIDDLE), point3=
+    mdb.models['standard'].parts['Lug'].InterestingPoint(
+    mdb.models['standard'].parts['Lug'].edges.findAt((0.090607, 0.025607, 
+    0.02), ), MIDDLE))
+mdb.models['standard'].parts['Lug'].DatumPointByEdgeParam(edge=
+    mdb.models['standard'].parts['Lug'].edges.findAt((0.055, -0.01, 0.02), ), 
+    parameter=0.25)
+mdb.models['standard'].parts['Lug'].PartitionCellByPlanePointNormal(cells=
+    mdb.models['standard'].parts['Lug'].cells.findAt(((-0.02, 0.006667, 
+    0.006667), ), ((-0.02, 0.023333, 0.013333), ), ), normal=
+    mdb.models['standard'].parts['Lug'].edges.findAt((0.055, -0.01, 0.02), ), 
+    point=mdb.models['standard'].parts['Lug'].datums[5])
+mdb.models['standard'].parts['Lug'].seedPart(size=0.007)
+mdb.models['standard'].parts['Lug'].setElementType(elemTypes=(ElemType(
+    elemCode=C3D20R, elemLibrary=STANDARD), ElemType(elemCode=C3D15, 
+    elemLibrary=STANDARD), ElemType(elemCode=C3D10M, elemLibrary=STANDARD)), 
+    regions=(mdb.models['standard'].parts['Lug'].cells, ))
+mdb.models['standard'].parts['Lug'].generateMesh()
+mdb.models['standard'].rootAssembly.regenerate()
+mdb.Job(description='Linear Elastic Steel Connecting Lug', model='standard', 
+    name='Lug')
+from part import *
+from material import *
+from section import *
+from assembly import *
+from step import *
+from interaction import *
+from load import *
+from mesh import *
+from optimization import *
+from job import *
+from sketch import *
+from visualization import *
+from connectorBehavior import *
+mdb.Model(name='explicit', objectToCopy=mdb.models['standard'])
+mdb.models['explicit'].materials['Steel'].Density(table=((7800.0, ), ))
+mdb.models['explicit'].ExplicitDynamicsStep(maintainAttributes=True, name=
+    'LugLoad', previous='Initial', timePeriod=0.005)
+mdb.models['explicit'].fieldOutputRequests['F-Output-1'].setValues(
+    numIntervals=125)
+mdb.models['explicit'].parts['Lug'].setElementType(elemTypes=(ElemType(
+    elemCode=C3D8R, elemLibrary=EXPLICIT, hourglassControl=ENHANCED), ElemType(
+    elemCode=C3D6, elemLibrary=EXPLICIT), ElemType(elemCode=C3D4, 
+    elemLibrary=EXPLICIT)), regions=(mdb.models['explicit'].parts['Lug'].cells, 
+    ))
+mdb.Job(description='dynamic analysis of lug', model='explicit', name='expLug', 
+    type=ANALYSIS)
+mdb.models['standard'].rootAssembly.regenerate()
+mdb.models['explicit'].rootAssembly.regenerate()
+from part import *
+from material import *
+from section import *
+from assembly import *
+from step import *
+from interaction import *
+from load import *
+from mesh import *
+from optimization import *
+from job import *
+from sketch import *
+from visualization import *
+from connectorBehavior import *
+mdb.models['explicit'].rootAssembly.Set(cells=
+    mdb.models['explicit'].rootAssembly.instances['Lug-1'].cells.findAt(((0.03, 
+    0.023333, 0.0), ), ((0.061911, 0.016545, 0.02), ), ((0.03, -0.001667, 0.0), 
+    ), ((0.081562, 0.029918, 0.006667), ), ((0.081562, 8.2e-05, 0.013333), ), (
+    (0.061911, 0.013455, 0.0), ), ), name='all')
+mdb.models['explicit'].Stress(distributionType=UNIFORM, name=
+    'Residual_Stress_Field', region=
+    mdb.models['explicit'].rootAssembly.sets['all'], sigma11=1.0, sigma12=1.0, 
+    sigma13=1.0, sigma22=1.0, sigma23=1.0, sigma33=1.0)
+mdb.models['standard'].rootAssembly.Set(cells=
+    mdb.models['standard'].rootAssembly.instances['Lug-1'].cells.findAt(((0.03, 
+    0.023333, 0.0), ), ((0.061911, 0.016545, 0.02), ), ((0.03, -0.001667, 0.0), 
+    ), ((0.081562, 0.029918, 0.006667), ), ((0.081562, 8.2e-05, 0.013333), ), (
+    (0.061911, 0.013455, 0.0), ), ), name='Set-2')
+mdb.models['standard'].Stress(distributionType=UNIFORM, name='Residual_Stress', 
+    region=mdb.models['standard'].rootAssembly.sets['Set-2'], sigma11=1.0, 
+    sigma12=1.0, sigma13=1.0, sigma22=1.0, sigma23=1.0, sigma33=1.0)
+mdb.jobs['Lug'].submit(consistencyChecking=OFF)
+mdb.jobs['Lug']._Message(STARTED, {'phase': BATCHPRE_PHASE, 
+    'clientHost': 'EECS2420P16', 'handle': 0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(HEADING, {'phase': BATCHPRE_PHASE, 
+    'heading': 'Linear Elastic Steel Connecting Lug', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FILE, {'phase': BATCHPRE_PHASE, 
+    'file': 'C:\\temp\\Lug.odb', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(COMPLETED, {'phase': BATCHPRE_PHASE, 
+    'message': 'Analysis phase complete', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STARTED, {'phase': STANDARD_PHASE, 
+    'clientHost': 'EECS2420P16', 'handle': 288, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STEP, {
+    'stepName': 'Apply uniform pressure to the hole', 'phase': STANDARD_PHASE, 
+    'stepId': 1, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FRAME, {'phase': STANDARD_PHASE, 'step': 0, 
+    'frame': 0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(MEMORY_ESTIMATE, {'phase': STANDARD_PHASE, 
+    'jobName': 'Lug', 'memory': 46.0})
+mdb.jobs['Lug']._Message(PHYSICAL_MEMORY, {'phase': STANDARD_PHASE, 
+    'physical_memory': 32615.0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(MINIMUM_MEMORY, {'minimum_memory': 18.0, 
+    'phase': STANDARD_PHASE, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FRAME, {'phase': STANDARD_PHASE, 'step': 0, 
+    'frame': 1, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STATUS, {'totalTime': 1.0, 'attempts': 1, 
+    'timeIncrement': 1.0, 'increment': 1, 'stepTime': 1.0, 'step': 1, 
+    'jobName': 'Lug', 'severe': 0, 'iterations': 1, 'phase': STANDARD_PHASE, 
+    'equilibrium': 1})
+mdb.jobs['Lug']._Message(END_STEP, {'phase': STANDARD_PHASE, 'stepId': 1, 
+    'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(COMPLETED, {'phase': STANDARD_PHASE, 
+    'message': 'Analysis phase complete', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(JOB_COMPLETED, {'time': 'Thu Sep 22 11:07:30 2022', 
+    'jobName': 'Lug'})
+mdb.models['standard'].predefinedFields['Residual_Stress'].setValues(sigma11=
+    10.0, sigma12=1.0, sigma13=1.0, sigma22=1.0, sigma23=1.0, sigma33=1.0)
+# Save by andlars on 2022_09_22-11.28.37; build 2022 2021_09_15-13.57.30 176069
+from part import *
+from material import *
+from section import *
+from assembly import *
+from step import *
+from interaction import *
+from load import *
+from mesh import *
+from optimization import *
+from job import *
+from sketch import *
+from visualization import *
+from connectorBehavior import *
+mdb.saveAs(pathName='N:/windat.v2/Desktop/Getting Started With Abaqus/Lug_with_residual_stress.cae')
+mdb.models['standard'].predefinedFields['Residual_Stress'].setValues(sigma11=
+    10.0, sigma12=1.0, sigma13=1.0, sigma22=1.0, sigma23=1.0, sigma33=1.0)
+mdb.jobs['Lug'].submit(consistencyChecking=OFF)
+mdb.jobs['Lug']._Message(STARTED, {'phase': BATCHPRE_PHASE, 
+    'clientHost': 'EECS2420P16', 'handle': 0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(HEADING, {'phase': BATCHPRE_PHASE, 
+    'heading': 'Linear Elastic Steel Connecting Lug', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FILE, {'phase': BATCHPRE_PHASE, 
+    'file': 'C:\\temp\\Lug.odb', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(COMPLETED, {'phase': BATCHPRE_PHASE, 
+    'message': 'Analysis phase complete', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STARTED, {'phase': STANDARD_PHASE, 
+    'clientHost': 'EECS2420P16', 'handle': 6252, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STEP, {
+    'stepName': 'Apply uniform pressure to the hole', 'phase': STANDARD_PHASE, 
+    'stepId': 1, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FRAME, {'phase': STANDARD_PHASE, 'step': 0, 
+    'frame': 0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(MEMORY_ESTIMATE, {'phase': STANDARD_PHASE, 
+    'jobName': 'Lug', 'memory': 46.0})
+mdb.jobs['Lug']._Message(PHYSICAL_MEMORY, {'phase': STANDARD_PHASE, 
+    'physical_memory': 32615.0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(MINIMUM_MEMORY, {'minimum_memory': 18.0, 
+    'phase': STANDARD_PHASE, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FRAME, {'phase': STANDARD_PHASE, 'step': 0, 
+    'frame': 1, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STATUS, {'totalTime': 1.0, 'attempts': 1, 
+    'timeIncrement': 1.0, 'increment': 1, 'stepTime': 1.0, 'step': 1, 
+    'jobName': 'Lug', 'severe': 0, 'iterations': 1, 'phase': STANDARD_PHASE, 
+    'equilibrium': 1})
+mdb.jobs['Lug']._Message(END_STEP, {'phase': STANDARD_PHASE, 'stepId': 1, 
+    'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(COMPLETED, {'phase': STANDARD_PHASE, 
+    'message': 'Analysis phase complete', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(JOB_COMPLETED, {'time': 'Thu Sep 22 11:29:32 2022', 
+    'jobName': 'Lug'})
+mdb.models['standard'].predefinedFields['Residual_Stress'].setValues(sigma11=
+    1000.0, sigma12=1.0, sigma13=1.0, sigma22=1.0, sigma23=1.0, sigma33=1.0)
+# Save by andlars on 2022_09_22-11.30.51; build 2022 2021_09_15-13.57.30 176069
+from part import *
+from material import *
+from section import *
+from assembly import *
+from step import *
+from interaction import *
+from load import *
+from mesh import *
+from optimization import *
+from job import *
+from sketch import *
+from visualization import *
+from connectorBehavior import *
+mdb.jobs['Lug'].submit(consistencyChecking=OFF)
+mdb.jobs['Lug']._Message(STARTED, {'phase': BATCHPRE_PHASE, 
+    'clientHost': 'EECS2420P16', 'handle': 0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(HEADING, {'phase': BATCHPRE_PHASE, 
+    'heading': 'Linear Elastic Steel Connecting Lug', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FILE, {'phase': BATCHPRE_PHASE, 
+    'file': 'C:\\temp\\Lug.odb', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(COMPLETED, {'phase': BATCHPRE_PHASE, 
+    'message': 'Analysis phase complete', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STARTED, {'phase': STANDARD_PHASE, 
+    'clientHost': 'EECS2420P16', 'handle': 7788, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STEP, {
+    'stepName': 'Apply uniform pressure to the hole', 'phase': STANDARD_PHASE, 
+    'stepId': 1, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FRAME, {'phase': STANDARD_PHASE, 'step': 0, 
+    'frame': 0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(MEMORY_ESTIMATE, {'phase': STANDARD_PHASE, 
+    'jobName': 'Lug', 'memory': 46.0})
+mdb.jobs['Lug']._Message(PHYSICAL_MEMORY, {'phase': STANDARD_PHASE, 
+    'physical_memory': 32615.0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(MINIMUM_MEMORY, {'minimum_memory': 18.0, 
+    'phase': STANDARD_PHASE, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FRAME, {'phase': STANDARD_PHASE, 'step': 0, 
+    'frame': 1, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STATUS, {'totalTime': 1.0, 'attempts': 1, 
+    'timeIncrement': 1.0, 'increment': 1, 'stepTime': 1.0, 'step': 1, 
+    'jobName': 'Lug', 'severe': 0, 'iterations': 1, 'phase': STANDARD_PHASE, 
+    'equilibrium': 1})
+mdb.jobs['Lug']._Message(END_STEP, {'phase': STANDARD_PHASE, 'stepId': 1, 
+    'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(COMPLETED, {'phase': STANDARD_PHASE, 
+    'message': 'Analysis phase complete', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(JOB_COMPLETED, {'time': 'Thu Sep 22 11:31:10 2022', 
+    'jobName': 'Lug'})
+mdb.models['standard'].predefinedFields['Residual_Stress'].setValues(sigma11=
+    10000.0, sigma12=1.0, sigma13=1.0, sigma22=1.0, sigma23=1.0, sigma33=1.0)
+# Save by andlars on 2022_09_22-11.32.01; build 2022 2021_09_15-13.57.30 176069
+# Save by andlars on 2022_09_22-11.32.37; build 2022 2021_09_15-13.57.30 176069
+from part import *
+from material import *
+from section import *
+from assembly import *
+from step import *
+from interaction import *
+from load import *
+from mesh import *
+from optimization import *
+from job import *
+from sketch import *
+from visualization import *
+from connectorBehavior import *
+mdb.jobs['Lug'].submit(consistencyChecking=OFF)
+mdb.jobs['Lug']._Message(STARTED, {'phase': BATCHPRE_PHASE, 
+    'clientHost': 'EECS2420P16', 'handle': 0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(HEADING, {'phase': BATCHPRE_PHASE, 
+    'heading': 'Linear Elastic Steel Connecting Lug', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FILE, {'phase': BATCHPRE_PHASE, 
+    'file': 'C:\\temp\\Lug.odb', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(COMPLETED, {'phase': BATCHPRE_PHASE, 
+    'message': 'Analysis phase complete', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STARTED, {'phase': STANDARD_PHASE, 
+    'clientHost': 'EECS2420P16', 'handle': 11460, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STEP, {
+    'stepName': 'Apply uniform pressure to the hole', 'phase': STANDARD_PHASE, 
+    'stepId': 1, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FRAME, {'phase': STANDARD_PHASE, 'step': 0, 
+    'frame': 0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(MEMORY_ESTIMATE, {'phase': STANDARD_PHASE, 
+    'jobName': 'Lug', 'memory': 46.0})
+mdb.jobs['Lug']._Message(PHYSICAL_MEMORY, {'phase': STANDARD_PHASE, 
+    'physical_memory': 32615.0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(MINIMUM_MEMORY, {'minimum_memory': 18.0, 
+    'phase': STANDARD_PHASE, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FRAME, {'phase': STANDARD_PHASE, 'step': 0, 
+    'frame': 1, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STATUS, {'totalTime': 1.0, 'attempts': 1, 
+    'timeIncrement': 1.0, 'increment': 1, 'stepTime': 1.0, 'step': 1, 
+    'jobName': 'Lug', 'severe': 0, 'iterations': 1, 'phase': STANDARD_PHASE, 
+    'equilibrium': 1})
+mdb.jobs['Lug']._Message(END_STEP, {'phase': STANDARD_PHASE, 'stepId': 1, 
+    'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(COMPLETED, {'phase': STANDARD_PHASE, 
+    'message': 'Analysis phase complete', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(JOB_COMPLETED, {'time': 'Thu Sep 22 11:33:05 2022', 
+    'jobName': 'Lug'})
+mdb.models['standard'].predefinedFields['Residual_Stress'].setValues(sigma11=
+    10000000000.0, sigma12=1.0, sigma13=1.0, sigma22=1.0, sigma23=1.0, sigma33=
+    1.0)
+# Save by andlars on 2022_09_22-11.39.30; build 2022 2021_09_15-13.57.30 176069
+from part import *
+from material import *
+from section import *
+from assembly import *
+from step import *
+from interaction import *
+from load import *
+from mesh import *
+from optimization import *
+from job import *
+from sketch import *
+from visualization import *
+from connectorBehavior import *
+mdb.jobs['Lug'].submit(consistencyChecking=OFF)
+mdb.jobs['Lug']._Message(STARTED, {'phase': BATCHPRE_PHASE, 
+    'clientHost': 'EECS2420P16', 'handle': 0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(HEADING, {'phase': BATCHPRE_PHASE, 
+    'heading': 'Linear Elastic Steel Connecting Lug', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FILE, {'phase': BATCHPRE_PHASE, 
+    'file': 'C:\\temp\\Lug.odb', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(COMPLETED, {'phase': BATCHPRE_PHASE, 
+    'message': 'Analysis phase complete', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STARTED, {'phase': STANDARD_PHASE, 
+    'clientHost': 'EECS2420P16', 'handle': 10172, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STEP, {
+    'stepName': 'Apply uniform pressure to the hole', 'phase': STANDARD_PHASE, 
+    'stepId': 1, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FRAME, {'phase': STANDARD_PHASE, 'step': 0, 
+    'frame': 0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(MEMORY_ESTIMATE, {'phase': STANDARD_PHASE, 
+    'jobName': 'Lug', 'memory': 46.0})
+mdb.jobs['Lug']._Message(PHYSICAL_MEMORY, {'phase': STANDARD_PHASE, 
+    'physical_memory': 32615.0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(MINIMUM_MEMORY, {'minimum_memory': 18.0, 
+    'phase': STANDARD_PHASE, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FRAME, {'phase': STANDARD_PHASE, 'step': 0, 
+    'frame': 1, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STATUS, {'totalTime': 1.0, 'attempts': 1, 
+    'timeIncrement': 1.0, 'increment': 1, 'stepTime': 1.0, 'step': 1, 
+    'jobName': 'Lug', 'severe': 0, 'iterations': 1, 'phase': STANDARD_PHASE, 
+    'equilibrium': 1})
+mdb.jobs['Lug']._Message(END_STEP, {'phase': STANDARD_PHASE, 'stepId': 1, 
+    'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(COMPLETED, {'phase': STANDARD_PHASE, 
+    'message': 'Analysis phase complete', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(JOB_COMPLETED, {'time': 'Thu Sep 22 11:39:52 2022', 
+    'jobName': 'Lug'})
+mdb.models['standard'].predefinedFields['Residual_Stress'].setValues(sigma11=
+    -10000000000.0, sigma12=1.0, sigma13=1.0, sigma22=1.0, sigma23=1.0, 
+    sigma33=1.0)
+mdb.jobs['Lug'].submit(consistencyChecking=OFF)
+mdb.jobs['Lug']._Message(STARTED, {'phase': BATCHPRE_PHASE, 
+    'clientHost': 'EECS2420P16', 'handle': 0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(HEADING, {'phase': BATCHPRE_PHASE, 
+    'heading': 'Linear Elastic Steel Connecting Lug', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FILE, {'phase': BATCHPRE_PHASE, 
+    'file': 'C:\\temp\\Lug.odb', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(COMPLETED, {'phase': BATCHPRE_PHASE, 
+    'message': 'Analysis phase complete', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STARTED, {'phase': STANDARD_PHASE, 
+    'clientHost': 'EECS2420P16', 'handle': 9756, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STEP, {
+    'stepName': 'Apply uniform pressure to the hole', 'phase': STANDARD_PHASE, 
+    'stepId': 1, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FRAME, {'phase': STANDARD_PHASE, 'step': 0, 
+    'frame': 0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(MEMORY_ESTIMATE, {'phase': STANDARD_PHASE, 
+    'jobName': 'Lug', 'memory': 46.0})
+mdb.jobs['Lug']._Message(PHYSICAL_MEMORY, {'phase': STANDARD_PHASE, 
+    'physical_memory': 32615.0, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(MINIMUM_MEMORY, {'minimum_memory': 18.0, 
+    'phase': STANDARD_PHASE, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(ODB_FRAME, {'phase': STANDARD_PHASE, 'step': 0, 
+    'frame': 1, 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(STATUS, {'totalTime': 1.0, 'attempts': 1, 
+    'timeIncrement': 1.0, 'increment': 1, 'stepTime': 1.0, 'step': 1, 
+    'jobName': 'Lug', 'severe': 0, 'iterations': 1, 'phase': STANDARD_PHASE, 
+    'equilibrium': 1})
+mdb.jobs['Lug']._Message(END_STEP, {'phase': STANDARD_PHASE, 'stepId': 1, 
+    'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(COMPLETED, {'phase': STANDARD_PHASE, 
+    'message': 'Analysis phase complete', 'jobName': 'Lug'})
+mdb.jobs['Lug']._Message(JOB_COMPLETED, {'time': 'Thu Sep 22 11:41:15 2022', 
+    'jobName': 'Lug'})
+# Save by andlars on 2022_09_22-11.42.13; build 2022 2021_09_15-13.57.30 176069
