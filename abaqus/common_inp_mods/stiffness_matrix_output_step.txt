@@ -1,0 +1,10 @@
+**
+** Custom step for stiffness matrix generation
+**
+*Step, name=Matrix_Gen2
+**
+** Generate the stiffness matrix for this model
+**
+*Matrix Generate, STIFFNESS
+*Matrix Output, STIFFNESS, FORMAT=COORDINATE
+*End Step
