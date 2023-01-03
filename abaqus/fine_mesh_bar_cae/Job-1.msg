@@ -1,17 +1,17 @@
 1
 
-   Abaqus 2022                                  Date 01-Jan-2023   Time 20:47:23
+   Abaqus 2022                                  Date 03-Jan-2023   Time 00:36:02
    For use by UNIVERSITY OF MICHIGAN under license from Dassault Systemes or its subsidiary.
 
                                                                                  
- equilibirum                                                                     
+ Achieve Equilibrium                                                             
  STEP    1     INCREMENT     1     STEP TIME    0.00    
 
 
                         S T E P       1     S T A T I C   A N A L Y S I S
 
 
-          equilibirum                                                                     
+          Achieve Equilibrium                                                             
 
      AUTOMATIC TIME CONTROL WITH -
           A SUGGESTED INITIAL TIME INCREMENT OF                 1.00    
@@ -140,12 +140,12 @@
                CONVERGENCE CHECKS FOR EQUILIBRIUM ITERATION     1
 
 
- AVERAGE FORCE                      5.186E-13   TIME AVG. FORCE       1.000E-02
- LARGEST RESIDUAL FORCE             2.782E-12   AT NODE       1472   DOF  3
+ AVERAGE FORCE                      1.664E-11   TIME AVG. FORCE       1.000E-02
+ LARGEST RESIDUAL FORCE            -1.044E-10   AT NODE        251   DOF  3
    INSTANCE: PART-1-1                                                                        
- LARGEST INCREMENT OF DISP.         9.039E-03   AT NODE          3   DOF  3
+ LARGEST INCREMENT OF DISP.        -0.299       AT NODE          3   DOF  3
    INSTANCE: PART-1-1                                                                        
- LARGEST CORRECTION TO DISP.        9.039E-03   AT NODE          3   DOF  3
+ LARGEST CORRECTION TO DISP.       -0.299       AT NODE          3   DOF  3
    INSTANCE: PART-1-1                                                                        
           THERE IS ZERO FORCE     EVERYWHERE
  
@@ -186,7 +186,7 @@
 
 
      JOB TIME SUMMARY
-       USER TIME (SEC)      =  0.30000    
-       SYSTEM TIME (SEC)    =  0.10000    
+       USER TIME (SEC)      =  0.40000    
+       SYSTEM TIME (SEC)    =   0.0000    
        TOTAL CPU TIME (SEC) =  0.40000    
-       WALLCLOCK TIME (SEC) =          0
+       WALLCLOCK TIME (SEC) =          1

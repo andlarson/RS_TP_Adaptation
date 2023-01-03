@@ -1,6 +1,6 @@
 1
 
-   Abaqus 2022                                  Date 02-Jan-2023   Time 23:23:07
+   Abaqus 2022                                  Date 03-Jan-2023   Time 01:46:53
    For use by UNIVERSITY OF MICHIGAN under license from Dassault Systemes or its subsidiary.
 
                                                                                  
@@ -24,7 +24,7 @@
   MATRIX OUTPUT FORMAT - COORDINATE
 1
 
-   Abaqus 2022                                  Date 02-Jan-2023   Time 23:23:11
+   Abaqus 2022                                  Date 03-Jan-2023   Time 01:46:57
    For use by UNIVERSITY OF MICHIGAN under license from Dassault Systemes or its subsidiary.
 
                                                                                  
@@ -127,9 +127,9 @@
 
      CHECK POINT  END OF SOLVER       
 
-       ELAPSED USER TIME (SEC)      =  0.10000    
+       ELAPSED USER TIME (SEC)      =   0.0000    
        ELAPSED SYSTEM TIME (SEC)    =   0.0000    
-       ELAPSED TOTAL CPU TIME (SEC) =  0.10000    
+       ELAPSED TOTAL CPU TIME (SEC) =   0.0000    
        ELAPSED WALLCLOCK TIME (SEC) =          0
  
 
@@ -162,12 +162,12 @@
                CONVERGENCE CHECKS FOR EQUILIBRIUM ITERATION     1
 
 
- AVERAGE FORCE                      5.142E-12   TIME AVG. FORCE       1.000E-02
- LARGEST RESIDUAL FORCE            -3.963E-11   AT NODE        761   DOF  3
+ AVERAGE FORCE                      1.664E-11   TIME AVG. FORCE       1.000E-02
+ LARGEST RESIDUAL FORCE            -1.044E-10   AT NODE        251   DOF  3
    INSTANCE: PART-1-1                                                                        
- LARGEST INCREMENT OF DISP.         9.038E-02   AT NODE          3   DOF  3
+ LARGEST INCREMENT OF DISP.        -0.299       AT NODE          3   DOF  3
    INSTANCE: PART-1-1                                                                        
- LARGEST CORRECTION TO DISP.        9.038E-02   AT NODE          3   DOF  3
+ LARGEST CORRECTION TO DISP.       -0.299       AT NODE          3   DOF  3
    INSTANCE: PART-1-1                                                                        
           THERE IS ZERO FORCE     EVERYWHERE
  
@@ -211,4 +211,4 @@
        USER TIME (SEC)      =   1.1000    
        SYSTEM TIME (SEC)    =  0.30000    
        TOTAL CPU TIME (SEC) =   1.4000    
-       WALLCLOCK TIME (SEC) =          5
+       WALLCLOCK TIME (SEC) =          4
