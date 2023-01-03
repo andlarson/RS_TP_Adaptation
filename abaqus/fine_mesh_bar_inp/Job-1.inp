@@ -3508,7 +3508,7 @@
 ** 
 ** Name: Predefined Field-1   Type: Stress
 *Initial Conditions, type=STRESS
-_PickedSet4, 10., 0., 0., 0., 0., 0.
+_PickedSet4, 100., 0., 0., 0., 0., 0.
 ** ----------------------------------------------------------------
 **
 ** Custom step for stiffness matrix generation
@@ -3524,12 +3524,14 @@ _PickedSet4, 10., 0., 0., 0., 0., 0.
 ** STEP: Step-1
 ** 
 *Step, name=Step-1, nlgeom=NO
-equilibirum
+Achieve Equilibrium
 *Static
 1., 1., 1e-05, 1.
 **
 ** Custom Output Requests to Data File !!!!
+** Must go in a step!
 **
 *Node Print
 U
 *End Step
+**

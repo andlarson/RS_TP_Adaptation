@@ -1,6 +1,6 @@
 1
 
-   Abaqus 2022                                  Date 01-Jan-2023   Time 20:53:50
+   Abaqus 2022                                  Date 02-Jan-2023   Time 23:23:07
    For use by UNIVERSITY OF MICHIGAN under license from Dassault Systemes or its subsidiary.
 
                                                                                  
@@ -24,18 +24,18 @@
   MATRIX OUTPUT FORMAT - COORDINATE
 1
 
-   Abaqus 2022                                  Date 01-Jan-2023   Time 20:53:52
+   Abaqus 2022                                  Date 02-Jan-2023   Time 23:23:11
    For use by UNIVERSITY OF MICHIGAN under license from Dassault Systemes or its subsidiary.
 
                                                                                  
- equilibirum                                                                     
+ Achieve Equilibrium                                                             
  STEP    2     INCREMENT     1     STEP TIME    0.00    
 
 
                         S T E P       2     S T A T I C   A N A L Y S I S
 
 
-          equilibirum                                                                     
+          Achieve Equilibrium                                                             
 
      AUTOMATIC TIME CONTROL WITH -
           A SUGGESTED INITIAL TIME INCREMENT OF                 1.00    
@@ -162,12 +162,12 @@
                CONVERGENCE CHECKS FOR EQUILIBRIUM ITERATION     1
 
 
- AVERAGE FORCE                      5.186E-13   TIME AVG. FORCE       1.000E-02
- LARGEST RESIDUAL FORCE             2.782E-12   AT NODE       1472   DOF  3
+ AVERAGE FORCE                      5.142E-12   TIME AVG. FORCE       1.000E-02
+ LARGEST RESIDUAL FORCE            -3.963E-11   AT NODE        761   DOF  3
    INSTANCE: PART-1-1                                                                        
- LARGEST INCREMENT OF DISP.         9.039E-03   AT NODE          3   DOF  3
+ LARGEST INCREMENT OF DISP.         9.038E-02   AT NODE          3   DOF  3
    INSTANCE: PART-1-1                                                                        
- LARGEST CORRECTION TO DISP.        9.039E-03   AT NODE          3   DOF  3
+ LARGEST CORRECTION TO DISP.        9.038E-02   AT NODE          3   DOF  3
    INSTANCE: PART-1-1                                                                        
           THERE IS ZERO FORCE     EVERYWHERE
  
@@ -209,6 +209,6 @@
 
      JOB TIME SUMMARY
        USER TIME (SEC)      =   1.1000    
-       SYSTEM TIME (SEC)    =  0.40000    
-       TOTAL CPU TIME (SEC) =   1.5000    
-       WALLCLOCK TIME (SEC) =          4
+       SYSTEM TIME (SEC)    =  0.30000    
+       TOTAL CPU TIME (SEC) =   1.4000    
+       WALLCLOCK TIME (SEC) =          5

@@ -3492,10 +3492,6 @@
 *Instance, name=Part-1-1, part=Part-1
 *End Instance
 **  
-*Nset, nset=_PickedSet4, internal, instance=Part-1-1, generate
-    1,  2187,     1
-*Elset, elset=_PickedSet4, internal, instance=Part-1-1, generate
-    1,  1280,     1
 *End Assembly
 ** 
 ** MATERIALS
@@ -3503,30 +3499,3 @@
 *Material, name=Generic_Metal
 *Elastic
 72000., 0.3
-** 
-** PREDEFINED FIELDS
-** 
-** Name: Predefined Field-1   Type: Stress
-*Initial Conditions, type=STRESS
-_PickedSet4, 10., 0., 0., 0., 0., 0.
-** ----------------------------------------------------------------
-** 
-** STEP: Step-1
-** 
-*Step, name=Step-1, nlgeom=NO
-equilibirum
-*Static
-1., 1., 1e-05, 1.
-** 
-** OUTPUT REQUESTS
-** 
-*Restart, write, frequency=0
-** 
-** FIELD OUTPUT: F-Output-1
-** 
-*Output, field, variable=PRESELECT
-** 
-** HISTORY OUTPUT: H-Output-1
-** 
-*Output, history, variable=PRESELECT
-*End Step
