@@ -113,6 +113,7 @@ if __name__ == '__main__':
     stiff_mat = parse_stiff_mat('/home/andrew/Desktop/stuff/umich/umich_machining_project/abaqus/fine_mesh_bar_inp/Job-1_STIF1.mtx')
     disp_vec = parse_displacement_vec('/home/andrew/Desktop/stuff/umich/umich_machining_project/abaqus/fine_mesh_bar_inp/Job-1.dat')
 
+    print(disp_vec)
     print(stiff_mat.dot(disp_vec.T))
 
     
