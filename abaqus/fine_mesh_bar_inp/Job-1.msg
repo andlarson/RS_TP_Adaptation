@@ -1,6 +1,6 @@
 1
 
-   Abaqus 2022                                  Date 03-Jan-2023   Time 01:46:53
+   Abaqus 2022                                  Date 02-Feb-2023   Time 08:09:14
    For use by UNIVERSITY OF MICHIGAN under license from Dassault Systemes or its subsidiary.
 
                                                                                  
@@ -24,7 +24,7 @@
   MATRIX OUTPUT FORMAT - COORDINATE
 1
 
-   Abaqus 2022                                  Date 03-Jan-2023   Time 01:46:57
+   Abaqus 2022                                  Date 02-Feb-2023   Time 08:09:18
    For use by UNIVERSITY OF MICHIGAN under license from Dassault Systemes or its subsidiary.
 
                                                                                  
@@ -127,9 +127,9 @@
 
      CHECK POINT  END OF SOLVER       
 
-       ELAPSED USER TIME (SEC)      =   0.0000    
+       ELAPSED USER TIME (SEC)      =  0.10000    
        ELAPSED SYSTEM TIME (SEC)    =   0.0000    
-       ELAPSED TOTAL CPU TIME (SEC) =   0.0000    
+       ELAPSED TOTAL CPU TIME (SEC) =  0.10000    
        ELAPSED WALLCLOCK TIME (SEC) =          0
  
 
@@ -208,7 +208,7 @@
 
 
      JOB TIME SUMMARY
-       USER TIME (SEC)      =   1.1000    
-       SYSTEM TIME (SEC)    =  0.30000    
-       TOTAL CPU TIME (SEC) =   1.4000    
+       USER TIME (SEC)      =   1.0000    
+       SYSTEM TIME (SEC)    =  0.50000    
+       TOTAL CPU TIME (SEC) =   1.5000    
        WALLCLOCK TIME (SEC) =          4

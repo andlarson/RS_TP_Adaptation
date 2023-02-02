@@ -1,6 +1,6 @@
 1
 
-   Abaqus 2022                                  Date 03-Jan-2023   Time 00:36:02
+   Abaqus 2022                                  Date 02-Feb-2023   Time 07:55:11
    For use by UNIVERSITY OF MICHIGAN under license from Dassault Systemes or its subsidiary.
 
                                                                                  
@@ -105,10 +105,10 @@
 
      CHECK POINT  END OF SOLVER       
 
-       ELAPSED USER TIME (SEC)      =   0.0000    
+       ELAPSED USER TIME (SEC)      =  0.10000    
        ELAPSED SYSTEM TIME (SEC)    =   0.0000    
-       ELAPSED TOTAL CPU TIME (SEC) =   0.0000    
-       ELAPSED WALLCLOCK TIME (SEC) =          0
+       ELAPSED TOTAL CPU TIME (SEC) =  0.10000    
+       ELAPSED WALLCLOCK TIME (SEC) =          1
  
 
  ***WARNING: THE SYSTEM MATRIX HAS 1 NEGATIVE EIGENVALUES.
@@ -187,6 +187,6 @@
 
      JOB TIME SUMMARY
        USER TIME (SEC)      =  0.40000    
-       SYSTEM TIME (SEC)    =   0.0000    
-       TOTAL CPU TIME (SEC) =  0.40000    
-       WALLCLOCK TIME (SEC) =          1
+       SYSTEM TIME (SEC)    =  0.10000    
+       TOTAL CPU TIME (SEC) =  0.50000    
+       WALLCLOCK TIME (SEC) =          2

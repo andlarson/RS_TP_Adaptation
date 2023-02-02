@@ -99,7 +99,7 @@ options = {
     'symmetricModelGeneration':OFF,
     'tempNoInterpolExtList':['.fil', '.odb', '.sim', '.SMAManifest'],
     'thermal':OFF,
-    'tmpdir':'C:\\Users\\andlars\\AppData\\Local\\Temp\\1',
+    'tmpdir':'C:\\Users\\andlars\\AppData\\Local\\Temp\\2',
     'tracer':OFF,
     'transientSensitivity':OFF,
     'unfold_param':OFF,

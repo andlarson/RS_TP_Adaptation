@@ -47,7 +47,6 @@ options = {
     'initialConditionsFile':OFF,
     'input':'simple_truss',
     'inputFormat':INP,
-    'interactive':None,
     'interpolExtList':['.odb', '.sim', '.SMAManifest'],
     'job':'simple_truss',
     'keyword_licenses':[],

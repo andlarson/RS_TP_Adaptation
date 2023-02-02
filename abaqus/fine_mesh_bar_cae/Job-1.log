@@ -3,20 +3,20 @@ Abaqus JOB Job-1
 Abaqus 2022
 Abaqus License Manager checked out the following licenses:
 Abaqus/Standard checked out 5 tokens from Flexnet server license-abaqus.engin.umich.edu.
-<222 out of 230 licenses remain available>.
+<225 out of 230 licenses remain available>.
 Begin Analysis Input File Processor
-1/3/2023 12:35:59 AM
+2/2/2023 7:55:06 AM
 Run pre.exe
-1/3/2023 12:36:01 AM
+2/2/2023 7:55:08 AM
 End Analysis Input File Processor
 Begin Abaqus/Standard Analysis
-1/3/2023 12:36:01 AM
+2/2/2023 7:55:08 AM
 Run standard.exe
-1/3/2023 12:36:03 AM
+2/2/2023 7:55:14 AM
 End Abaqus/Standard Analysis
 Begin SIM Wrap-up
-1/3/2023 12:36:05 AM
+2/2/2023 7:55:14 AM
 Run SMASimUtility.exe
-1/3/2023 12:36:05 AM
+2/2/2023 7:55:14 AM
 End SIM Wrap-up
 Abaqus JOB Job-1 COMPLETED

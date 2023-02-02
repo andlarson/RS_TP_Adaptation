@@ -1,6 +1,6 @@
 1
 
-   Abaqus 2022                                  Date 05-Dec-2022   Time 15:15:34
+   Abaqus 2022                                  Date 06-Jan-2023   Time 13:23:54
    For use by UNIVERSITY OF MICHIGAN under license from Dassault Systemes or its subsidiary.
 
  Simple_Truss                                                                    
@@ -47,7 +47,7 @@
 
 
      JOB TIME SUMMARY
-       USER TIME (SEC)      =  0.50000    
-       SYSTEM TIME (SEC)    =   0.0000    
+       USER TIME (SEC)      =  0.40000    
+       SYSTEM TIME (SEC)    =  0.10000    
        TOTAL CPU TIME (SEC) =  0.50000    
-       WALLCLOCK TIME (SEC) =          1
+       WALLCLOCK TIME (SEC) =          3

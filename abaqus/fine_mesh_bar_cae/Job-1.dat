@@ -1,6 +1,6 @@
 1
 
-   Abaqus 2022                                  Date 03-Jan-2023   Time 00:36:00
+   Abaqus 2022                                  Date 02-Feb-2023   Time 07:55:07
    For use by UNIVERSITY OF MICHIGAN under license from Dassault Systemes or its subsidiary.
 
 
@@ -18,7 +18,7 @@
                    used or reproduced only in accordance with the terms
                    of such license.
  
-                          On machine caen-vdi22hp-27 
+                          On machine caen-vdi22hp-01 
                           you are authorized to run
                           Abaqus/Standard until 31-Jul-2023
 
@@ -42,7 +42,7 @@
                 *                                                         * 
                 *                       Abaqus 2022                       * 
                 *                                                         * 
-                *          BUILD ID: 2021_09_15-10.57.30 176069           * 
+                *          BUILD ID: 2021_09_15-13.57.30 176069           * 
                 *                                                         * 
                 *                                                         * 
                 *  Please make sure you are using                         * 
@@ -139,7 +139,7 @@
        WALLCLOCK TIME (SEC) =          1
 1
 
-   Abaqus 2022                                  Date 03-Jan-2023   Time 00:36:02
+   Abaqus 2022                                  Date 02-Feb-2023   Time 07:55:11
    For use by UNIVERSITY OF MICHIGAN under license from Dassault Systemes or its subsidiary.
 
                                                                                                STEP    1  INCREMENT    1
@@ -211,6 +211,6 @@
 
      JOB TIME SUMMARY
        USER TIME (SEC)      =  0.40000    
-       SYSTEM TIME (SEC)    =   0.0000    
-       TOTAL CPU TIME (SEC) =  0.40000    
-       WALLCLOCK TIME (SEC) =          1
+       SYSTEM TIME (SEC)    =  0.10000    
+       TOTAL CPU TIME (SEC) =  0.50000    
+       WALLCLOCK TIME (SEC) =          2
