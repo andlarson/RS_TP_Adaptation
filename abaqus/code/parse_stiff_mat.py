@@ -1,7 +1,7 @@
 import io
 import sys
 import numpy as np
-from scipy import linalg
+import matplotlib.pyplot as plt
 np.set_printoptions(threshold=sys.maxsize)
 
 
@@ -113,13 +113,67 @@ if __name__ == '__main__':
     stiff_mat = parse_stiff_mat('/home/andrew/Desktop/stuff/umich/umich_machining_project/abaqus/fine_mesh_bar_inp/Job-1_STIF1.mtx')
     disp_vec = parse_displacement_vec('/home/andrew/Desktop/stuff/umich/umich_machining_project/abaqus/fine_mesh_bar_inp/Job-1.dat')
 
-    print(disp_vec)
-    print(stiff_mat.dot(disp_vec.T))
+    # Do the matrix-vector multiplication.
+    # print(stiff_mat @ disp_vec.T)
 
+    # Contour of the stiffness matrix.
+    # plt.imshow(stiff_mat, cmap='hot', interpolation='nearest')
+    # plt.show()
     
 
+    # -------------------
+    # A setup to examine / debug why the force for a particular node in a
+    #   particular direction is as it is.
+    # -------------------
 
+    # The node we are intested in.
+    node_of_interest = 241
+
+    # Each node has a force computed for it in each of its degrees of
+    #   freedom. Specify which degree of freedom (direction) that we are
+    #   interested in.
+    # x = 0, y = 1, z = 2
+    dir_of_interest = 0
+
+    # Map the node + direction information to the correct row of the
+    #   stiffness matrix and the computed force vector.
+    r = (node_of_interest - 1) * 3 + dir_of_interest
+
+    # Dump the nodal displacements (node numbers and directions) which affect
+    #    the force being computed for some node in some direction.
+    for i in range(stiff_mat.shape[1]):
         
+        dir_of_interest_str = ""
+        if dir_of_interest == 0:
+            dir_of_interest_str = "x"
+        elif dir_of_interest == 1:
+            dir_of_interest_str = "y"
+        else:
+            dir_of_interest_str = "z"
+
+        # For each nonzero entry in that row, dump which node and which direction
+        #   affects the force calculation.
+        if stiff_mat[r, i] != 0:
+
+            # Add 1 because node numbering in Abaqus starts at 1.
+            node_affecting_force = int(i/3) + 1
+
+            # Figure out the direction of displacement affecting the force
+            #   calculation.
+            direction = i % 3
+            dir_str = ""
+            if direction == 0:
+                dir_str = "x"
+            elif direction == 1:
+                dir_str = "y"
+            else:
+                dir_str = "z"
+
+            print("Displacement at node " + str(node_affecting_force) + " in the " + dir_str + " direction affects the force computed for node " + str(node_of_interest) + " in the direction " + str(dir_of_interest_str))
+
+
+    # Print the force in the direction of interest for the node of interest.
+    print("The computed force for node " + str(node_of_interest) + " in the direction " + str(dir_of_interest_str) + " is " + str((stiff_mat @ disp_vec.T)[r, 0]))
 
 
 
