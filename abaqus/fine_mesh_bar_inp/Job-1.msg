@@ -1,6 +1,6 @@
 1
 
-   Abaqus 2022                                  Date 02-Feb-2023   Time 08:09:14
+   Abaqus 2022                                  Date 06-Mar-2023   Time 21:01:21
    For use by UNIVERSITY OF MICHIGAN under license from Dassault Systemes or its subsidiary.
 
                                                                                  
@@ -24,7 +24,7 @@
   MATRIX OUTPUT FORMAT - COORDINATE
 1
 
-   Abaqus 2022                                  Date 02-Feb-2023   Time 08:09:18
+   Abaqus 2022                                  Date 06-Mar-2023   Time 21:01:26
    For use by UNIVERSITY OF MICHIGAN under license from Dassault Systemes or its subsidiary.
 
                                                                                  
@@ -208,7 +208,7 @@
 
 
      JOB TIME SUMMARY
-       USER TIME (SEC)      =   1.0000    
-       SYSTEM TIME (SEC)    =  0.50000    
+       USER TIME (SEC)      =   1.1000    
+       SYSTEM TIME (SEC)    =  0.40000    
        TOTAL CPU TIME (SEC) =   1.5000    
-       WALLCLOCK TIME (SEC) =          4
+       WALLCLOCK TIME (SEC) =          6
