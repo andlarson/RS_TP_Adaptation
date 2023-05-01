@@ -1,0 +1,18 @@
+
+
+
+# Prevent future simulation results from being tracked.
+# The simulation files can be very big and take up too much space.
+*.mtx
+*.com
+*.dat
+*.log
+*.msg
+*.odb
+*.cae
+*.sta
+*.inp
+*.ipm
+*.prt
+*.jnl
+
