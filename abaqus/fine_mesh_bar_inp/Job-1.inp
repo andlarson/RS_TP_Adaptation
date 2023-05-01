@@ -3509,17 +3509,19 @@
 ** Name: Predefined Field-1   Type: Stress
 *Initial Conditions, type=STRESS
 _PickedSet4, 0., 0., 100., 0., 0., 0.
-** ----------------------------------------------------------------
+** ----------------------------------------------------------------------------
 **
-** Custom step for stiffness matrix generation
+** Custom step for stiffness matrix generation.
 **
 *Step, name=Matrix_Gen2
 **
-** Generate the stiffness matrix for this model
+** Generate the stiffness matrix.
+** By default a .mtx file is created and the matrix is dumped there.
 **
 *Matrix Generate, STIFFNESS
 *Matrix Output, STIFFNESS, FORMAT=COORDINATE
 *End Step
+** ----------------------------------------------------------------------------
 ** 
 ** STEP: Step-1
 ** 
@@ -3527,10 +3529,14 @@ _PickedSet4, 0., 0., 100., 0., 0., 0.
 Achieve Equilibrium
 *Static
 1., 1., 1e-05, 1.
+** ----------------------------------------------------------------------------
 **
-** Custom Output Requests to Data File !!!!
+** Custom Output Requests to Data (.dat) file. 
 ** Must go in a step!
+** GLOBAL=YES ensures that the nodal displacements are given in the global
+**   coordinate system.
 **
-*Node Print
+*Node Print, GLOBAL=YES
 U
+** ----------------------------------------------------------------------------
 *End Step

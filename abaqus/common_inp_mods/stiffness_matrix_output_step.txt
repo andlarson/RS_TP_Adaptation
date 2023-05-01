@@ -1,10 +1,14 @@
+** ----------------------------------------------------------------------------
 **
-** Custom step for stiffness matrix generation
+** Custom step for stiffness matrix generation.
 **
 *Step, name=Matrix_Gen2
 **
-** Generate the stiffness matrix for this model
+** Generate the stiffness matrix.
+** By default a .mtx file is created and the matrix is dumped there.
 **
 *Matrix Generate, STIFFNESS
 *Matrix Output, STIFFNESS, FORMAT=COORDINATE
 *End Step
+** ----------------------------------------------------------------------------
+

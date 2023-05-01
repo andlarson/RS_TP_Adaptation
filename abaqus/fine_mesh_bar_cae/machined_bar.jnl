@@ -81,3 +81,18 @@ mdb.models['Model-1'].parts['Part-1'].seedPart(deviationFactor=0.1,
     minSizeFactor=0.1, size=5.0)
 mdb.models['Model-1'].parts['Part-1'].generateMesh()
 # Save by andlars on 2022_12_07-15.45.23; build 2022 2021_09_15-13.57.30 176069
+from part import *
+from material import *
+from section import *
+from assembly import *
+from step import *
+from interaction import *
+from load import *
+from mesh import *
+from optimization import *
+from job import *
+from sketch import *
+from visualization import *
+from connectorBehavior import *
+mdb.models['Model-1'].rootAssembly.regenerate()
+# Save by andlars on 2023_03_31-11.07.18; build 2022 2021_09_15-13.57.30 176069

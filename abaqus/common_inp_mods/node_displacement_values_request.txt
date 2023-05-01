@@ -1,6 +1,11 @@
+** ----------------------------------------------------------------------------
 **
-** Custom Output Requests to Data File !!!!
+** Custom Output Requests to Data (.dat) file. 
 ** Must go in a step!
+** GLOBAL=YES ensures that the nodal displacements are given in the global
+**   coordinate system.
 **
-*Node Print
+*Node Print, GLOBAL=YES
 U
+** ----------------------------------------------------------------------------
+
