@@ -4,7 +4,116 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
 from pathlib import Path
+import subprocess
 
+
+
+"""
+Input:
+    path - String.
+           Full path of file.
+
+Functionality:
+    Counts the total number of lines in a file via the wc program. Note that
+      this is a Unix program, so it's expected that the system has it available.
+    It's expected that this is faster than anything Python can do.
+
+Return:
+    None.
+"""
+def file_len(path):
+    p = subprocess.Popen(['wc', '-l', path], stdout=subprocess.PIPE, 
+                                             stderr=subprocess.PIPE)
+    result, err = p.communicate()
+    if p.returncode != 0:
+        raise IOError(err)
+    return int(result.strip().split()[0])
+
+
+
+"""
+Input:
+    path - String.
+           Full path of file.
+
+Functionality:
+    Returns the last line of the file. Avoids reading all lines into memory so
+      it works well for very large files.
+
+Return:
+    String. Last line of file.
+"""
+def read_last_line(path):
+
+    with open(path, 'rb') as f:
+        try: 
+            f.seek(-2, os.SEEK_END)
+            while f.read(1) != b'\n':
+                f.seek(-2, os.SEEK_CUR)
+        except OSError:
+            f.seek(0)
+
+        last_line = f.readline().decode()
+
+    return last_line
+
+
+
+"""
+Input:
+    path - String. Path of .mtx file.
+    size - Integer. Matrix assumed to be square.
+    nonzero - Integer. Number of nonzero entries in matrix.
+
+Functionality:
+    Adds the necessary metadata to the top of the .mtx file so that the file is
+      in true .mtx format and can be interpreted by scipy.
+
+Return:
+    None.
+"""
+def add_mtx_metadata(path, size, nonzero):
+
+    return 0
+
+
+
+"""
+CURRENTLY NOT IN USE - Right now, the technique I'm using is to modify the
+.mtx file directly to make it conform.
+
+Input:
+    path - String.
+           Full path of .mtx file of interest.
+
+Functionality:
+    Abaqus produces .mtx files which don't exactly conform with the .mtx
+      standard which scipy expects. In particular, the .mtx files produced
+      by Abaqus are missing the first two lines of metadata.
+    See the discussions at https://math.nist.gov/MatrixMarket/formats.html
+      and https://stackoverflow.com/q/52947403 for more info.
+    As such, this function modifies a .mtx file to include this metadata.
+    This function assumes that the number of lines in the .mtx file is exactly
+      the number of nonzero entries in the matrix. It also assumes that the
+      last line of the .mtx file contains the size of the matrix.
+
+Return:
+    None.
+"""
+def make_abaqus_mtx_conform(path):
+
+    if not Path(path).exists():
+        raise RuntimeError("Bad path! Path does not exist.")
+
+    line_cnt = file_len(path)
+    last_line = read_last_line(path)
+
+    # Now write the necessary metadata.
+    mtx_file = open(path, 'r+')
+    
+    # The generic stuff.
+
+ 
 
 
 """
@@ -27,7 +136,7 @@ Return:
 def save_stiff_mat(path, name):
 
     if not Path(path).exists():
-        raise RuntimeError("Path passed to save_stiff_mat does not exist.")
+        raise RuntimeError("Bad path! Path does not exist!")
 
     # Read the matrix in.
     # Not clear if the resulting matrix is in a sparse format or not.
@@ -39,14 +148,15 @@ def save_stiff_mat(path, name):
     stiffness_mtx = sp.sparse.lil_array(stiffness_mtx)
 
     # Now save it into the stiffness matrix storage area.
-    sp.sparse.save_npz("./stiffness_matrices/" + name)
+    sp.sparse.save_npz("./stiffness_matrices/" + name, stiffness_mtx.tocsr())
             
 
 
 """
 Input:
-    path - String. 
-           Full path of saved sitffness matrix which is in sparse format.
+    name - String. 
+           Name of saved sparse matrix. It is expected that the matrix is
+             stored in the directory of sparse matrices.
 
 Functionality:
     Reads the sparse matrix from .npz format into a sparse array and returns
@@ -55,14 +165,18 @@ Functionality:
 Return:
     A sparse array in csr (scipy) format.
 """
-def load_stiff_mat(path):
+def load_stiff_mat(name):
+
+    # Construct the path, assuming that the matrix is stored in the saved
+    #   matrix directory.
+    path = './stiffness_matrices/' + name + '.npz'
 
     # Check that the file actaully exists!
     # If not, let the user know.
     if not Path(path).exists():
-        raise RuntimeError("Path passed to load_stiff_mat does not exist.")
+        raise RuntimeError("Bad name! Name does not exist in the matrix save area!")
 
-    stiffness_mat = sp.sparse.csr_array(load_npz(path))
+    stiffness_mat = sp.sparse.csr_array(sp.sparse.load_npz(path))
 
     return stiffness_mat 
 
@@ -125,16 +239,17 @@ def parse_displacement_vec(path):
             
 
 
+
 if __name__ == '__main__':
 
-    path_to_mtx = '/home/andrew/Desktop/stuff/umich/umich_machining_project/abaqus/fine_mesh_bar_inp/Job-1_STIF1.mtx'
+    path_to_mtx = '../../fine_mesh_bar_inp/Job-1_STIF1_modified.mtx'
     save_stiff_mat(path_to_mtx, 'fine_mesh_bar') 
     stiff_mat = load_stiff_mat('fine_mesh_bar')
 
     path_to_disp_vec = '/home/andrew/Desktop/stuff/umich/umich_machining_project/abaqus/fine_mesh_bar_inp/Job-1.dat'
-    disp_vec = parse_displacement_vec(path_to_disp_vec)
+    disp_vec = parse_displacement_vec(path_to_disp_vec).T
 
     # Do the matrix-vector multiplication.
-    print(stiff_mat.dot(disp_vec))
+    print(stiff_mat.dot(disp_vec)) 
 
-    
+
