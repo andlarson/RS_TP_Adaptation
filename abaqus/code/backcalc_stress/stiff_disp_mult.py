@@ -1,10 +1,19 @@
 import io
 import sys
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
 from pathlib import Path
 import subprocess
+
+
+"""
+Note the Abaqus convention:
+    Direction 1 = X Direction
+    Direction 2 = Y Direction
+    Direction 3 = Z Direction
+"""
 
 
 
@@ -19,7 +28,7 @@ Functionality:
     It's expected that this is faster than anything Python can do.
 
 Return:
-    None.
+    Int. Number of lines in the file.
 """
 def file_len(path):
     p = subprocess.Popen(['wc', '-l', path], stdout=subprocess.PIPE, 
@@ -27,6 +36,7 @@ def file_len(path):
     result, err = p.communicate()
     if p.returncode != 0:
         raise IOError(err)
+    
     return int(result.strip().split()[0])
 
 
@@ -61,9 +71,37 @@ def read_last_line(path):
 
 """
 Input:
-    path - String. Path of .mtx file.
-    size - Integer. Matrix assumed to be square.
-    nonzero - Integer. Number of nonzero entries in matrix.
+    path - String.
+           Full path of .mtx file.
+
+Functionality:
+    Parses the last line of the .mtx file uses it to return the size.
+    It's assumed that the node number in the last line of the .mtx file reflects
+      the matrix size.
+
+Return:
+    Int. The size of the stiffness matrix.
+"""
+def get_mtx_size(path):
+    
+    last_line = read_last_line(path)
+
+    parts = last_line.split()
+    
+    assert(len(parts) == 3)
+
+    return int(parts[0])
+
+
+
+"""
+Input:
+    path    - String. 
+              Path of .mtx file.
+    size    - Integer. 
+              Matrix assumed to be square.
+    nonzero - Integer. 
+              Number of nonzero entries in matrix.
 
 Functionality:
     Adds the necessary metadata to the top of the .mtx file so that the file is
@@ -73,14 +111,12 @@ Return:
     None.
 """
 def add_mtx_metadata(path, size, nonzero):
-
     return 0
 
 
 
 """
-CURRENTLY NOT IN USE - Right now, the technique I'm using is to modify the
-.mtx file directly to make it conform.
+CURRENTLY NOT IN USE 
 
 Input:
     path - String.
@@ -115,28 +151,31 @@ def make_abaqus_mtx_conform(path):
 
  
 
-
 """
 Input:
-    path - String.
-           Full path of .mtx file which contains stiffness matrix of interest.
-    name - String.
-           The desired name of the file where the sparse matrix will be saved.
+    path    - String.
+              Full path of .mtx file which contains stiffness matrix of interest.
+    name    - String.
+              The desired name of the file where the sparse matrix will be saved.
+    verbose - Boolean.
+              Turns on verbose output.
 
 Functionality:
-    Reads the .mtx file into a sparse format and then saves it at a particular
+    Reads the .mtx file into csr_array format and then saves it at a particular
       location in the .npz format.
-    I believe that the numpy routines will not understand the sparse format
-      the matrix is saved in, so loading it should be done via the appropriate
-      scipy routines which recognize sparse matrix routines.
-
+    Requires that the matrix is truly in .mtx format so that scipy has the
+      ability to read it.
+    
 Return:
     None.
 """
-def save_stiff_mat(path, name):
+def save_stiff_mat(path, name, verbose):
 
     if not Path(path).exists():
         raise RuntimeError("Bad path! Path does not exist!")
+
+    if verbose:
+        print("Starting to read the mtx file!")
 
     # Read the matrix in.
     # Not clear if the resulting matrix is in a sparse format or not.
@@ -149,73 +188,115 @@ def save_stiff_mat(path, name):
 
     # Now save it into the stiffness matrix storage area.
     sp.sparse.save_npz("./stiffness_matrices/" + name, stiffness_mtx.tocsr())
-            
+
+    if verbose:
+        print("Done reading the mtx file!")
+
 
 
 """
 Input:
-    name - String. 
-           Name of saved sparse matrix. It is expected that the matrix is
-             stored in the directory of sparse matrices.
+    path     - String. 
+               Path to .mtx file.
+    save_dir - String.
+               Directory to save the stiffness matrix in.
+    name     - String.
+               Desired name of .npz file.
+    node_cnt - Int.
+               The number of nodes in the model's mesh.
+    verbose  - Boolean.
+               Turns on verbose output.
 
 Functionality:
-    Reads the sparse matrix from .npz format into a sparse array and returns
-      the sparse array.
+    Parses the .mtx file line-by-line and builds a sparse matrix. As the matrix
+      is built, it is in lil_array (scipy) format. It is stored as a .npz file
+      in csr_array (scipy) format. The matrix is always saved to usual location.
+    This function is offered as an alternative which does the parsing manually.
+      This is useful when the file containing the .mtx file is huge and it
+      doesn't make sense to add metadata to it to make it an official .mtx file.
 
 Return:
-    A sparse array in csr (scipy) format.
+    None.
 """
-def load_stiff_mat(name):
-
-    # Construct the path, assuming that the matrix is stored in the saved
-    #   matrix directory.
-    path = './stiffness_matrices/' + name + '.npz'
-
-    # Check that the file actaully exists!
-    # If not, let the user know.
+def parse_and_save_stiff_mat(path, save_dir, name, node_cnt, verbose):
+    
     if not Path(path).exists():
-        raise RuntimeError("Bad name! Name does not exist in the matrix save area!")
+        raise RuntimeError("Bad path! Path does not exist!")
 
-    stiffness_mat = sp.sparse.csr_array(sp.sparse.load_npz(path))
+    if verbose:
+        print("Starting to parse stiffness matrix")
 
-    return stiffness_mat 
+    stiffness_mtx = sp.sparse.lil_array((node_cnt, node_cnt))
+
+    # Read the file line-by-line without bringing the whole thing into memory.
+    with open(path) as infile:
+        for line in infile:
+            
+            # Split the line into its component parts.
+            parts = line.split()
+
+            # We expect each line of the .mtx file to have 3 components.
+            assert(len(parts) == 3)
+
+            # Subtract 1 because the nodes in Abaqus are 0-indexed.
+            i = int(parts[0]) - 1
+            j = int(parts[1]) - 1
+            val = float(parts[2])
+
+            stiffness_mtx[i, j] = val   
+
+    # Now save it into the stiffness matrix storage area.
+    sp.sparse.save_npz(save_dir + name, stiffness_mtx.tocsr())
+
+    if verbose:
+        print("Done parsing and saving stiffness matrix")
 
 
 
 """
 Input:
-    path - String.
-           Full path of a .dat file which contains the nodal displacements
-             of interest.
+    path     - String.
+               Full path of a .dat file which contains the nodal displacements
+                 of interest.
+    save_dir - String.
+               Directory to save the displacement vector to.
+    name     - String.
+               Desired name of saved file.
+    node_cnt - Int.
+               The number of nodes in the model's mesh.
+    verbose  - Boolean.
+               Turns on verbose output.
 
 Functionality:
+    WARNING: This function uses 'U1' to find the beginning of nodal
+      displacments of interest, uses an empty line to find the end
+      of the nodal displacments. It implicitly assumes that there is
+      only a single collection of nodal displacments in the .dat file.
     Parses the nodal displacements. Assumes there are exactly three
       displacments per node.
     The displacements are in the U1, U2, and U3 directions. It's necessary to
       understand what these directions represent!
+    Saves a 2D numpy array (1 by N) which lists the nodal displacements in a 
+      format like: [node1_U1, node1_U2, node1_U3, node2_U1, node2_U2, node2_U3, 
+      ...].
 
 Return:
-    A 2D numpy array (1 by N) which lists the nodal displacements in a format 
-      like: [node1_U1, node1_U2, node1_U3, node2_U1, node2_U2, node2_U3, ...]
+    None.
 """
-def parse_displacement_vec(path):
+def parse_and_save_displacement_vec(path, save_dir, name, node_cnt, verbose):
 
     if not Path(path).exists():
         raise RuntimeError("Bad path passed to parse_displacement_vec!") 
 
-    # Figure out how many nodes are in the model. 
-    node_cnt = -1 
-    with open(path) as f:
-        for line in f:
-            if 'number of nodes' in line:
-                node_cnt = int(line.split()[3])
-    assert(node_cnt > 0)
+    if verbose:
+        print("Starting to parse the displacement vector!")
 
     # Create the displacement vector.
     displacement_vec = np.zeros((1, 3 * node_cnt))
 
     with open(path) as f:
 
+        # Use 'U1' to find the beginning of the nodal displacements.
         while ('U1' not in f.readline()):
             pass
     
@@ -235,21 +316,69 @@ def parse_displacement_vec(path):
 
             cur_line = f.readline()
 
-    return displacement_vec
-            
+    np.save(save_dir + name, displacement_vec)
+
+    if verbose:
+        print("Done parsing and saving the displacement vector!")
+
+
+
+"""
+Input:
+    path - String. 
+           Full path of stored array.
+           
+Functionality:
+    Reads the stored array (can be in .npz or .npy format) and returns it.
+      Note that the result can be a sparse array or a dense array.
+
+Return:
+    An array of type corresponding to the saved type.
+"""
+def load_saved_array(path):
+
+    # Check that the file actaully exists!
+    # If not, let the user know.
+    if not Path(path).exists():
+        raise RuntimeError("Bad path! Can't find the specified saved array.")
+
+    # Detect if we're loading a scipy sparse array or a standard numpy dense array.
+    substrings = path.split('.')
+    assert(len(substrings) == 2)
+
+    if substrings[1] == 'npy':
+        saved_array = np.load(path)
+    elif substrings[1] == 'npz':
+       saved_array = sp.sparse.load_npz(path).tocsr()
+    else:
+        raise RuntimeError("Parsing of path to stored array failed!")
+
+    return saved_array 
 
 
 
 if __name__ == '__main__':
 
-    path_to_mtx = '../../fine_mesh_bar_inp/Job-1_STIF1_modified.mtx'
-    save_stiff_mat(path_to_mtx, 'fine_mesh_bar') 
-    stiff_mat = load_stiff_mat('fine_mesh_bar')
+    # Metadata helps avoid too much parsing.
+    NODE_CNT = 148470
 
-    path_to_disp_vec = '/home/andrew/Desktop/stuff/umich/umich_machining_project/abaqus/fine_mesh_bar_inp/Job-1.dat'
-    disp_vec = parse_displacement_vec(path_to_disp_vec).T
+    matrix_storage_area = './displacement_vectors/'
+    disp_vec_storage_area = './displacement_vectors/'
+
+    path_to_mtx = '../../shot_peened_bar_inp/CutShotPeen_STIF2.mtx'
+    parse_and_save_stiff_mat(path_to_mtx, matrix_storage_area, 'shot_peen_bar_mtx', NODE_CNT, True)
+    stiff_mat = load_saved_array(matrix_storage_area + 'shot_peen_bar.npz')
+
+    path_to_disp_vec = '../../shot_peened_bar_inp/CutShotPeen.dat'
+    parse_and_save_displacement_vec(path_to_disp_vec, disp_vec_storage_area, 'shot_peen_bar_dispv', NODE_CNT, True).T
+    disp_vector = load_saved_array(disp_vec_storage_area + 'shot_peen_bar_dispv.npy') 
 
     # Do the matrix-vector multiplication.
-    print(stiff_mat.dot(disp_vec)) 
+    res = stiff_mat.dot(disp_vec)
+    print(res) 
+
+    # Save off the result for future use.
+    np.save('./experimental_results/fine_mesh_bar_force_vector', res)
+
 
 
