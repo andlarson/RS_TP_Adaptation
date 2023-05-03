@@ -226,7 +226,7 @@ def parse_and_save_stiff_mat(path, save_dir, name, node_cnt, verbose):
     if verbose:
         print("Starting to parse stiffness matrix")
 
-    stiffness_mtx = sp.sparse.lil_array((node_cnt, node_cnt))
+    stiffness_mtx = sp.sparse.lil_array((3 * node_cnt, node_cnt))
 
     # Read the file line-by-line without bringing the whole thing into memory.
     with open(path) as infile:
@@ -344,11 +344,11 @@ def load_saved_array(path):
 
     # Detect if we're loading a scipy sparse array or a standard numpy dense array.
     substrings = path.split('.')
-    assert(len(substrings) == 2)
 
-    if substrings[1] == 'npy':
+    # Assuming that the name ends with either '.npy' or '.npz'.
+    if substrings[-1] == 'npy':
         saved_array = np.load(path)
-    elif substrings[1] == 'npz':
+    elif substrings[-1] == 'npz':
        saved_array = sp.sparse.load_npz(path).tocsr()
     else:
         raise RuntimeError("Parsing of path to stored array failed!")
@@ -362,23 +362,26 @@ if __name__ == '__main__':
     # Metadata helps avoid too much parsing.
     NODE_CNT = 148470
 
-    matrix_storage_area = './displacement_vectors/'
+    matrix_storage_area = './stiffness_matrices/'
     disp_vec_storage_area = './displacement_vectors/'
 
     path_to_mtx = '../../shot_peened_bar_inp/CutShotPeen_STIF2.mtx'
-    parse_and_save_stiff_mat(path_to_mtx, matrix_storage_area, 'shot_peen_bar_mtx', NODE_CNT, True)
-    stiff_mat = load_saved_array(matrix_storage_area + 'shot_peen_bar.npz')
+    # parse_and_save_stiff_mat(path_to_mtx, matrix_storage_area, 'shot_peen_bar_mtx', NODE_CNT, True)
+    stiff_mat = load_saved_array(matrix_storage_area + 'shot_peen_bar_mtx.npz')
 
     path_to_disp_vec = '../../shot_peened_bar_inp/CutShotPeen.dat'
-    parse_and_save_displacement_vec(path_to_disp_vec, disp_vec_storage_area, 'shot_peen_bar_dispv', NODE_CNT, True).T
-    disp_vector = load_saved_array(disp_vec_storage_area + 'shot_peen_bar_dispv.npy') 
+    # parse_and_save_displacement_vec(path_to_disp_vec, disp_vec_storage_area, 'shot_peen_bar_dispv', NODE_CNT, True)
+    disp_vec = load_saved_array(disp_vec_storage_area + 'shot_peen_bar_dispv.npy').T
 
     # Do the matrix-vector multiplication.
     res = stiff_mat.dot(disp_vec)
     print(res) 
 
+    # DEBUG
+    print(res[0:100, 0])
+
     # Save off the result for future use.
-    np.save('./experimental_results/fine_mesh_bar_force_vector', res)
+    np.save('./experimental_results/shot_peen_bar_force_vec', res)
 
 
 
