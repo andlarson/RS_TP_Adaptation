@@ -268,58 +268,151 @@ Input:
                Turns on verbose output.
 
 Functionality:
-    WARNING: This function uses 'U1' to find the beginning of nodal
-      displacments of interest, uses an empty line to find the end
-      of the nodal displacments. It implicitly assumes that there is
-      only a single collection of nodal displacments in the .dat file.
+    WARNING: This function uses 'U1' to find the beginning of nodal displacments
+      of interest, uses an empty line to find the end of the nodal displacments. 
+      However, this function does parse and save as many displacement vectors as
+      it can. It is up to the model designer to understand and keep track of how 
+      many displacement vectors are produced by a paritcular analysis.
     Parses the nodal displacements. Assumes there are exactly three
       displacments per node.
     The displacements are in the U1, U2, and U3 directions. It's necessary to
       understand what these directions represent!
-    Saves a 2D numpy array (1 by N) which lists the nodal displacements in a 
-      format like: [node1_U1, node1_U2, node1_U3, node2_U1, node2_U2, node2_U3, 
+    Saves a collection of 1D numpy arrays which list the nodal displacements
+      in a format like: [node1_U1, node1_U2, node1_U3, node2_U1, node2_U2, node2_U3, 
       ...].
 
 Return:
     None.
 """
-def parse_and_save_displacement_vec(path, save_dir, name, node_cnt, verbose):
+def parse_and_save_displacement_vecs(path, save_dir, name, node_cnt, verbose):
 
     if not Path(path).exists():
-        raise RuntimeError("Bad path passed to parse_displacement_vec!") 
+        raise RuntimeError("Bad path passed to parse_displacement_vecs!") 
 
     if verbose:
-        print("Starting to parse the displacement vector!")
+        print("Starting to parse the displacement vectors!")
 
-    # Create the displacement vector.
-    displacement_vec = np.zeros((1, 3 * node_cnt))
+    # Storage area for displacement vectors.
+    displacement_vecs = []
 
     with open(path) as f:
 
-        # Use 'U1' to find the beginning of the nodal displacements.
-        while ('U1' not in f.readline()):
-            pass
-    
-        # Hard-coded move to beginning of data of interest.
-        f.readline()
-        f.readline()
+        line = f.readline()
+        
+        while line != '':
 
-        # Populate the displacement vector!
-        cur_line = f.readline()
-        while cur_line.strip() != '': 
-            nodal_info = cur_line.split()
-            idx = (int(nodal_info[0]) - 1) * 3
+            # Use 'U1' to detect displacement vectors. 
+            if 'U1' in line:
+              
+                displacement_vec = np.zeros(3 * node_cnt)        
 
-            displacement_vec[0, idx] = float(nodal_info[1])
-            displacement_vec[0, idx + 1] = float(nodal_info[2])
-            displacement_vec[0, idx + 2] = float(nodal_info[3])
+                # Now we do bespoke parsing.
+                # Hard-coded move to beginning of data of interest.
+                f.readline()
+                f.readline()
 
-            cur_line = f.readline()
+                # Populate the displacement vector!
+                cur_line = f.readline()
+                while cur_line.strip() != '': 
+                    nodal_info = cur_line.split()
+                    idx = (int(nodal_info[0]) - 1) * 3
 
-    np.save(save_dir + name, displacement_vec)
+                    displacement_vec[idx] = float(nodal_info[1])
+                    displacement_vec[idx + 1] = float(nodal_info[2])
+                    displacement_vec[idx + 2] = float(nodal_info[3])
+
+                    cur_line = f.readline()
+
+                # Store the displacement vector.
+                displacement_vecs.append(displacement_vec)
+            
+            # Otherwise move to the next line.
+            else:
+                line = f.readline()
+
+    # Save each displacment vector individually.
+    # Add the number to the name.
+    for i, vec in enumerate(displacement_vecs):
+        np.save(save_dir + name + str(i), vec)
 
     if verbose:
-        print("Done parsing and saving the displacement vector!")
+        print("Done parsing and saving the displacement vectors!")
+        print("There were " + len(displacement_vecs) + " displacement vectors saved.")
+
+
+
+"""
+Input:
+    path     - String.
+               Full path of .dat file which contains the nodal coordinates of
+                 interest.
+    save_dir - String.
+               The directory to save the nodal coordinates.
+    name     - String.
+               The desired file name.
+    node_cnt - Int.
+               The number of nodes in the model's mesh.
+    verbose  - Boolean.
+               Turns on verbose output.
+
+Functionality:
+   WARNING: Uses 'COOR1' to find the beginning of the nodal coordinates in the
+     .dat file. Parses the nodal coordinates and uses an empty line '' to find
+     the end of the nodal cordinates. Only does this once and for the first
+     instance of 'COOR1' that is found.
+   Parses the nodal coordinates, assuming that there are exactly three components
+     per node. 
+   The coordinates are given in terms of U1, U2, and U3. It's necessary to understand
+     what these mean.
+   Saves a 2D ndarray of size (3, N) in .npz in the specified area.
+
+Return:
+    None.
+"""
+def parse_and_save_nodal_coordinates(path, save_dir, name, node_cnt, verbose):
+
+    if not Path(path).exists():
+        raise RuntimeError("Bad path passed to parse_and_save_nodal_coordinates!") 
+
+    if verbose:
+        print("Starting to parse the nodal coordinates!")
+
+    # Create the storage area for the nodal coordinates.
+    nodal_coords = np.zeros((node_cnt, 3))
+    
+    with open(path) as f:
+
+        line = f.readline()
+        
+        while line != '':
+
+            # Uses 'COOR1' to find the nodal coordinates.
+            if 'COOR1' in line:
+                
+                # Now we do bespoke parsing.
+                f.readline()
+                f.readline()
+                
+                cur_line = f.readline()
+                
+                while cur_line.strip() != '': 
+                    nodal_info = cur_line.split()
+                    idx = int(nodal_info[0]) - 1
+
+                    nodal_coords[idx, 0] = float(nodal_info[1])
+                    nodal_coords[idx, 1] = float(nodal_info[2])
+                    nodal_coords[idx, 2] = float(nodal_info[3])
+
+                    cur_line = f.readline()
+                        
+            # Otherwise move to the next line.
+            else:
+                line = f.readline()
+
+    np.save(save_dir + name, nodal_coords)
+
+    if verbose:
+        print("Done parsing and saving the nodal coordinates!")
 
 
 
@@ -364,24 +457,15 @@ if __name__ == '__main__':
 
     matrix_storage_area = './stiffness_matrices/'
     disp_vec_storage_area = './displacement_vectors/'
+    nodal_coords_storage_area = './nodal_coords/'
 
     path_to_mtx = '../../shot_peened_bar_inp/CutShotPeen_STIF2.mtx'
-    # parse_and_save_stiff_mat(path_to_mtx, matrix_storage_area, 'shot_peen_bar_mtx', NODE_CNT, True)
-    stiff_mat = load_saved_array(matrix_storage_area + 'shot_peen_bar_mtx.npz')
+    parse_and_save_stiff_mat(path_to_mtx, matrix_storage_area, 'shot_peen_bar_mtx', NODE_CNT, True)
 
-    path_to_disp_vec = '../../shot_peened_bar_inp/CutShotPeen.dat'
-    # parse_and_save_displacement_vec(path_to_disp_vec, disp_vec_storage_area, 'shot_peen_bar_dispv', NODE_CNT, True)
-    disp_vec = load_saved_array(disp_vec_storage_area + 'shot_peen_bar_dispv.npy').T
+    path_to_dat = '../../shot_peened_bar_inp/CutShotPeen.dat'
+    parse_and_save_displacement_vecs(path_to_dat, disp_vec_storage_area, 'shot_peen_bar_dispv', NODE_CNT, True)
+    parse_and_save_nodal_coordinates(path_to_dat, nodal_coords_storage_area, 'shot_peen_bar_nodalcoords', NODE_CNT, True)
 
-    # Do the matrix-vector multiplication.
-    res = stiff_mat.dot(disp_vec)
-    print(res) 
-
-    # DEBUG
-    print(res[0:100, 0])
-
-    # Save off the result for future use.
-    np.save('./experimental_results/shot_peen_bar_force_vec', res)
-
+     
 
 

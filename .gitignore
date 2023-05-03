@@ -20,4 +20,5 @@
 # Also prevent stored numpy arrays from being tracked.
 # This specifically prevents stiffness matrices from being tracked.
 *.npz
+*.npy
 
