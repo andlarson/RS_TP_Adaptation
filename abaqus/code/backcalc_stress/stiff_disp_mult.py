@@ -226,19 +226,22 @@ def parse_and_save_stiff_mat(path, save_dir, name, node_cnt, verbose):
     if verbose:
         print("Starting to parse stiffness matrix")
 
-    stiffness_mtx = sp.sparse.lil_array((3 * node_cnt, node_cnt))
+    stiffness_mtx = sp.sparse.lil_array((3 * node_cnt, 3 * node_cnt))
 
     # Read the file line-by-line without bringing the whole thing into memory.
     with open(path) as infile:
-        for line in infile:
-            
+        for idx, line in enumerate(infile):
+           
+            if verbose and idx % 5000000 == 0:
+                print("Done with " + str(idx) + " entries.")
+
             # Split the line into its component parts.
             parts = line.split()
 
             # We expect each line of the .mtx file to have 3 components.
             assert(len(parts) == 3)
 
-            # Subtract 1 because the nodes in Abaqus are 0-indexed.
+            # Subtract 1 because the nodes in Abaqus are 1-indexed.
             i = int(parts[0]) - 1
             j = int(parts[1]) - 1
             val = float(parts[2])
@@ -312,20 +315,21 @@ def parse_and_save_displacement_vecs(path, save_dir, name, node_cnt, verbose):
                 f.readline()
 
                 # Populate the displacement vector!
-                cur_line = f.readline()
-                while cur_line.strip() != '': 
-                    nodal_info = cur_line.split()
+                line = f.readline()
+                while line.strip() != '': 
+                    nodal_info = line.split()
+
                     idx = (int(nodal_info[0]) - 1) * 3
 
                     displacement_vec[idx] = float(nodal_info[1])
                     displacement_vec[idx + 1] = float(nodal_info[2])
                     displacement_vec[idx + 2] = float(nodal_info[3])
 
-                    cur_line = f.readline()
+                    line = f.readline()
 
                 # Store the displacement vector.
                 displacement_vecs.append(displacement_vec)
-            
+
             # Otherwise move to the next line.
             else:
                 line = f.readline()
@@ -337,7 +341,7 @@ def parse_and_save_displacement_vecs(path, save_dir, name, node_cnt, verbose):
 
     if verbose:
         print("Done parsing and saving the displacement vectors!")
-        print("There were " + len(displacement_vecs) + " displacement vectors saved.")
+        print("There were " + str(len(displacement_vecs)) + " displacement vectors saved.")
 
 
 
@@ -364,7 +368,7 @@ Functionality:
      per node. 
    The coordinates are given in terms of U1, U2, and U3. It's necessary to understand
      what these mean.
-   Saves a 2D ndarray of size (3, N) in .npz in the specified area.
+   Saves a 2D ndarray of size (N, 3) in .npz in the specified area.
 
 Return:
     None.
@@ -393,17 +397,18 @@ def parse_and_save_nodal_coordinates(path, save_dir, name, node_cnt, verbose):
                 f.readline()
                 f.readline()
                 
-                cur_line = f.readline()
+                line = f.readline()
                 
-                while cur_line.strip() != '': 
-                    nodal_info = cur_line.split()
+                while line.strip() != '': 
+                    nodal_info = line.split()
+
                     idx = int(nodal_info[0]) - 1
 
                     nodal_coords[idx, 0] = float(nodal_info[1])
                     nodal_coords[idx, 1] = float(nodal_info[2])
                     nodal_coords[idx, 2] = float(nodal_info[3])
 
-                    cur_line = f.readline()
+                    line = f.readline()
                         
             # Otherwise move to the next line.
             else:
@@ -430,7 +435,7 @@ Return:
 """
 def load_saved_array(path):
 
-    # Check that the file actaully exists!
+    # Check that the file actually exists!
     # If not, let the user know.
     if not Path(path).exists():
         raise RuntimeError("Bad path! Can't find the specified saved array.")
