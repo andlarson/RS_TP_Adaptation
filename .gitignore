@@ -11,7 +11,7 @@
 *.odb
 *.cae
 *.sta
-*.inp
+# *.inp --> Actually, let's include these
 *.ipm
 *.prt
 *.jnl
