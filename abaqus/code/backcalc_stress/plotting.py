@@ -179,7 +179,7 @@ if __name__ == '__main__':
 
     points_to_disp, vals_to_disp = select_and_downsample(pre_cut_nodal_coords, force_vec, .01) 
 
-    plot_directional_forces(points_to_disp, vals_to_disp, 'z')
+    plot_directional_forces(points_to_disp, vals_to_disp, 'x')
 
     
 
