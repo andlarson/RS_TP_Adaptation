@@ -1,5 +1,5 @@
 import numpy as np
-import stiff_disp_mult as sdm
+import parse_sim_output as pso 
 import matplotlib.pyplot as plt
 import random
 
@@ -18,7 +18,7 @@ Input:
 Functionality:
     WARNING: Some model specific modifications are made to the plot for better
       viewing.
-    Creates a static plot of the 3D data. The values are differentiated via
+    Creates a dynamic plot of the 3D data. The values are differentiated via
       their color.
 
 Return:
@@ -151,10 +151,10 @@ if __name__ == '__main__':
 
     # Careful, the stiffness matrix is in sparse scipy format while the others 
     #   are in the normal dense numpy format.
-    nodal_coords = sdm.load_saved_array(nodal_coords_dir + nodal_coords_name)
-    disp_vec0 = sdm.load_saved_array(disp_vec_dir + disp_vec0_name)
-    disp_vec1 = sdm.load_saved_array(disp_vec_dir + disp_vec1_name)
-    stiffness_matrix = sdm.load_saved_array(stiff_mat_dir + stiffness_mat_name)
+    nodal_coords = pso.load_saved_array(nodal_coords_dir + nodal_coords_name)
+    disp_vec0 = pso.load_saved_array(disp_vec_dir + disp_vec0_name)
+    disp_vec1 = pso.load_saved_array(disp_vec_dir + disp_vec1_name)
+    stiffness_matrix = pso.load_saved_array(stiff_mat_dir + stiffness_mat_name)
 
     # Some sanity checking.
     # These should be true as long as I don't reformat how things are saved.
