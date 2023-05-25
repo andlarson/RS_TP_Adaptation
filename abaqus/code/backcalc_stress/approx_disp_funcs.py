@@ -1,6 +1,7 @@
 import numpy as np
 import parse_sim_output as pso 
 import scipy as sp
+import plotting
 
 
 
@@ -23,7 +24,7 @@ Functionality:
       directions.
 
 Return:
-    Triple of floats. The function parameters which achieved a good fit.      
+    Triple of list of floats. The function parameters which achieved a good fit.      
 """
 def displacement_curve_fit(disp_vec, coords, f):
 
@@ -31,9 +32,9 @@ def displacement_curve_fit(disp_vec, coords, f):
     y_disps = disp_vec[1::3]
     z_disps = disp_vec[2::3]
 
-    x_params = sp.optimize.curve_fit(f, coords.T, x_disps)
-    y_params = sp.optimize.curve_fit(f, coords.T, y_disps)
-    z_params = sp.optimize.curve_fit(f, coords.T, z_disps)
+    x_params = sp.optimize.curve_fit(f, coords.T, x_disps)[0]
+    y_params = sp.optimize.curve_fit(f, coords.T, y_disps)[0]
+    z_params = sp.optimize.curve_fit(f, coords.T, z_disps)[0]
 
     return x_params, y_params, z_params
 
@@ -52,7 +53,7 @@ Functionality:
 Return:
     Scalar. The function output.
 """
-def disp_func(data, a, b, c, d, e, f, g, h, i, j)
+def disp_func(data, a, b, c, d, e, f, g, h, i, j):
 
     x = data[0]
     y = data[1]
@@ -69,15 +70,22 @@ def disp_func(data, a, b, c, d, e, f, g, h, i, j)
 if __name__ == '__main__':
 
     # Get the displacement data for the simulation.
-    disp_vec = pso.load_saved_array('./displacement_vecs/shot_peen_bar_dispv1.npy')
+    disp_vec = pso.load_saved_array('./displacement_vectors/shot_peen_bar_dispv1.npy')
 
     # Get the nodal coordinates before the displacment occurs.
     nodal_coords = pso.load_saved_array('./nodal_coords/shot_peen_bar_nodalcoords.npy')
 
     x_params, y_params, z_params = displacement_curve_fit(disp_vec, nodal_coords, disp_func)
 
-    # Evaluate the displacement functions for each node in the mesh.
-    x_disps = np.array([disp_func(coords, *x_params) for r in range(nodal_coords[])])
+    # Evaluate the approximate displacement function for each node in the mesh. 
+    approx_disps = []
+    for node_idx in range(nodal_coords[:, 0].size):
+        approx_disps.append(disp_func(nodal_coords[node_idx, :], *x_params)) 
+        approx_disps.append(disp_func(nodal_coords[node_idx, :], *y_params)) 
+        approx_disps.append(disp_func(nodal_coords[node_idx, :], *z_params)) 
+    approx_disps = np.array(approx_disps)
+
+    to_plot = plotting.select_and_downsample(nodal_coords, approx_disps, .01)
 
     # Visualize each displacement function.
     # The displacement functions can only be expected to be valid over the
@@ -85,6 +93,7 @@ if __name__ == '__main__':
 
     # For the shot peened bar, this is generally over the rectangular region
     #   (0, 0, 0) -> (40, 10, 400).
+    plotting.plot3d(to_plot[0], to_plot[1][1::3], "Displacements In The y Direction")    
       
 
 

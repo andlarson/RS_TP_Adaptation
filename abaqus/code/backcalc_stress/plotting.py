@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import random
 
 
+
 """
 Input:
     coordinates - ndarray.
@@ -16,6 +17,34 @@ Input:
                   Specifies direction of interest.
   
 Functionality:
+    Plots the forces in the direction of interest in 3D. Note that the color
+      of the plot acts as the intensity of the force.
+
+Return:
+    None.
+"""
+def plot_directional_forces(coordinates, vals, direction):
+
+    vals = select_dir(direction, vals)
+
+    title = "Illustrating Forces in the " + direction + " Direction"
+
+    plot3d(coordinates, vals, title)
+
+
+
+"""
+Input:
+    coordinates - ndarray.
+                  The 3D coordinates to be plotted.
+                  Assumed to be 2D ndarray with shape (N, 3).
+    vals        - ndarray.
+                  The values to be plotted at each point in space.
+                  Assumed to be 1D array of shape (3*N).
+    title       - String.
+                  The title of the plot.
+  
+Functionality:
     WARNING: Some model specific modifications are made to the plot for better
       viewing.
     Creates a dynamic plot of the 3D data. The values are differentiated via
@@ -24,12 +53,10 @@ Functionality:
 Return:
     None.
 """
-def plot_directional_forces(coordinates, vals, direction):
+def plot3d(coordinates, vals, title):
 
     assert(coordinates.shape[1] == 3)
     assert(vals.ndim == 1)
-
-    vals = select_dir(direction, vals)
 
     fig = plt.figure(figsize=(13,9), constrained_layout=True)
     ax = fig.add_subplot(projection='3d')
@@ -38,7 +65,7 @@ def plot_directional_forces(coordinates, vals, direction):
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
 
-    ax.set_title("Illustrating Forces in the " + direction + " Direction")
+    ax.set_title(title)
 
     # ---- Model Specific Mods ----
 
@@ -92,7 +119,7 @@ Input:
                   Assumed to be 2D ndarray with shape (N, 3).
     vals        - ndarray
                   The values at each point in space.
-                  Assumed to be 1D array of shape (3*N).
+                  Assumed to be 1D array with length 3*N.
     factor      - Float.
                   The factor to downsample by. A factor of .5 corresponds to
                     using only 50% of points.
@@ -107,7 +134,7 @@ Functionality:
 Return:
    Tuple: (coords, vals).
    The coords entry is a 2D ndarray with shape (M, 3).
-   The vals entry is a 1D ndarray with form identical to what was passed in.
+   The vals entry is a 1D ndarray with length 3*M.
 """
 def select_and_downsample(coordinates, vals, factor):
     
