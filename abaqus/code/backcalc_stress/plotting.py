@@ -40,7 +40,7 @@ Input:
                   Assumed to be 2D ndarray with shape (N, 3).
     vals        - ndarray.
                   The values to be plotted at each point in space.
-                  Assumed to be 1D array of shape (3*N).
+                  Assumed to be 1D array of shape N.
     title       - String.
                   The title of the plot.
   
@@ -79,7 +79,7 @@ def plot3d(coordinates, vals, title):
     
     # -----------------------------
 
-    img = ax.scatter(coordinates[:,0], coordinates[:,1], coordinates[:,2], c=vals, norm='log') 
+    img = ax.scatter(coordinates[:,0], coordinates[:,1], coordinates[:,2], c=vals, norm='linear') 
     fig.colorbar(img)
     plt.show()
 
