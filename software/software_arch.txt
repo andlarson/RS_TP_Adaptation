@@ -1,0 +1,54 @@
+
+What the software needs to do:
+    
+    *** We'll call this the "FORWARD DIRECTION" ***
+    1) Given a part geometry, stress profile, and cutting path, it must 
+       estimate the part deformation.
+
+    *** We'll call this the "BACKWARD DIRECTION" ***
+    2) Given a part initial geometry, a cutting path, and the final part 
+       geometry, it must estimate the residual stress profile which caused the
+       deformation.
+
+    *** We'll call this the "STRESS ESTIMATE ERROR" *** 
+    3) Given an initial part geometry, an estimated initial residual stress
+       profile, a cutting path, and a known final part geometry, it must compute
+       an error measure assocaited with the estimated initial residual stress
+       pattern.
+
+Executing the forward direction and the backward direction requires significant
+  overlap in functionality. Thus this software solves both problems.
+
+
+
+INPUTS:
+Forward Direction:
+    1) Part Geometry. 
+    2) Stress Profile. 
+    3) Cutting Path.
+
+Backward Direction:
+    1) Initial part geometry. 
+    2) Final (post-deformation) part geometry. 
+    3) Cutting Path.
+
+
+OUTPUTS:
+Forward Direction:
+    1) Part Geometry.
+
+Backward Direction:
+    1) Stress Profile.
+
+
+DATA FORMATS:
+    Part Geometry       - Set of vertices in some coordinate system.
+    Stress Profile      - 3x3 tensor for finite number of points in part.
+    Cutting Path        - Unclear what final representation will be. For now,
+                            it is assumed that it is a set of vertices which 
+                            live in the same coordinate system as the part.
+
+
+
+
+
