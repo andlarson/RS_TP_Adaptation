@@ -1,0 +1,25 @@
+********************************************************************************
+Probe Values Report, written on Tue May 30 23:06:37 2023
+
+Source
+-------
+
+   ODB: N:/windat.v2/Desktop/mach_research_proj/umich_machining_project/abaqus/experiments/cutting_thru_tension_cae/Job-1.odb
+   Step: Equilibrate
+   Frame: Increment      1: Step Time =    1.000
+   Variable: S, S33 (Not averaged)
+
+Loc 1 : Integration point values
+
+Probe values reported at integration points
+
+  Part Instance  Element ID        Type  Attached nodes
+--------------------------------------------------------------------------------
+  SHOT_PEENED_BAR-1       16075       C3D8R        1994        1720       22204       25933        1995        1721       22317       25820
+
+
+  Part Instance  Element ID        Type   Int. Pt.     S, S33
+--------------------------------------------------------------------------------
+  SHOT_PEENED_BAR-1       16075       C3D8R          1   -88.E+06
+
+
