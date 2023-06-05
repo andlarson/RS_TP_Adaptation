@@ -60,15 +60,40 @@ DATA FORMATS:
 
 SOFTWARE DIRECTORY STRUCTURE:
     geometry/
-        part_specification.py
-        cut_specification.py
+        part_specification.py      -> Predefined basic part geometries.
+                                      Part geometry checking.                     
+                                      Material properties specification.
+                                      ....?
+                                      Notes:
+        cut_specification.py       -> Cut specification for different cut types.
+                                      Cut sequencing.
+                                      Cut visualization before FEM analysis.
+                                      Cut consistency checking.
+                                      ....?
+                                      Notes: 
+                                        1) Cannot specify all cuts since
+                                           deformation changes part geometry.
     stress/
-        stress_profile.py
-        stress_estimate_error.py
+        stress_profile.py          -> Predefined basic stress profiles.
+                                      Stress interpolation for not-fully-defined
+                                        stress profiles.
+                                      Equilibrium measurement.
+                                      Stress profile visualization.
+                                      ....?
+        stress_estimate_error.py   -> Error measure specification, with predefined 
+                                        options.
+                                      Actual vs. implied deformation measure.
+                                      ....?
+        stress_estimate.py         -> Specification of technique to estimate stress.
+                                      ....?
     abaqus/
-        
-    main.py
-         
+        abaqus_runner.py           -> Facilities for orchastrating many consecutive
+                                        Abaqus simulations.
+        abaqus_visualization.py    -> 
+        abaqus_
+    util/
+        file_management.py         -> 
+    main.py 
 
 
 
