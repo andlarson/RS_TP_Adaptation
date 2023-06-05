@@ -13,11 +13,11 @@ What the software needs to do:
     *** We'll call this the "STRESS ESTIMATE ERROR" *** 
     3) Given an initial part geometry, an estimated initial residual stress
        profile, a cutting path, and a known final part geometry, it must compute
-       an error measure assocaited with the estimated initial residual stress
+       an error measure associated with the estimated initial residual stress
        pattern.
 
-Executing the forward direction and the backward direction requires significant
-  overlap in functionality. Thus this software solves both problems.
+    *** We'll call this "VISUALIZATION" ***
+    4) Have an option to visualize each of these processes.
 
 
 
@@ -43,10 +43,32 @@ Backward Direction:
 
 DATA FORMATS:
     Part Geometry       - Set of vertices in some coordinate system.
+                          Alternatively, the same part geometry representation 
+                            that Abaqus CAE generates when a part is built. This
+                            will make things easier to use at first. 
     Stress Profile      - 3x3 tensor for finite number of points in part.
+                          Alternatively, there will be some predefined stress
+                            profiles like "Shot Peened", "Uneven Cooling", etc.
+                            which will each have some parameters.
     Cutting Path        - Unclear what final representation will be. For now,
                             it is assumed that it is a set of vertices which 
                             live in the same coordinate system as the part.
+                          Like the part geometry, an alternative representation
+                            will be offered which will allow the cutting path
+                            to be constructed in Abaqus CAE.
+
+
+SOFTWARE DIRECTORY STRUCTURE:
+    geometry/
+        part_specification.py
+        cut_specification.py
+    stress/
+        stress_profile.py
+        stress_estimate_error.py
+    abaqus/
+        
+    main.py
+         
 
 
 
