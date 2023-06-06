@@ -16,9 +16,14 @@ What the software needs to do:
        an error measure associated with the estimated initial residual stress
        pattern.
 
-    *** We'll call this "VISUALIZATION" ***
     4) Have an option to visualize each of these processes.
 
+    5) Run with and without real life measurement data. When there is no data
+       available from real life, then this software will need to lean on FEM.
+       For example, it will be necessary to impart a randomized residual stress 
+       pattern on the part, simulate all the cuts in FEM and use the results
+       as the ground truth, etc. Without real life measurements, we rely on FEM
+       for ground truth.
 
 
 INPUTS:
@@ -60,39 +65,162 @@ DATA FORMATS:
 
 SOFTWARE DIRECTORY STRUCTURE:
     geometry/
-        part_specification.py      -> Predefined basic part geometries, such as
-                                        fins and bars.
-                                      Part geometry checking.                     
-                                      Material properties specification.
-        cut_specification.py       -> Cut specification for different cut types.
-                                      Cut sequencing.
-                                      Cut visualization before FEM analysis.
-                                      Cut consistency checking.
-                                      Notes: 
-                                        1) Cannot specify all cuts since
-                                           deformation changes part geometry.
-                                           Will need some input-output system
-                                           which allows deformation to be
-                                           used to influence choice of next cut.
+        part_specification.py      
+
+            Predefined basic part geometries, such as fins and bars.
+            Part geometry checking.                     
+            Material properties specification.
+            
+            Notes:
+                1) Should also offer ability to design the part in GUI and then 
+                   use it.
+                                      
+            Classes:
+                part:
+                    Data Members:
+                        real_measurements:
+                            A flag which signals the existence of real life
+                            measurements for this part. If there are no real 
+                            life measurements, then it will be necessary to 
+                            rely on FEM for ground truth.
+                        initial_vertex_rep:
+                            The initial part representation which is defined by
+                            vertices. A vertex based representation always initially
+                            defines the part, regardless of the existence of real 
+                            life data.
+                        measurement_vertex_reps:
+                            A collection of part representations which are defined
+                            by vertices. These representations only exist if there
+                            are real life measurements of the part.
+                        abaqus_reps:
+                            A collection of part representations which are native
+                            to Abaqus. These representations only exist if there
+                            are no real life measurements.
+                        material_properties:
+                            Elastic material properties. 
+                        cuts_done:
+                            The cuts which have been performed on the part.
+                        cuts_todo:
+                            The cuts which are scheduled for this part.
+                        endowed_initial_stress:
+                            Coordinate, stress tensor pairs which are endowed
+                            on the part before any cuts are made.
+                            The source of this could be an estimate of the material
+                            preparation process, a history based estimate, or a
+                            one-off randomized initialization. 
+                        directly_estimated_stress_tensors:
+                            Coordinate, stress tensor pairs which were estimated
+                            via the cutting process.
+                        indirectly_estimated_stress_tensors:
+                            Coordinate, stress tensor pairs which were generated
+                            by some interpolation or history lookup process. A
+                            representation of residual stress which is not exclusively
+                            derived from the cutting process.
+                    Function Members:
+                        __init__():
+                            Constructor to build part out of vertex list. Also 
+                            does geometry checking.
+                        __init__():
+                            Constructor to build the part out of preexisting CAE
+                            model.
+                        set_material_props():
+                            Self explanatory.
+                        add_cuts():
+                            Adds cuts to cuts_todo. Does some cut sanity checking,
+                            but this is a bit tricky in general.
+                        visualize_part():
+                            Generates a 3D visualization of the part.
+                        visualize_part_stress():
+                            Generates a 3D visualization of the part with a stress
+                            state superimposed on it.
+                        visualize_cuts():
+                            Generates 3D visualization of the cuts which are
+                            queued.
+                        endow_initial_stress():
+                            Endow the part, before any cuts happen to it, with a
+                            residual stress field.
+                        measure_equilibrium():
+                            Measures how close to equilibrium the stress field
+                            imparted on the part is. This only makes sense in
+                            the context of the part's initial stress distribution.
+                         
+                bar -> derived from part:
+                    Data Members:
+                        __init__():
+                            Constructor which builds a bar with some 
+                            dimensionality.
+                fin -> derived from part:
+                    Data Members:
+                        __init__():
+                            Constructor which builds a fin with some 
+                            dimensionality. 
+
+        cut_specification.py       
+
+            Cut specification for different cut types.
+            
+            Notes: 
+              1) Cannot specify all cuts since deformation changes part geometry.
+                 Will need some input-output system which allows deformation to be
+                 used to influence choice of next cut.
+
+            Classes:
+                cut: 
+                    Data Members:
+                        cut_geom:
+                            Vertex list which defines the cut.
+                    Function Members:
+                        __init__():
+                            Constructor to build vertex list. Does basic geometry
+                            checking, but since the cut is not natively associated
+                            with a part it isn't possible to do true sanity
+                            checking (i.e. making sure the cut lives inside the
+                            part).
+                rect_cut -> derived from cut:
+                    Function Members:
+                        __init__():
+                            Constructor for a cut which is a rectangular prism. 
+                
     stress/
-        stress_profile.py          -> Predefined basic stress profiles.
-                                      Stress interpolation for not-fully-defined
-                                        stress profiles.
-                                      Equilibrium measurement.
-                                      Stress profile visualization.
+        initial_stress_profile.py          
+
+            Functions which, given a simple part geometry, impart a simple
+            initial residual stress pattern on the part. Notably, imparting a 
+            simple residual stress pattern on a part of arbitrary geometry is 
+            not so simple.
+
+            Functions:
+                impart_shot_peen_rs_on_bar():
+                    Imparts a characteristic shot peening pattern on a bar given
+                    some meta-information about the bar (which side was peened,
+                    which side is the top side, etc).
+                impart_???_rs_on_fin():
+                    Imparts a characteristic .... ???
+
     estimate_stress/
-        stress_estimate.py         -> Specify technique to back calculate residual
-                                        stress.
+        stress_estimate.py         
+
+            Techniques to back-calculate the  
+            
+            Functions:
+                for
+            
+
+
     error/
         deform_error_meas.py       -> Error measurement for estimated vs. actual
                                         deformation.
+                                      Functions:
     abaqus/
         abaqus_runner.py           -> Multi-step simulation management. 
-                                        
+                                      Functions:
+
         abaqus_visualization.py    -> Visualization control.
+                                      Functions:
     util/
         file_management.py         -> Bespoke file management for intermediates
                                         and experiments.
+                                      Functions:
 
 
 
