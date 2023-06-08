@@ -63,164 +63,239 @@ DATA FORMATS:
                             to be constructed in Abaqus CAE.
 
 
-SOFTWARE DIRECTORY STRUCTURE:
-    geometry/
-        part_specification.py      
+SOFTWARE STRUCTURE:
+                                          
+Classes:
+    
+    machining_process:
+        Data Members:
+            part:
+                A current snapshot of the part being machined. 
+            part_history:
+                The evolution of the part during machining. 
+            cuts:
+                The past and future cuts which makeup the machining 
+                process. 
+            in_sim:
+                A flag indicating if the machining process is
+                happening in real life or if it is all happening
+                in simulation. When there are measurements from the
+                real world, there will be two parallel represenations
+                of the part: that predicted from the Abaqus
+                simulations and that measured in the real world.
+        Function Members:
+            __init__():
+                Requires a part object to be passed in and an
+                indication if the machining process is happening
+                entirely in simulation or not.
+            sim_next_cut():
+                Simulate the next cut in the specified cutting
+                sequence. The result of the simulation is stored in
+                the part representation.
+            sim_speculative_cut():
+                Simulate a passed in cut. This is used to evaluate
+                how a potential cut will affect the part geometry.
+                This method does not affect the state of the part
+                representation and returns the part state in the
+                Abaqus native format. Will be extended to support
+                sequences of potential cuts.
+            estimate_stress_via_last_cut():
+                Use the deformation which resulted from the last cut
+                to recover as much information as possible about
+                the residual stress state which existed in the part
+                BEFORE the last cut happened. This function uses the
+                best information available about the part geometry. In
+                other words, real world part measurements are
+                preferred to Abaqus native part representations.
+                Ultimately this method will apply some technique in
+                Abaqus, so translation to an Abaqus native
+                representation will be necessary.
+                Residual stress state information is stored in the
+                stress state history repository. Note that the
+                stress information recovered via this method must
+                be interpreted in the context of part's geometry
+                before the cut was made.
 
-            Predefined basic part geometries, such as fins and bars.
-            Part geometry checking.                     
-            Material properties specification.
+
+    part:
+        Data Members:
+            part_representation:
+                A representation of the part. 
+            stress_profile:
+                A representation of the part's stress profile. 
+            material_properties:
+                The part's properties.                  
+        Function Members:
+            __init__():
+                Construct a part out of a vertex list.
+            __init__():
+                Construct a part out of a Abaqus CAE file.
+            update_part_with_real_data():
+                Real world data was collected on the part geometry,
+                presumably via a camera or a Lidar system. This
+                function updates the part represenation based on
+                this real data.
+
+
+    shot_peened_aluminum_bar (derived from part):
+        Functions Members:
+            __init__():
+                Constructs a aluminum bar via some dimensionality 
+                restrictions and pre-set material properties, imparts
+                a host-peening like stress profile onto the bar.
+
+
+    aluminum_fin (derived from part):
+        Member Functions:
+            __init__():
+                Constructs a aluminum fin via some dimensionality
+                restrictions and pre-set material properties. 
+
+    
+    part_history:
+        Data Members:
+            part_representation_history:
+                Keeping track of the part throughout the machining
+                process. Basically a list of part representations.
+            stress_profile_history:
+                Keeping track of the estimated stress profiles in 
+                the part throughout the machining process. Basically
+                a list of stress profiles.
+
+
+    part_representation:
+        Data Members:
+            vertex_rep:
+                A vertex based representation of the part. This
+                might be how the part is initially represented and
+                if there is real measurement data available, this
+                is probably the form of that real measurement data.
+            abaqus_rep:
+               An Abaqus based representation of the part. Necessary
+               when there is no ground truth aka everything is being
+               done in simulation.
+    
+
+    representation_history:
+        Data Members:
+            vertex_rep_history:
+                A history of the vertex based representations of the
+                part.
+            abaqus_rep_history:
+                A history of the abaqus based representations of the
+                part. 
+
+
+    stress_profile:
+        Data Members:
+            endowed_initial_stress_profile:
+                Coordinate, stress tensor pairs which are endowed
+                on the part before any cuts are made.
+                The source of this could be an estimate of the material
+                preparation process, a history based estimate, or a
+                one-off randomized initialization. 
+            cut_estimated_stress_profile:
+                Coordinate, stress tensor pairs which were estimated
+                via the cutting process.
+            non_cut_estimated_stress_profile:
+                Coordinate, stress tensor pairs which were generated
+                by some interpolation or history lookup process. A
+                representation of residual stress which is not exclusively
+                derived from the cutting process.
+        Function Members:
+            __init__():
+                Sets the initial stress profile via some technique. 
+                Note that a user should never directly modify the 
+                stress profile information other than the initial 
+                stress profile. 
+    
+
+    stress_profile_history:
+        Data Members:
+            cut_estimated_stress_profile_history:
+                Keep track of the stress profiles which were
+                estimated by cuts of the part.
+            non_cut_estimated_stress_profile_history:
+                Keep track of the stress profiles which were estimated
+                via some method other than looking at the post-cut
+                deformation.
+
+
+    cuts:
+        Data Members:
+            cuts_done:
+                The cuts which have been performed on the part.
+                Basically a list of cuts.
+            cuts_todo:
+                The cuts which are scheduled for this part. Another
+                list of cuts.
+        Function Members:
+            add_cuts():
+                Adds cuts to cuts_todo. Does some cut sanity checking,
+                but this is a bit tricky in general.
             
-            Notes:
-                1) Should also offer ability to design the part in GUI and then 
-                   use it.
-                                      
-            Classes:
-                part:
-                    Data Members:
-                        real_measurements:
-                            A flag which signals the existence of real life
-                            measurements for this part. If there are no real 
-                            life measurements, then it will be necessary to 
-                            rely on FEM for ground truth.
-                        initial_vertex_rep:
-                            The initial part representation which is defined by
-                            vertices. A vertex based representation always initially
-                            defines the part, regardless of the existence of real 
-                            life data.
-                        measurement_vertex_reps:
-                            A collection of part representations which are defined
-                            by vertices. These representations only exist if there
-                            are real life measurements of the part.
-                        abaqus_reps:
-                            A collection of part representations which are native
-                            to Abaqus. These representations only exist if there
-                            are no real life measurements.
-                        material_properties:
-                            Elastic material properties. 
-                        cuts_done:
-                            The cuts which have been performed on the part.
-                        cuts_todo:
-                            The cuts which are scheduled for this part.
-                        endowed_initial_stress:
-                            Coordinate, stress tensor pairs which are endowed
-                            on the part before any cuts are made.
-                            The source of this could be an estimate of the material
-                            preparation process, a history based estimate, or a
-                            one-off randomized initialization. 
-                        directly_estimated_stress_tensors:
-                            Coordinate, stress tensor pairs which were estimated
-                            via the cutting process.
-                        indirectly_estimated_stress_tensors:
-                            Coordinate, stress tensor pairs which were generated
-                            by some interpolation or history lookup process. A
-                            representation of residual stress which is not exclusively
-                            derived from the cutting process.
-                    Function Members:
-                        __init__():
-                            Constructor to build part out of vertex list. Also 
-                            does geometry checking.
-                        __init__():
-                            Constructor to build the part out of preexisting CAE
-                            model.
-                        set_material_props():
-                            Self explanatory.
-                        add_cuts():
-                            Adds cuts to cuts_todo. Does some cut sanity checking,
-                            but this is a bit tricky in general.
-                        visualize_part():
-                            Generates a 3D visualization of the part.
-                        visualize_part_stress():
-                            Generates a 3D visualization of the part with a stress
-                            state superimposed on it.
-                        visualize_cuts():
-                            Generates 3D visualization of the cuts which are
-                            queued.
-                        endow_initial_stress():
-                            Endow the part, before any cuts happen to it, with a
-                            residual stress field.
-                        measure_equilibrium():
-                            Measures how close to equilibrium the stress field
-                            imparted on the part is. This only makes sense in
-                            the context of the part's initial stress distribution.
-                         
-                bar -> derived from part:
-                    Data Members:
-                        __init__():
-                            Constructor which builds a bar with some 
-                            dimensionality.
-                fin -> derived from part:
-                    Data Members:
-                        __init__():
-                            Constructor which builds a fin with some 
-                            dimensionality. 
 
-        cut_specification.py       
-
-            Cut specification for different cut types.
-            
-            Notes: 
-              1) Cannot specify all cuts since deformation changes part geometry.
-                 Will need some input-output system which allows deformation to be
-                 used to influence choice of next cut.
-
-            Classes:
-                cut: 
-                    Data Members:
-                        cut_geom:
-                            Vertex list which defines the cut.
-                    Function Members:
-                        __init__():
-                            Constructor to build vertex list. Does basic geometry
-                            checking, but since the cut is not natively associated
-                            with a part it isn't possible to do true sanity
-                            checking (i.e. making sure the cut lives inside the
-                            part).
-                rect_cut -> derived from cut:
-                    Function Members:
-                        __init__():
-                            Constructor for a cut which is a rectangular prism. 
-                
-    stress/
-        initial_stress_profile.py          
-
-            Functions which, given a simple part geometry, impart a simple
-            initial residual stress pattern on the part. Notably, imparting a 
-            simple residual stress pattern on a part of arbitrary geometry is 
-            not so simple.
-
-            Functions:
-                impart_shot_peen_rs_on_bar():
-                    Imparts a characteristic shot peening pattern on a bar given
-                    some meta-information about the bar (which side was peened,
-                    which side is the top side, etc).
-                impart_???_rs_on_fin():
-                    Imparts a characteristic .... ???
-
-    estimate_stress/
-        stress_estimate.py         
-
-            Techniques to back-calculate the  
-            
-            Functions:
-                for
-            
+    cut:
+        Data Members:
+            cut_representation:
+                A representation of the cut. The cut is really a
+                representation of the path that the tool will take,
+                and is only coincidentally related to the part.
 
 
-    error/
-        deform_error_meas.py       -> Error measurement for estimated vs. actual
-                                        deformation.
-                                      Functions:
+    rect_cut (derived from cut):
+        Function Members:
+            __init__():
+                Build a new cut object which is a rectangular prism.
+                This is the first type of cut that we will consider.
+
+
+    material_properties:
+        Data Members:
+            material_properties:
+                Elastic material properties. 
+        
+        Function Members:
+            set_material_props():
+                Self explanatory.
+             
+
+Non-Class Utilities:
+    Visualization
+        - Visualizing part representation, stress profiles, cut sequences,
+          etc.
+    Error Measurement and Error Minimization
+        - Quantifying the closeness of two part geometries. Minimizing error
+          to ensure an accurate reconstruction of the stresses which caused
+          a particular deformation.
+    Back Calculating Stress Via Deformation Measures
+        - Given two part geometries, one pre-cut and one post-cut, estimate the
+          stress which caused any deformation.
+        - Integrating these stress estimates into a full part stress profile.
+    Abaqus Simulation Engine Interfacing
+        - 
+    File Management
+        - Managing the files produced by the simulations, any measured data,
+          etc. systematically.
+
+
+
+
+File Structure:
+    
+    core_machining/
+        machining.py
+        part.py
+        cuts.py
+        stress.py
+    visualization/
+        visualize_part.py
+    stress_estimation/
+        backcalc_stress.py
+        integrate_stress.py
     abaqus/
-        abaqus_runner.py           -> Multi-step simulation management. 
-                                      Functions:
-
-        abaqus_visualization.py    -> Visualization control.
-                                      Functions:
     util/
-        file_management.py         -> Bespoke file management for intermediates
-                                        and experiments.
-                                      Functions:
-
-
+        file_management.py
+    storage/
+                
 
