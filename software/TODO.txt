@@ -1,4 +1,5 @@
 
 Setup code search / tags ability
-Setup type annotation checking (via MyPy I think)
+Look into tmux functionality to improve tabbing setup.
+
 

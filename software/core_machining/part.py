@@ -1,6 +1,10 @@
-# An implication of using relative importing is that this file cannot be used
-#   as a script. Thus any tests must be located elsewhere.
-from ..util import geom
+# Importing like this works ONLY when the util directory is in the path that 
+#   Python searches when looking for modules. 
+# In the main.py, the software/ directory is added to the search path. This
+#   then guarantees that the util/ directory is located in the search path.
+# If you try to run this file as a script via "python3 part.py", it will not
+#   work!
+import util.geom as geom
 
 
 
@@ -20,7 +24,6 @@ class AbaqusRep:
         
         # TODO: Sanity checking of the passed Abaqus representation. We were
         #   passed an Abaqus-compatible file right?!?!?
-
         self.rep = rep 
 
 
