@@ -277,25 +277,3 @@ Non-Class Utilities:
     File Management
         - Managing the files produced by the simulations, any measured data,
           etc. systematically.
-
-
-
-
-File Structure:
-    
-    core_machining/
-        machining.py
-        part.py
-        cuts.py
-        stress.py
-    visualization/
-        visualize_part.py
-    stress_estimation/
-        backcalc_stress.py
-        integrate_stress.py
-    abaqus/
-    util/
-        file_management.py
-    storage/
-                
-
