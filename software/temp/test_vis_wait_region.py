@@ -15,7 +15,7 @@ myModel = mdb.models['Model-1']
 
 myViewport = session.Viewport(name='Region syntax', origin=(20, 20), width=200, height=100)
 
-mySketch = myModel.ConstrainedSketch(name='Sketch A', sheetsize=200)
+mySketch = myModel.ConstrainedSketch(name='Sketch A', sheetSize=200)
 
 mySketch.rectangle(point1=(-40, 30), point2=(-10,0))
 
@@ -26,7 +26,7 @@ door = myModel.Part(name='Door', dimensionality=THREE_D, type=DEFORMABLE_BODY)
 door.BaseSolidExtrude(sketch=mySketch, depth=20)
 
 myAssembly = myModel.rootAssembly
-doorInstance = nyAssembly.Instance(name='Door-1', part=door)
+doorInstance = myAssembly.Instance(name='Door-1', part=door)
 
 pillarVertices = doorInstance.vertices.findAt(((-40, 30, 0),), ((40, 0, 0),))
 
@@ -50,5 +50,5 @@ mySurface = myModel.rootAssembly.Surface(name='exterior', side1Faces=faceRegion)
 
 myFoundation = myModel.ElasticFoundation(name='elasticFloor', createStepName='Initial', surface=mySurface, stiffness=1500)
 
-myViewport.setValues(displayedObject=myAssembly)
-myViewport.assemblyDisplay.setValues(step='impact', loads=ON, bcs=ON, fields=ON)
+myViewport.setValues(displayedObject=door)
+# myViewport.assemblyDisplay.setValues(step='impact', loads=ON, bcs=ON, fields=ON)

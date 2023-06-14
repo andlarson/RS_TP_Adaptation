@@ -176,51 +176,13 @@ Classes:
                done in simulation.
     
 
-    representation_history:
-        Data Members:
-            vertex_rep_history:
-                A history of the vertex based representations of the
-                part.
-            abaqus_rep_history:
-                A history of the abaqus based representations of the
-                part. 
-
-
     stress_profile:
         Data Members:
-            endowed_initial_stress_profile:
-                Coordinate, stress tensor pairs which are endowed
-                on the part before any cuts are made.
-                The source of this could be an estimate of the material
-                preparation process, a history based estimate, or a
-                one-off randomized initialization. 
-            cut_estimated_stress_profile:
-                Coordinate, stress tensor pairs which were estimated
-                via the cutting process.
-            non_cut_estimated_stress_profile:
-                Coordinate, stress tensor pairs which were generated
-                by some interpolation or history lookup process. A
-                representation of residual stress which is not exclusively
-                derived from the cutting process.
         Function Members:
             __init__():
                 Sets the initial stress profile via some technique. 
-                Note that a user should never directly modify the 
-                stress profile information other than the initial 
-                stress profile. 
+        
     
-
-    stress_profile_history:
-        Data Members:
-            cut_estimated_stress_profile_history:
-                Keep track of the stress profiles which were
-                estimated by cuts of the part.
-            non_cut_estimated_stress_profile_history:
-                Keep track of the stress profiles which were estimated
-                via some method other than looking at the post-cut
-                deformation.
-
-
     cuts:
         Data Members:
             cuts_done:
