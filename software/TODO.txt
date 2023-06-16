@@ -1,5 +1,6 @@
 
 Setup code search / tags ability
 Look into tmux functionality to improve tabbing setup.
-
+Write vim tool to fix comment formatting automatically.
+Compare the deformation which results from geometry change to element deletion.
 

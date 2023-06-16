@@ -9,6 +9,10 @@ import util.geom as geom
 import os
 
 
+VERTEX_REP = "VertexRep"
+ABAQUS_REP = "AbaqusRep"
+
+
 class VertexRep:
 
     def __init__(self, rep):
@@ -46,10 +50,10 @@ class PartRepresentation:
        
         if type(rep) == VertexRep:
             self.rep = rep 
-            self.format = "VertexRep"
+            self.format = VERTEX_REP 
         elif type(rep) == AbaqusRep:
             self.rep = rep
-            self.format = "AbaqusRep"
+            self.format = ABAQUS_REP 
         else:
             raise RuntimeError("Bad type for the construction of a \
                                 PartRepresentation object.")
@@ -88,11 +92,19 @@ class PartHistory:
 
 class Part:
 
-    def __init__(self, initial_part_rep, initial_stress_profile, 
-                 material_properties):
+    # An initial stress profile is only needed if the initial part representation
+    #   does not include one. This also applies to the material properties.
+    def __init__(self, initial_part_rep, initial_stress_profile=None,
+                 material_properties=None):
     # type: (PartRepresentation, StressProfile, MaterialProperties) -> None
 
-        self.part_rep = part_rep
+        initial_part_rep.format == VERTEX_REP:
+            if initial_stress_profile == None or material_properties == None:
+                raise RuntimeError("If you don't create a Part via a .cae file, \
+                                    then it must have an initial stress profile \
+                                    and material properties.")
+
+        self.initial_part_rep = initial_part_rep
         self.initial_stress_profile = initial_stress_profile
         self.material_properties = material_properties
 
