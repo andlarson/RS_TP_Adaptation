@@ -5,12 +5,13 @@
 # If you try to run this file as a script via "python3 part.py", it will not
 #   work!
 import util.geom as geom
+import core.abaqus.catch_all as catch_all 
 
 import os
 
 
 VERTEX_REP = "VertexRep"
-ABAQUS_REP = "AbaqusRep"
+ABAQUS_MDB = "AbaqusMDB"
 
 
 class VertexRep:
@@ -24,7 +25,7 @@ class VertexRep:
 
 
 
-class AbaqusRep:
+class AbaqusMDB:
 
     def __init__(self, rep):  
     # type: (str) -> None
@@ -35,9 +36,16 @@ class AbaqusRep:
         if not os.access(rep, os.F_OK):
             raise RuntimeError("Bad path to .cae file passed.")
 
-        # TODO: Check that the Abaqus representation is what we expect. We 
-        #   expect it to define a part geometry and potentially an initial
-        #   residual stress profile.
+        mdb = catch_all.use_mdb(rep)
+        if len(mdb.models) != 1:
+            raise RuntimeError("Too many or too few models in the MDB.")
+        if not ("Model-1" in mdb.models):
+            raise RuntimeError("The single model in the MDB is improperly named.")
+        if len(mdb.models["Model-1"].parts) != 1:
+            raise RuntimeError("Too many of too few parts in the MDB.")
+        if not ("Initial_Geometry" in mdb.models["Model-1"].parts):
+            raise RuntimeError("The single part in the single model in the MDB
+                                is improperly named.")
 
         self.rep = rep 
 
@@ -46,14 +54,14 @@ class AbaqusRep:
 class PartRepresentation:
    
     def __init__(self, rep):
-    # type: (VertexRep | AbaqusRep) -> None
+    # type: (VertexRep | AbaqusMDB) -> None
        
         if type(rep) == VertexRep:
             self.rep = rep 
             self.format = VERTEX_REP 
-        elif type(rep) == AbaqusRep:
+        elif type(rep) == AbaqusMDB:
             self.rep = rep
-            self.format = ABAQUS_REP 
+            self.format = ABAQUS_MDB 
         else:
             raise RuntimeError("Bad type for the construction of a \
                                 PartRepresentation object.")
@@ -98,11 +106,11 @@ class Part:
                  material_properties=None):
     # type: (PartRepresentation, StressProfile, MaterialProperties) -> None
 
-        initial_part_rep.format == VERTEX_REP:
-            if initial_stress_profile == None or material_properties == None:
-                raise RuntimeError("If you don't create a Part via a .cae file, \
-                                    then it must have an initial stress profile \
-                                    and material properties.")
+        if initial_part_rep.format == VERTEX_REP and \
+           (initial_stress_profile == None or material_properties == None):
+            raise RuntimeError("If you don't create a Part via a .cae file, \
+                                then it must have an initial stress profile \
+                                and material properties.")
 
         self.initial_part_rep = initial_part_rep
         self.initial_stress_profile = initial_stress_profile

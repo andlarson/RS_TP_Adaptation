@@ -1,17 +1,32 @@
+import core.part.part as part
+import core.abaqus.catch_all as catch_all
 
+import os
 
+import storage.storage as storage
 
 
 
 
 class MachiningProcess:
-    
-    def __init__(self, part, tool_passes, in_sim):
-    # type: (Part, ToolPasses, bool) -> None
+   
+    # A name is only necessary if the part is already in an Abaqus MDB.
+    def __init__(self, name, part, tool_passes, in_sim):
+    # type: (str, Part, ToolPasses, bool) -> None
 
         self.part = part
         self.tool_passes = tool_passes
         self.in_sim = in_sim
+
+        if part.initial_part_rep.format == part.ABAQUS_MDB:
+            if name != None:
+                print("Name for MachiningProcess not used. The part was created\
+                        as a .cae file, so it already has a name!")    
+            self.mdb = catch_all.use_mdb(part.initial_part_rep.rep)
+        else:
+            # Will be saved to default location with custom name.
+            mdb_default_path = storage.MDB_save_area()
+            self.mdb = catch_all.create_mdb(mdb_default_path + name)
 
 
     # This does the forward direction (estimate deformation due to a tool pass).
