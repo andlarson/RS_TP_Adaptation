@@ -7,10 +7,13 @@ This file will probably need to be broken up.
 
 from abaqus import *
 from abaqusConstants import * 
+import sketch
 
 import os
 
 
+
+STANDARD_MODEL_NAME = "Model-1"
 
 # Create a MDB and open it. 
 # This function does not automatically save the MDB. However, the path used
@@ -38,12 +41,28 @@ def use_mdb(path_to_mdb):
 
 # Build a part in a MDB. 
 # TODO: For now, we assume the part is a rectangular prism. 
-def build_part(name, rect_prism, MDB):
+def build_part(name, rect_prism, mdb):
 # type: (str, RectPrism, Any) -> None
 
+    # Construct a sketch and extrude it to create the correct geometry.
+    # Then translate the part to the correct location in space.
     
-    
+    v1, v2 = rect_prism.get_rect_corners() 
+    mdb.models[STANDARD_MODEL_NAME].
 
-    
+
+# Used to verify that an MDB is in an expected state.
+def verify_mdb_content(mdb):    
+# type: (Any) -> None
+
+    if len(mdb.models) != 1:
+        raise RuntimeError("Too many or too few models in the MDB.")
+    if not (STANDARD_MODEL_NAME in mdb.models):
+        raise RuntimeError("The single model in the MDB is improperly named.")
+    if len(mdb.models[STANDARD_MODEL_NAME].parts) != 1:
+        raise RuntimeError("Too many of too few parts in the MDB.")
+    if not ("Initial_Geometry" in mdb.models[STANDARD_MODEL_NAME].parts):
+        raise RuntimeError("The single part in the single model in the MDB
+                            is improperly named.")
 
 

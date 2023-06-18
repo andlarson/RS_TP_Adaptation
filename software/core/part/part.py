@@ -37,16 +37,7 @@ class AbaqusMDB:
             raise RuntimeError("Bad path to .cae file passed.")
 
         mdb = catch_all.use_mdb(rep)
-        if len(mdb.models) != 1:
-            raise RuntimeError("Too many or too few models in the MDB.")
-        if not ("Model-1" in mdb.models):
-            raise RuntimeError("The single model in the MDB is improperly named.")
-        if len(mdb.models["Model-1"].parts) != 1:
-            raise RuntimeError("Too many of too few parts in the MDB.")
-        if not ("Initial_Geometry" in mdb.models["Model-1"].parts):
-            raise RuntimeError("The single part in the single model in the MDB
-                                is improperly named.")
-
+        catch_all.verify_mdb_content(mdb) 
         self.rep = rep 
 
 
