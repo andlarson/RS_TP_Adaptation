@@ -56,7 +56,7 @@ class ToolPass:
     simulation and the simulations must be chained together.
     '''
     def __init__(self, tool_pass):
-    # type: (geom.RectPrism) -> None
+    # type: (geom.SpecRightRectPrism) -> None
 
         self.tool_pass = tool_pass
 
@@ -72,14 +72,16 @@ class ToolPasses:
         self.passes_todo = []
 
 
-    def add_pass(self, tool_pass):
+    def add(self, tool_pass):
     # type: (ToolPass) -> None
 
         self.passes_todo.append(tool_pass)
 
     
-    # Assumes the first cut to do was done.
-    def finished_pass(self):
-    # type: (None) -> None
+    def pop(self):
+    # type: (None) -> ToolPass 
+        
+        tool_pass = self.passes_todo.pop([0])
+        self.passes_done.append(tool_pass)
 
-        self.passes_done.append(self.passes_todo.pop([0]))
+        return tool_pass

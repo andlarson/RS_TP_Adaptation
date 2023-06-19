@@ -25,7 +25,7 @@ class StressTensor:
 class StressProfile:
 
     def __init__(self, stress_profile_list):
-    # type: (list[tuple[geom.Point, StressTensor]]) -> None 
+    # type: (list[tuple[geom.Point3D, StressTensor]]) -> None 
 
         # TODO: Check how close to equilibrium the stress field is. Warn the
         #   user if the stress field is not in equilibrium.

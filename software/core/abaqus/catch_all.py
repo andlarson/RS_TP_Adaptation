@@ -12,7 +12,7 @@ import sketch
 import os
 
 
-
+IDENTITY_SEQ_SEQ = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]
 STANDARD_MODEL_NAME = "Model-1"
 
 # Create a MDB and open it. 
@@ -33,22 +33,45 @@ def create_mdb(name, path):
 
 # Get a MDB object from the path to a .cae file.
 def use_mdb(path_to_mdb):
-# type: (str) -> Any 
+# type: (str) -> Any
     
     return openMdb(path_to_mdb)
 
 
 
 # Build a part in a MDB. 
-# TODO: For now, we assume the part is a rectangular prism. 
-def build_part(name, rect_prism, mdb):
-# type: (str, RectPrism, Any) -> None
+# TODO: We assume a special right rectangular prism geometry. 
+def build_part(name, spec_right_rect_prism, mdb):
+# type: (str, SpecRightRectPrism, Any) -> None
 
-    # Construct a sketch and extrude it to create the correct geometry.
-    # Then translate the part to the correct location in space.
-    
-    v1, v2 = rect_prism.get_rect_corners() 
-    mdb.models[STANDARD_MODEL_NAME].
+    # The part may be floating in space away from the origin.
+    # This necessitates re-centering the sketch origin.
+    # We want to re-center in terms of x and y. We don't want to recenter in
+    #   terms of z. Doing so would make extrusion impossible. Instead, the
+    #   smaller z coordinate among the prism's vertices should be used. 
+    centroid = spec_right_rect_prism.get_centroid()
+    z_offset = spec_right_rect_prism.get_smaller_z()
+    transform_matrix = centroid.append((centroid.x, centroid.y, z_offset)) 
+
+    # Create a sketch object.
+    v1, v2 = spec_right_rect_prism.get_rect_corners() 
+    largest_coord = max(v1.x, v1.y, v2.x, v2.y)
+    sketch = mdb.models[STANDARD_MODEL_NAME].ConstrainedSketch(name=name, sheetSize=(2 * largest_coord), transform=transform_matrix)
+
+    # Draw the rectangle accounting for the translated origin.
+    corner_1 = (v1.proj_xy().x - centroid.x, v1.proj_xy().y - centroid.y)
+    corner_2 = (v2.proj_xy().x - centroid.x, v2.proj_xy().y - centroid.y)
+    if not sketch.rectangle(corner_1, corner_2):
+        raise RuntimeError("Failed to create rectangle on sketch!")
+
+    # Build the part.
+    # It takes the same name as the sketch.
+    part = mdb.models[STANDARD_MODEL_NAME].Part(name=name, dimensionality=THREE_D, type=DEFORMABLE_BODY)
+
+    # Extrude the sketch.
+    depth = spec_right_rect_prism.get_dims()[2]
+    mdb.models[STANDARD_MODEL_NAME].part[name].BaseSolidExtrude(sketch=sketch, depth=depth)
+
 
 
 # Used to verify that an MDB is in an expected state.

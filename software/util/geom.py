@@ -3,8 +3,16 @@
 Utilities for general geometric tasks.
 """
 
+class Point2DXY:
+    
+    def __init__(self, x, y):
+    # type: (float, float) -> None
+        
+        self.x = x
+        self.y = y
 
-class Point:
+
+class Point3D:
 
     def __init__(self, x, y, z):
     # type: (float, float, float) -> None
@@ -13,49 +21,63 @@ class Point:
         self.y = y
         self.z = z
 
+    def proj_xy(self):
+    # type: (None) -> tuple[float, float]
+        
+        return Point2DXY(self.x, self.y) 
 
 
 
-
-class RectPrism:
-    # TODO: This is a bit hacky. We should probably build up from more
-    #   fundumental geometric objects such as parallel lines, etc.
+# A right rectangular prism is a 3D object which consists of 8 vertices,
+#   all right angles, and opposite faces have equal area.
+# This is not only a right rectangular prism, but also a right rectangular
+#   prism which edges which are parallel to the standard x, y, and z axes.
+class SpecRightRectPrism:
    
-    # Assumed that v1 -> v4 have the same z-coordiante.
-    # Assumed that v5 -> v8 have the same z-coordinate.
-    # Assumed that v1, v2, v5, v6 have the same x-coordinate.
-    # Assumed that v3, v4, v7, v8 have the same x-coordinate.
     def __init__(self, v1, v2, v3, v4, v5, v6, v7, v8):
-    # type: (tuple[Point, Point, Point, Point, Point, Point, Point, Point]) -> None
+    # type: (Point3D, Point3D, Point3D, Point3D, Point3D, Point3D, Point3D, Point3D) -> None
 
-        if (not (v1.z == v2.z == v3.z == v4.z)) or \
-           (not (v5.z == v6.z == v7.z == v8.z)):
-            raise RuntimeError("Improperly constructed rectangular prism!")
+        v_list = [v1, v2, v3, v4, v5, v6, v7, v8]
 
-        if (not (v1.x == v2.x == v5.x == v6.x)) or \
-           (not (v3.x == v4.x == v7.x == v8.x)):
-            raise RuntimeError("Improperly constructed rectangular prism!")
+        # Find the groups of 4 vertices which share the same x coordinates, y
+        #   coordinates, and z coordinates.
+        self.same_x_g1 = [v1]
+        self.same_x_g2 = []
+        self.same_y_g1 = [v1]
+        self.same_y_g2 = []
+        self.same_z_g1 = [v1]
+        self.same_z_g2 = []
+        for v in v_list[1:]:
+            if v.x == self.same_x_g1:
+                self.same_x_g1.append(v)
+            else:
+                self.same_x_g2.append(v)
 
-        self.vertices = (v1, v2, v3, v4, v5, v6, v7, v8)
-        self.x_len = abs()
+            if v.y == self.same_y_g1:
+                self.same_y_g1.append(v)
+            else:
+                self.same_y_g2.append(v)
+
+            if v.z == self.same_z_g1:
+                self.same_z_g1.append(v)
+            else:
+                self.same_z_g2.append(v)
+
+        self.vertices = v_list
+
+   
+    def get_smaller_z(self):
+        return min(self.same_z_g1[0].z, self.same_z_g2[0].z) 
 
 
-    # Compute the length, width, and height of rectangular prism, regardless of
-    #   its location in space.
-    # The x direction is length, y direction is width, and z direction is
-    #   height.
-    # The return format is (length, width, height).
+    # Get the length in the x-direction, the width in the y-direction, and the
+    #   height in the z-direction.
     def get_dims(self):
     # type: (None) -> tuple(float, float, float)
        
-        v1 = self.vertices[0]
-        for v in self.vertices[1:]:
-            if v1.x != v.x and v1.z == v.z and v1.y == v.y:
-                x_length = abs(v1.x - v.x)
-            if v1.y != v.y and v1.z == v.z and v1.x == v.x:
-                y_width = abs(v1.y - v.y)
-            if v1.z != v.z and v1.x == v.x and v1.y == v.y:
-                z_height = abs(v1.z - v.z) 
+        x_length = abs(self.same_x_g1[0].x - self.same_x_g2[0].x)
+        y_width = abs(self.same_y_g1[0].y - self.same_y_g2[0].y)
+        z_height = abs(self.same_z_g1[0].z - self.same_z_g2[0].z)
 
         return (x_length, y_width, z_height)
 
@@ -63,7 +85,7 @@ class RectPrism:
     # Get 2 vertices which have the same z coordinates but differing x and y
     #   coordinates.
     def get_rect_corners(self):
-    # type: (None) -> tuple[Point, Point] 
+    # type: (None) -> tuple[Point3D, Point3D] 
 
         v1 = self.vertices[0]
         for v in self.vertices[1:]:
@@ -71,13 +93,13 @@ class RectPrism:
                 return (v1, v) 
 
 
-    # Get the center point of the rectangular prism.
-    def get_center_point(self):
-    # type: (None) -> Point
-
-        # Find the average x-coordinate among the points which live on the same
-        #   z plane.
-
+    def get_centroid(self):
+    # type: (None) -> Point3D
         
+        avg_x = (self.same_x_g1[0] + self.same_x_g2[0])/2
+        avg_y = (self.same_y_g1[0] + self.same_y_g2[0])/2
+        avg_z = (self.same_z_g1[0] + self.same_z_g2[0])/2
+
+        return Point3D(avg_x, avg_y, avg_z) 
 
 

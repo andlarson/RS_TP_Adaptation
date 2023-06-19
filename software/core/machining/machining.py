@@ -1,10 +1,8 @@
 import core.part.part as part
 import core.abaqus.catch_all as catch_all
-
-import os
-
 import storage.storage as storage
 
+import os
 
 
 
@@ -24,9 +22,8 @@ class MachiningProcess:
                         as a .cae file, so it already has a name!")    
             self.mdb = catch_all.use_mdb(part.initial_part_rep.rep)
         else:
-            # Will be saved to default location with custom name.
-            mdb_default_path = storage.MDB_save_area()
-            self.mdb = catch_all.create_mdb(mdb_default_path + name)
+            # Save to default location with custom name. 
+            self.mdb = catch_all.create_mdb(storage.MDB_save_area() + name)
 
 
     # This does the forward direction (estimate deformation due to a tool pass).
@@ -47,7 +44,13 @@ class MachiningProcess:
         # Save off the resulting deformed geometry and redistributed stress
         #   profile.
    
-        
+        mdb = self.mdb 
+
+        # Build the next cut as a part.
+        tool_pass_geom = self.tool_passes.pop()
+        catch_all.build_part(tool_pass_geom)
+
+
         
          
 
