@@ -1,6 +1,8 @@
 
 Setup code search / tags ability
 Look into tmux functionality to improve tabbing setup.
-Write vim tool to fix comment formatting automatically.
+Write vim tool to fix Python comment formatting automatically.
 Compare the deformation which results from geometry change to element deletion.
-
+Build a good debugging setup for making calls into the Abaqus API....
+Ensure that the calls into the Abaqus API are isolated into well defined modules
+  in the software repo.

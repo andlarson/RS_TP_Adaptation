@@ -25,11 +25,11 @@ class MachiningProcess:
             # Save to default location with custom name. 
             self.mdb = catch_all.create_mdb(storage.MDB_save_area() + name)
 
-
-    # This does the forward direction (estimate deformation due to a tool pass).
+    
     def sim_next_tool_pass(self):
     # type: (None) -> None
-
+        
+        # TODO: Eventually remove the roadmap below.
         # If the part has an Abaqus representation, spin up the model in Abaqus.
         #   Otherwise build the part in Abaqus.
         # 
@@ -44,14 +44,25 @@ class MachiningProcess:
         # Save off the resulting deformed geometry and redistributed stress
         #   profile.
    
-        mdb = self.mdb 
-
-        # Build the next cut as a part.
+        # Build the next tool pass path as a part.
         tool_pass_geom = self.tool_passes.pop()
-        catch_all.build_part(tool_pass_geom)
+        tool_pass_name = "cut_" + str(self.tool_passes.cuts_done)
+        catch_all.build_part(tool_pass_name, tool_pass_geom, self.mdb)
 
+        #  
+       
 
-        
+    # TODO:
+    # Use multiple consecutive simulations to simulate the results of multiple
+    #   consecutive tool passes. We could also implement a naive-approach which
+    #   could simulate multiple tool passes with a single simulation with the
+    #   implicit assumption that each tool path, except possibly the last one,
+    #   would not cause a large deformation.
+    def sim_consecutive_tool_passes(self, cnt):
+    # type: (int) -> None
+
+        pass 
+       
          
 
     # This does the backward direction (estimate residual stress which caused

@@ -70,6 +70,7 @@ class ToolPasses:
         # Keep track of what's been done and what needs to be done. 
         self.passes_done = []
         self.passes_todo = []
+        self.cuts_done = 0
 
 
     def add(self, tool_pass):
@@ -81,7 +82,8 @@ class ToolPasses:
     def pop(self):
     # type: (None) -> ToolPass 
         
-        tool_pass = self.passes_todo.pop([0])
+        tool_pass = self.passes_todo.pop(0)
         self.passes_done.append(tool_pass)
+        self.cuts_done += 1
 
         return tool_pass

@@ -7,7 +7,6 @@ This file will probably need to be broken up.
 
 from abaqus import *
 from abaqusConstants import * 
-import sketch
 
 import os
 
@@ -36,6 +35,15 @@ def use_mdb(path_to_mdb):
 # type: (str) -> Any
     
     return openMdb(path_to_mdb)
+
+
+
+# Save a MDB object to the location which was specified during its creation.
+def save_mdb(mdb):
+# type: (Any) -> None
+
+    save(mdb)
+    print("The mdb was saved to: " + mdb.pathName)
 
 
 
@@ -89,3 +97,31 @@ def verify_mdb_content(mdb):
                             is improperly named.")
 
 
+
+# Instance part into an assembly.
+def instance_part_into_assembly():
+    pass 
+
+
+
+# Combine two part instances in an assembly via a cut operation.
+def cut_instances_in_assembly():
+    pass
+
+
+
+# Create a job.
+def create_job():
+    pass
+
+
+
+# Run a job.
+def run_job():
+    pass
+
+
+
+# Enable visualization to some degree.
+def enable_visualization():
+    pass
