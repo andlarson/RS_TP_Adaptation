@@ -6,3 +6,15 @@ Compare the deformation which results from geometry change to element deletion.
 Build a good debugging setup for making calls into the Abaqus API....
 Ensure that the calls into the Abaqus API are isolated into well defined modules
   in the software repo.
+Resolve the fact that if the initial residual stress field is far from equilibrium,
+  then building the post-cut geometry and allowing relaxation is not equivalent
+  to allowing relaxation and then doing material removal.
+It feels brittle to assume only a single model with a particular name in an MDB.
+  It is probably worthwhile to generalize. I think it's ok to assume a particular
+  structure for the MDBs which are handed to us.
+It also feels brittle to intermingle the stress equilibration and the machining
+  procedures. That is, material removal is really unrelated to a sometimes
+  necessary stress equilibration step. Stress equilibration is sometimes necessary
+  because the way that a stress field is represented doesn't exactly match
+  reality. Material removal is a fundamental procedure which is required during
+  the machining process.

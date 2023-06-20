@@ -8,11 +8,44 @@ This file will probably need to be broken up.
 from abaqus import *
 from abaqusConstants import * 
 
+import Assembly
+import Step
+
 import os
 
 
 IDENTITY_SEQ_SEQ = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]
 STANDARD_MODEL_NAME = "Model-1"
+INIT_GEOM_PART_NAME = "Initial_Geometry"
+STANDARD_TOOL_PASS_PART_PREFIX = "Tool_Pass_"
+STANDARD_POST_TOOL_PASS_PART_PREFIX = "Post_Tool_Pass_"
+STANDARD_INITIAL_STEP_NAME = "Initial"
+STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
+
+
+class SimMetaData:
+
+    def __init__(self):
+    # type: (None) -> None
+
+        self.step_seq = [STANDARD_INITIAL_STEP_NAME]
+
+
+    # Keep track of the names of steps in the single standard model. 
+    # This is necessary because, when inserting a step via the Abaqus API, it's
+    #   necessary to specify which step this new step should follow.
+    def add_step(self, name):
+    # type: (str) -> None
+
+        self.step_seq.append(name)
+
+
+    def get_last_step(self):
+    # type: (None) -> str 
+        
+        return self.step_seq[-1]
+
+
 
 # Create a MDB and open it. 
 # This function does not automatically save the MDB. However, the path used
@@ -50,7 +83,7 @@ def save_mdb(mdb):
 # Build a part in a MDB. 
 # TODO: We assume a special right rectangular prism geometry. 
 def build_part(name, spec_right_rect_prism, mdb):
-# type: (str, SpecRightRectPrism, Any) -> None
+# type: (str, SpecRightRectPrism, Any) -> Any
 
     # The part may be floating in space away from the origin.
     # This necessitates re-centering the sketch origin.
@@ -77,46 +110,83 @@ def build_part(name, spec_right_rect_prism, mdb):
     part = mdb.models[STANDARD_MODEL_NAME].Part(name=name, dimensionality=THREE_D, type=DEFORMABLE_BODY)
 
     # Extrude the sketch.
+    # Note that BaseSolidExtrude() adds a feature to the Part and returns the
+    #   associated feature object. We need not keep track of or deal with the
+    #   feature object. By adding the feature, the part itself has been
+    #   updated.
     depth = spec_right_rect_prism.get_dims()[2]
     mdb.models[STANDARD_MODEL_NAME].part[name].BaseSolidExtrude(sketch=sketch, depth=depth)
 
+    return part
 
 
-# Used to verify that an MDB is in an expected state.
+
+# If the user wants to use a pre-existing MDB (i.e. .cae file), then it must
+#   satisfy some expectations.
+# This function can't possibly check everything, but it is capable of some
+#   sanity checking.
 def verify_mdb_content(mdb):    
 # type: (Any) -> None
 
-    if len(mdb.models) != 1:
-        raise RuntimeError("Too many or too few models in the MDB.")
-    if not (STANDARD_MODEL_NAME in mdb.models):
-        raise RuntimeError("The single model in the MDB is improperly named.")
-    if len(mdb.models[STANDARD_MODEL_NAME].parts) != 1:
-        raise RuntimeError("Too many of too few parts in the MDB.")
-    if not ("Initial_Geometry" in mdb.models[STANDARD_MODEL_NAME].parts):
-        raise RuntimeError("The single part in the single model in the MDB
-                            is improperly named.")
+    assert len(mdb.models) == 1
+    assert STANDARD_MODEL_NAME in mdb.models
+    assert mdb.models[STANDARD_MODEL_NAME].parts == 1
+    assert INIT_GEOM_PART_NAME in mdb.models[STANDARD_MODEL_NAME].parts
+    assert len(mdb.jobs) == 0
+    assert mdb.models[STANDARD_MODEL_NAME].rootAssembly == None  
+    assert len(mdb.models[STANDARD_MODEL_NAME].predefinedFields) != 0
+    assert len(mdb.models[STANDARD_MODEL_NAME].loads) == 0
+    assert len(mdb.models[STANDARD_MODEL_NAME].materials) != 0
+    assert len(mdb.models[STANDARD_MODEL_NAME].steps) == 0 
+
+    
+
+def get_part(name, mdb):
+# type: (str, Any) -> Any    
+    
+    return mdb.models[STANDARD_MODEL_NAME].parts[name]
 
 
 
-# Instance part into an assembly.
-def instance_part_into_assembly():
-    pass 
+# Create part instance in the root assembly for the default model.
+def instance_part_into_assembly(part, mdb, dependent):
+# type: (Any, Any, bool) -> Any 
+    
+    return mdb.models[STANDARD_MODEL_NAME].rootAssembly.Instance(part, dependent=dependent)
+    
+
+
+# Cut a single part instance via multiple other part instances. 
+# The result is a new part in the model and a new part instance in the root
+#   assembly.
+def cut_instances_in_assembly(name, instance_to_be_cut, cutting_instances, mdb):
+# type: (str, Any, list[Any], Any) -> Any
+
+    return mdb.models[STANDARD_MODEL_NAME].rootAssembly.PartFromBooleanCut(name, instance_to_be_cut, cutting_instances)
 
 
 
-# Combine two part instances in an assembly via a cut operation.
-def cut_instances_in_assembly():
-    pass
+# Create an equilbirium step after another specified step.
+def create_equilibrium_step(name, name_step_to_follow, mdb):
+# type: (Any) -> None
+
+    return mdb.models[STANDARD_MODEL_NAME].StaticStep(name, name_step_to_follow)
 
 
 
-# Create a job.
+# Get the number of steps which exist in the standard single model.
+def get_step_cnt(mdb):
+# type: (Any) -> None
+
+    return len(mdb.models[STANDARD_MODEL_NAME].steps)
+        
+
+
 def create_job():
     pass
 
 
 
-# Run a job.
 def run_job():
     pass
 
