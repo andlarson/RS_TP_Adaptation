@@ -23,30 +23,6 @@ STANDARD_INITIAL_STEP_NAME = "Initial"
 STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
 
 
-class SimMetaData:
-
-    def __init__(self):
-    # type: (None) -> None
-
-        self.step_seq = [STANDARD_INITIAL_STEP_NAME]
-
-
-    # Keep track of the names of steps in the single standard model. 
-    # This is necessary because, when inserting a step via the Abaqus API, it's
-    #   necessary to specify which step this new step should follow.
-    def add_step(self, name):
-    # type: (str) -> None
-
-        self.step_seq.append(name)
-
-
-    def get_last_step(self):
-    # type: (None) -> str 
-        
-        return self.step_seq[-1]
-
-
-
 # Create a MDB and open it. 
 # This function does not automatically save the MDB. However, the path used
 #   here is the location of save when a save does happen.
