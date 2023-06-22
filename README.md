@@ -1,1 +1,1 @@
-# umich_machining_project
+# Mitigating workpiece warpage caused by residual stress during machining!
