@@ -14,6 +14,7 @@ VERTEX_REP = "VertexRep"
 ABAQUS_MDB = "AbaqusMDB"
 
 
+
 class VertexRep:
 
     def __init__(self, rep):

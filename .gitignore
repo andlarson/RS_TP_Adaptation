@@ -22,3 +22,9 @@
 *.npz
 *.npy
 
+# We don't want the tags file to pollute the repo.
+tags
+
+# We also don't want pesky vim recovery files to crowd the repo.
+*.swp
+
