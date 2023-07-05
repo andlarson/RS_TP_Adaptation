@@ -2,7 +2,7 @@ import util.geom as geom
 
 
 
-# Compute how near the stress field is to equilibrium.
+# TODO: Compute how near the stress field is to equilibrium.
 def check_equil():
     pass
 

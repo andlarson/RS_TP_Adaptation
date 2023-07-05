@@ -1,7 +1,6 @@
 
 '''
-For now, this is a catch-all file which interfaces with the Abaqus scripting
-  interface.
+This file is the only file which makes calls into the Abaqus API.
 This file will probably need to be broken up.
 '''
 
@@ -14,9 +13,9 @@ import Step
 import os
 
 
-IDENTITY_SEQ_SEQ = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]
+# There are standard names/prefixes/suffixes which we expect in Abaqus MDBs.
 STANDARD_MODEL_NAME = "Model-1"
-INIT_GEOM_PART_NAME = "Initial_Geometry"
+STANDARD_INIT_GEOM_PART_NAME = "Initial_Geometry"
 STANDARD_TOOL_PASS_PART_PREFIX = "Tool_Pass_"
 STANDARD_POST_TOOL_PASS_PART_PREFIX = "Post_Tool_Pass_"
 STANDARD_INITIAL_STEP_NAME = "Initial"
@@ -32,18 +31,26 @@ def create_mdb(name, path):
     if not os.access(path, os.F_OK):
         raise RuntimeError("Path for MDB creation does not exist.") 
 
-    if not name.endswith(".cae"):
-        print("The MDB was suffixed with .cae implicitly.")
-
     return Mdb(path + name)
 
 
 
 # Get a MDB object from the path to a .cae file.
+# Treat opening an MDB like opening a file. Only open it in one place at one time
+#    and close it as soon as it is no longer needed.
 def use_mdb(path_to_mdb):
 # type: (str) -> Any
     
     return openMdb(path_to_mdb)
+
+
+
+# Close an MDB which is open.
+def close_mdb(mdb):
+# type: (Any) -> None
+
+    mdb.close()
+
 
 
 
@@ -58,14 +65,14 @@ def save_mdb(mdb):
 
 # Build a part in a MDB. 
 # TODO: We assume a special right rectangular prism geometry. 
+# TODO: Break this up into modular chunks.
 def build_part(name, spec_right_rect_prism, mdb):
 # type: (str, SpecRightRectPrism, Any) -> Any
 
     # The part may be floating in space away from the origin.
     # This necessitates re-centering the sketch origin.
-    # We want to re-center in terms of x and y. We don't want to recenter in
-    #   terms of z. Doing so would make extrusion impossible. Instead, the
-    #   smaller z coordinate among the prism's vertices should be used. 
+    # We want to re-center in terms of the x-y centroid and the z plane which
+    #    is closer to z=0.
     centroid = spec_right_rect_prism.get_centroid()
     z_offset = spec_right_rect_prism.get_smaller_z()
     transform_matrix = centroid.append((centroid.x, centroid.y, z_offset)) 
@@ -97,17 +104,15 @@ def build_part(name, spec_right_rect_prism, mdb):
 
 
 
-# If the user wants to use a pre-existing MDB (i.e. .cae file), then it must
-#   satisfy some expectations.
-# This function can't possibly check everything, but it is capable of some
-#   sanity checking.
-def verify_mdb_content(mdb):    
+# Verify that the mdb the user passed as an initial part geometry really contains
+#    what we expect it to.
+def verify_init_geom_mdb(mdb):    
 # type: (Any) -> None
 
     assert len(mdb.models) == 1
     assert STANDARD_MODEL_NAME in mdb.models
-    assert mdb.models[STANDARD_MODEL_NAME].parts == 1
-    assert INIT_GEOM_PART_NAME in mdb.models[STANDARD_MODEL_NAME].parts
+    assert len(mdb.models[STANDARD_MODEL_NAME].parts) == 1
+    assert STANDARD_INIT_GEOM_PART_NAME in mdb.models[STANDARD_MODEL_NAME].parts
     assert len(mdb.jobs) == 0
     assert mdb.models[STANDARD_MODEL_NAME].rootAssembly == None  
     assert len(mdb.models[STANDARD_MODEL_NAME].predefinedFields) != 0

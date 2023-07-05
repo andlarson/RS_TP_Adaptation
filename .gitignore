@@ -22,6 +22,13 @@
 *.npz
 *.npy
 
+# We don't care about the cache files.
+*.pyc
+
+# And the record / replay files.
+*.rpy
+*.rec
+
 # We don't want the tags file to pollute the repo.
 tags
 

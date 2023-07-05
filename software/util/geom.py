@@ -32,6 +32,8 @@ class Point3D:
 #   all right angles, and opposite faces have equal area.
 # This is not only a right rectangular prism, but also a right rectangular
 #   prism which edges which are parallel to the standard x, y, and z axes.
+# TODO: Generalize so that edges need not be parallel to the standard x, y, and
+#    z axes.
 class SpecRightRectPrism:
    
     def __init__(self, v1, v2, v3, v4, v5, v6, v7, v8):
