@@ -13,30 +13,47 @@ class MachiningProcess:
    
     def __init__(self, name, part, tool_pass_plan):
     # type: (str, part.Part, tp.ToolPassPlan) -> None
-
+    
+        self.name = name
         self.part = part
         self.tool_pass_plan = tool_pass_plan 
+        self.part_history = part.PartHistory()
+
+        # A single machining process may contain many model databases (i.e. MDBs).
+        #    This gives the most flexibility. We may want to chain simulations
+        #    in a single MDB or do a single simulation per MDB to make things as
+        #    straightforward as possible.
+        # Note that we store paths to MDBs and open/close the MDBs themselves
+        #    only as necessary.
+        self.mdb_paths = []
 
         if isinstance(part, part.UserDefinedPart):
             # TODO: We don't handle this case right now...
+            #       This should build an MDB and then append it to the list
+            #          of simulations. Behavior should be symmetric to the
+            #          else clause.
         else:
             assert(name == None)
-            self.mdb = shim.use_mdb()
+            self.mdb_paths.append(part.path_to_mdb)
 
-    
+
+    # Simulate the next tool pass in the MDB most recently associated with
+    #    this object.
     def sim_next_tool_pass(self):
     # type: (None) -> None
-        
+       
+        mdb = shim.use_mdb(self.mdb_paths)
+
         # Build the next tool pass path as a part.
-        tool_pass_geom = self.tool_passes.pop()
-        tool_pass_name = shim.STANDARD_TOOL_PASS_PART_PREFIX + str(self.tool_passes.cuts_done)
+        tool_pass_geom = self.tool_pass_plan.pop()
+        tool_pass_name = shim.STANDARD_TOOL_PASS_PART_PREFIX + str(self.tool_pass_plan.done_sofar())
         tool_pass_part = shim.build_part(tool_pass_name, tool_pass_geom, self.mdb)
 
         # Instance the tool pass part.
         tool_pass_part_instance = shim.instance_part_into_assembly(tool_pass_part, mdb, True)
 
         # Instance the initial geometry part.
-        initial_geom_part = shim.get_part(shim.INIT_GEOM_PART_NAME, self.mdb)
+        initial_geom_part = shim.get_part(shim.STANDARD_INIT_GEOM_PART_NAME, self.mdb)
         initial_geom_part_instance = shim.instance_part_into_assembly(initial_geom_part, self.mdb, True)
 
         # Create the post cut geometry as a part and instance it.

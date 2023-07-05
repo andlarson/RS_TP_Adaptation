@@ -62,7 +62,6 @@ class UserDefinedPart(Part):
 #    motivates the use of multiple inheritance.
 class AbaqusDefinedPart(Part, sim.Simulation):
     
-    # TODO:
     def __init__(self, name, path):
     # type: (str, str) -> None
     

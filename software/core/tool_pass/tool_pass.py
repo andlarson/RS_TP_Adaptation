@@ -71,3 +71,7 @@ class ToolPassPlan:
 
         return tool_pass
 
+    def done_so_far(self):
+    # type: (None) -> int 
+
+        return len(passes_done)
