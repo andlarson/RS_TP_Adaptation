@@ -1,13 +1,8 @@
-# Importing like this works ONLY when the util directory is in the path that 
-#   Python searches when looking for modules. 
-# In the main.py, the software/ directory is added to the search path. This
-#   then guarantees that the util/ directory is located in the search path.
-# If you try to run this file as a script via "python3 part.py", this importing
-#   technique will not work.
 import util.geom as geom
 import core.simulation.simulation as sim
 import core.stress.stress as stress
 import core.material_properties.material_properties as mat_props 
+import core.abaqus.abaqus_shim as shim
 
 
 class PartHistory:
@@ -49,7 +44,7 @@ class Part:
 
 class UserDefinedPart(Part):
     
-    # TODO:
+    # TODO
     def __init__(self, name, part_rep, stress_profile, material_properties):
     # type: (str, geom.SpecRightRectPrism, stress.StressProfile, mat_props.MaterialProperties) -> None
 
@@ -58,7 +53,7 @@ class UserDefinedPart(Part):
 
 
 
-# An part built in Abaqus is really both a part and a simulation. This
+# A part built in Abaqus is really both a part and a simulation. This
 #    motivates the use of multiple inheritance.
 class AbaqusDefinedPart(Part, sim.Simulation):
     
@@ -69,7 +64,7 @@ class AbaqusDefinedPart(Part, sim.Simulation):
 
         mdb = shim.use_mdb(path)
         shim.verify_init_geom_mdb(mdb)
-        shim.close(mdb)
+        shim.close_mdb(mdb)
 
         self.path_to_mdb = path
 

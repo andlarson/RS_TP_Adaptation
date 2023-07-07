@@ -41,11 +41,12 @@ simulation and the simulations must be chained together.
 
 class ToolPass:
     
-    def __init__(self, tool_pass):
+    def __init__(self, tool_pass_geom):
     # type: (geom.SpecRightRectPrism) -> None
 
-        self.tool_pass = tool_pass
+        self.geom = tool_pass_geom
 
+    
 
 
 class ToolPassPlan:
@@ -74,4 +75,4 @@ class ToolPassPlan:
     def done_so_far(self):
     # type: (None) -> int 
 
-        return len(passes_done)
+        return len(self.passes_done)

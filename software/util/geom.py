@@ -3,6 +3,8 @@
 Utilities for general geometric tasks.
 """
 
+import sys
+
 class Point2DXY:
     
     def __init__(self, x, y):
@@ -50,20 +52,27 @@ class SpecRightRectPrism:
         self.same_z_g1 = [v1]
         self.same_z_g2 = []
         for v in v_list[1:]:
-            if v.x == self.same_x_g1:
+            if v.x == self.same_x_g1[0].x:
                 self.same_x_g1.append(v)
             else:
                 self.same_x_g2.append(v)
 
-            if v.y == self.same_y_g1:
+            if v.y == self.same_y_g1[0].y:
                 self.same_y_g1.append(v)
             else:
                 self.same_y_g2.append(v)
 
-            if v.z == self.same_z_g1:
+            if v.z == self.same_z_g1[0].z:
                 self.same_z_g1.append(v)
             else:
                 self.same_z_g2.append(v)
+        
+        assert(len(self.same_x_g1) == 4)
+        assert(len(self.same_x_g2) == 4)
+        assert(len(self.same_y_g1) == 4)
+        assert(len(self.same_y_g2) == 4)
+        assert(len(self.same_z_g1) == 4)
+        assert(len(self.same_z_g2) == 4)
 
         self.vertices = v_list
 
@@ -90,17 +99,18 @@ class SpecRightRectPrism:
     # type: (None) -> tuple[Point3D, Point3D] 
 
         v1 = self.vertices[0]
+
         for v in self.vertices[1:]:
-            if v1.z == v.z and v1.x != v.x and v1.y != v1.y:
-                return (v1, v) 
+            if (v1.z == v.z) and (v1.x != v.x) and (v1.y != v.y):
+                return v1, v
 
 
     def get_centroid(self):
     # type: (None) -> Point3D
         
-        avg_x = (self.same_x_g1[0] + self.same_x_g2[0])/2
-        avg_y = (self.same_y_g1[0] + self.same_y_g2[0])/2
-        avg_z = (self.same_z_g1[0] + self.same_z_g2[0])/2
+        avg_x = (self.same_x_g1[0].x + self.same_x_g2[0].x)/2
+        avg_y = (self.same_y_g1[0].y + self.same_y_g2[0].y)/2
+        avg_z = (self.same_z_g1[0].z + self.same_z_g2[0].z)/2
 
         return Point3D(avg_x, avg_y, avg_z) 
 

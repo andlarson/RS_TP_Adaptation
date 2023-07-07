@@ -13,11 +13,11 @@ import os
 
 class MachiningProcess:
    
-    def __init__(self, name, part, tool_pass_plan):
+    def __init__(self, name, init_part, tool_pass_plan):
     # type: (str, part.Part, tp.ToolPassPlan) -> None
     
         self.name = name
-        self.part = part
+        self.part = init_part
         self.tool_pass_plan = tool_pass_plan 
         self.part_history = part.PartHistory()
 
@@ -28,48 +28,38 @@ class MachiningProcess:
         # This maps MDB paths to metadata objects.
         self.metadata = {}
 
-        if isinstance(part, part.UserDefinedPart):
+        if isinstance(init_part, part.UserDefinedPart):
             # TODO: We don't handle this case right now...
             #       This should build an MDB and then append it to the list
             #          of simulations. Behavior should be symmetric to the
             #          else clause.
+            pass
         else:
             assert(name == None)
-
-            # Make sure that things are as we expect.
-            mdb = shim.use_mdb(path_to_mdb)
-            shim.verify_init_geom_mdb(mdb)
-            shim.close_mdb(mdb)
-
-            self.metadata[part.path_to_mdb] = md.MDBMetadata(part.path_to_mdb, md.STANDARD_MODEL_NAME)
-            self.working_mdb_path = part.path_to_mdb
+            self.metadata[init_part.path_to_mdb] = md.MDBMetadata(init_part.path_to_mdb, shim.STANDARD_MODEL_NAME)
+            self.working_mdb_path = init_part.path_to_mdb
 
     
     def get_working_model_name(self):
     # type: (None) -> None
 
-        return self.metadata[working_mdb_path].get_working_model_name()
+        return self.metadata[self.working_mdb_path].get_working_model_name()
 
 
-    def sim_next_tool_pass(self):
-    # type: (None) -> None
+    def sim_next_tool_pass(self, save_location):
+    # type: (str) -> None
        
         mdb = shim.use_mdb(self.working_mdb_path)
-        model_name = get_working_model_name(self)
+        model_name = self.get_working_model_name()
 
         # Build the next tool pass path as a part.
-        tool_pass_geom = self.tool_pass_plan.pop()
-        tool_pass_name = shim.STANDARD_TOOL_PASS_PART_PREFIX + str(self.tool_pass_plan.done_sofar())
+        tool_pass = self.tool_pass_plan.pop()
+        tool_pass_geom = tool_pass.geom
+        tool_pass_name = shim.STANDARD_TOOL_PASS_PART_PREFIX + str(self.tool_pass_plan.done_so_far())
         tool_pass_part = shim.build_part(tool_pass_name, tool_pass_geom, model_name, mdb)
 
         # Instance the tool pass part.
         tool_pass_part_instance = shim.instance_part_into_assembly(tool_pass_part, True, model_name, mdb)
-
-        # Instance the initial geometry part.
-        # Assumed to already exist in the MDB.
-        # TODO: Is this name convention always followed?
-        initial_geom_part = shim.get_part(shim.STANDARD_INIT_GEOM_PART_NAME, mdb)
-        initial_geom_part_instance = shim.instance_part_into_assembly(initial_geom_part, True, model_name, mdb)
 
         # Create the post cut geometry as a part.
         post_tool_pass_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(self.tool_passes.cuts_done)
@@ -77,7 +67,9 @@ class MachiningProcess:
         post_tool_pass_part = shim.cut_instances_in_assembly(post_tool_pass_name, initial_geom_part_instance, cut_instances, model_name, mdb)
 
         # Instance the post cut geometry.
-        post_tool_pass_instance = shim.intsnace_part_into_assembly(post_tool_pass_part, True, model_name, mdb)
+        # The instance is independent so that meshing can be done in the Assembly
+        #    module.
+        post_tool_pass_instance = shim.instance_part_into_assembly(post_tool_pass_part, False, model_name, mdb)
 
         # Then mesh the part in the assembly module.
         shim.naive_mesh(post_tool_pass_instance)
@@ -93,7 +85,9 @@ class MachiningProcess:
         shim.create_and_run_job(job_name, model_name, mdb) 
 
         # And save off the result.
-        shim.save_mdb(mdb)
+        # TODO: Need a general solution here. Maybe access the MDB metadata or
+        #    use the storage functionality to determine where to save.
+        shim.save_mdb(save_location, mdb)
 
         shim.close_mdb(mdb) 
 

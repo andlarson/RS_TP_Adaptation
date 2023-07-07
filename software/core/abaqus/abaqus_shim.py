@@ -26,7 +26,6 @@ STANDARD_POST_TOOL_PASS_PART_PREFIX = "Post_Tool_Pass_"
 STANDARD_INITIAL_STEP_NAME = "Initial"
 STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
 
-
 # Create a MDB and open it. 
 # This function does not automatically save the MDB. However, the path used
 #   here is the location of save when a save does happen.
@@ -59,16 +58,17 @@ def close_mdb(mdb):
 
 
 # Save a MDB object to the location which was specified during its creation.
-def save_mdb(mdb):
-# type: (Any) -> None
+def save_mdb(save_path, mdb):
+# type: (str, Any) -> None
 
-    save(mdb)
+    mdb.saveAs(save_path)    
     print("The mdb was saved to: " + mdb.pathName)
 
 
 
 # Verify that the mdb the user passed as an initial part geometry really contains
 #    what we expect it to.
+# TODO: Check that there are partitions, sections, etc.
 def verify_init_geom_mdb(mdb):    
 # type: (Any) -> None
 
@@ -77,11 +77,13 @@ def verify_init_geom_mdb(mdb):
     assert len(mdb.models[STANDARD_MODEL_NAME].parts) == 1
     assert STANDARD_INIT_GEOM_PART_NAME in mdb.models[STANDARD_MODEL_NAME].parts
     assert len(mdb.jobs) == 0
-    assert mdb.models[STANDARD_MODEL_NAME].rootAssembly == None  
+    assert mdb.models[STANDARD_MODEL_NAME].rootAssembly != None
     assert len(mdb.models[STANDARD_MODEL_NAME].predefinedFields) != 0
     assert len(mdb.models[STANDARD_MODEL_NAME].loads) == 0
     assert len(mdb.models[STANDARD_MODEL_NAME].materials) != 0
-    assert len(mdb.models[STANDARD_MODEL_NAME].steps) == 0 
+
+    # There is always an initial step.
+    assert len(mdb.models[STANDARD_MODEL_NAME].steps) == 1
 
 
 
@@ -89,7 +91,7 @@ def verify_init_geom_mdb(mdb):
 # TODO: We assume a special right rectangular prism geometry. 
 # TODO: Break this up into modular chunks.
 def build_part(name, spec_right_rect_prism, model_name, mdb):
-# type: (str, SpecRightRectPrism, Any) -> Any
+# type: (str, SpecRightRectPrism, str, Any) -> Any
 
     # The part may be floating in space away from the origin.
     # This necessitates re-centering the sketch origin.
@@ -97,12 +99,16 @@ def build_part(name, spec_right_rect_prism, model_name, mdb):
     #    is closer to z=0.
     centroid = spec_right_rect_prism.get_centroid()
     z_offset = spec_right_rect_prism.get_smaller_z()
-    transform_matrix = centroid.append((centroid.x, centroid.y, z_offset)) 
+
+    # TODO: Somehow abstract the magic numbers here.
+    #       Not clear to me how to do this in Python since we can't build a
+    #         constant global variable.
+    transform_spec = ((1, 0, 0), (0, 1, 0), (0, 0, 1), (centroid.x, centroid.y, z_offset))
 
     # Create a sketch object.
     v1, v2 = spec_right_rect_prism.get_rect_corners() 
     largest_coord = max(v1.x, v1.y, v2.x, v2.y)
-    sketch = mdb.models[model_name].ConstrainedSketch(name=name, sheetSize=(2 * largest_coord), transform=transform_matrix)
+    sketch = mdb.models[model_name].ConstrainedSketch(name=name, sheetSize=(2 * largest_coord), transform=transform_spec)
 
     # Draw the rectangle accounting for the translated origin.
     corner_1 = (v1.proj_xy().x - centroid.x, v1.proj_xy().y - centroid.y)
