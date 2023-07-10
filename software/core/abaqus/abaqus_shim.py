@@ -1,18 +1,16 @@
-
-'''
+"""
 This file is the only file which makes calls into the Abaqus API.
-'''
+"""
 
 from abaqus import *
 from abaqusConstants import * 
 
-import assembly
-import step 
-import mesh 
-import job
-
 import os
 
+import core.abaqus.metadata as md
+
+# DEBUG
+from util.debug import *
 
 # There are standard names/prefixes/suffixes which we expect in Abaqus MDBs.
 # These act as invariants.
@@ -25,6 +23,8 @@ STANDARD_TOOL_PASS_PART_PREFIX = "Tool_Pass_"
 STANDARD_POST_TOOL_PASS_PART_PREFIX = "Post_Tool_Pass_"
 STANDARD_INITIAL_STEP_NAME = "Initial"
 STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
+
+
 
 # Create a MDB and open it. 
 # This function does not automatically save the MDB. However, the path used
@@ -62,7 +62,7 @@ def save_mdb(save_path, mdb):
 # type: (str, Any) -> None
 
     mdb.saveAs(save_path)    
-    print("The mdb was saved to: " + mdb.pathName)
+    dp("The mdb was saved to: " + mdb.pathName)
 
 
 
@@ -92,6 +92,14 @@ def verify_init_geom_mdb(mdb):
 # TODO: Break this up into modular chunks.
 def build_part(name, spec_right_rect_prism, model_name, mdb):
 # type: (str, SpecRightRectPrism, str, Any) -> Any
+   
+    # ----- Part Creation -----
+
+    # Create the part in the model. 
+    part = mdb.models[model_name].Part(name=name, dimensionality=THREE_D, type=DEFORMABLE_BODY)
+
+
+    # ----- Sketch Creation -----
 
     # The part may be floating in space away from the origin.
     # This necessitates re-centering the sketch origin.
@@ -100,25 +108,42 @@ def build_part(name, spec_right_rect_prism, model_name, mdb):
     centroid = spec_right_rect_prism.get_centroid()
     z_offset = spec_right_rect_prism.get_smaller_z()
 
-    # TODO: Somehow abstract the magic numbers here.
-    #       Not clear to me how to do this in Python since we can't build a
-    #         constant global variable.
-    transform_spec = ((1, 0, 0), (0, 1, 0), (0, 0, 1), (centroid.x, centroid.y, z_offset))
+    # The datum plane is parallel to the x-y plane and offset by z_offset in
+    #    the z direction.
+    # TODO: The objects returned are feature objects. To create the plane, it's
+    #    necessary retrieve the datum objects themselves. The datum objects
+    #    should probably be recorded as model/part metadata.
+    dp1_id = mdb.models[model_name].parts[name].DatumPointByCoordinate((0, 0, z_offset)).id
+    dp2_id = mdb.models[model_name].parts[name].DatumPointByCoordinate((1, 0, z_offset)).id
+    dp3_id = mdb.models[model_name].parts[name].DatumPointByCoordinate((0, 1, z_offset)).id 
+    dp1 = mdb.models[model_name].parts[name].datums[dp1_id]
+    dp2 = mdb.models[model_name].parts[name].datums[dp2_id]
+    dp3 = mdb.models[model_name].parts[name].datums[dp3_id]
 
-    # Create a sketch object.
+    # Create the plane and retrieve the datum object associated with it.
+    sketch_plane_id = mdb.models[model_name].parts[name].DatumPlaneByThreePoints(dp1, dp2, dp3).id
+    sketch_plane = mdb.models[model_name].parts[name].datums[sketch_plane_id]
+
+    # Create a transform object associated with the part.
+    t = mdb.models[model_name].parts[name].MakeSketchTransform(sketchPlane=sketch_plane, 
+                                                               origin=(centroid.x, centroid.y, z_offset))
+
+    # Create the sketch using the transform object.
     v1, v2 = spec_right_rect_prism.get_rect_corners() 
     largest_coord = max(v1.x, v1.y, v2.x, v2.y)
-    sketch = mdb.models[model_name].ConstrainedSketch(name=name, sheetSize=(2 * largest_coord), transform=transform_spec)
+    sketch = mdb.models[model_name].ConstrainedSketch(name=name, sheetSize=(2 * largest_coord), transform=t)
+    if sketch == None:
+        raise RuntimeError("No sketch could be created!")
 
     # Draw the rectangle accounting for the translated origin.
     corner_1 = (v1.proj_xy().x - centroid.x, v1.proj_xy().y - centroid.y)
     corner_2 = (v2.proj_xy().x - centroid.x, v2.proj_xy().y - centroid.y)
-    if not sketch.rectangle(corner_1, corner_2):
-        raise RuntimeError("Failed to create rectangle on sketch!")
 
-    # Build the part.
-    # It takes the same name as the sketch.
-    part = mdb.models[model_name].Part(name=name, dimensionality=THREE_D, type=DEFORMABLE_BODY)
+    # Don't try to check the return value. This returns None even on success...
+    # I think the documentation is out-of-date...
+    sketch.rectangle(corner_1, corner_2)
+
+    # ----- Part Extrusion -----
 
     # Extrude the sketch.
     # Note that BaseSolidExtrude() adds a feature to the Part and returns the
@@ -126,8 +151,8 @@ def build_part(name, spec_right_rect_prism, model_name, mdb):
     #   feature object. By adding the feature, the part itself has been
     #   updated.
     depth = spec_right_rect_prism.get_dims()[2]
-    mdb.models[model_name].part[name].BaseSolidExtrude(sketch=sketch, depth=depth)
-
+    mdb.models[model_name].parts[name].BaseSolidExtrude(sketch=sketch, depth=depth)
+    
     return part
 
 
@@ -147,10 +172,10 @@ def get_step_cnt(model_name, mdb):
 
 
 # Create part instance in the root assembly for the default model.
-def instance_part_into_assembly(part, dependent, model_name, mdb):
-# type: (Any, bool, str, Any) -> Any 
+def instance_part_into_assembly(instance_name, part, dependent, model_name, mdb):
+# type: (str, Any, bool, str, Any) -> Any 
     
-    return mdb.models[model_name].rootAssembly.Instance(part, dependent=dependent)
+    return mdb.models[model_name].rootAssembly.Instance(instance_name, part, dependent=dependent)
     
 
 
@@ -158,24 +183,30 @@ def instance_part_into_assembly(part, dependent, model_name, mdb):
 # The result is a new part in the model.
 # Remember to instance the resulting part!
 def cut_instances_in_assembly(name, instance_to_be_cut, cutting_instances, model_name, mdb):
-# type: (str, Any, list[Any], str, Any) -> Any
+# type: (str, Any, tuple[Any], str, Any) -> Any
 
-    return mdb.models[model_name].rootAssembly.PartFromBooleanCut(name, instance_to_be_cut, cutting_instances)
+    # Beware, the argument list ordering in the documentation for PartFrom
+    #    BooleanCut() appears to be incorrect.
+    return mdb.models[model_name].rootAssembly.PartFromBooleanCut(name=name, instanceToBeCut=instance_to_be_cut, cuttingInstances=cutting_instances)
 
 
 
 # Try a dumb meshing technique. 
-def naive_mesh(part_instance, size):
-# type: (Any, float) -> None
+def naive_mesh(part_instance, size, model_name, mdb):
+# type: (Any, float, str, Any) -> None
 
-    seedPartInstance(part_instance, size)
-    generateMesh(part_instance)
+    seq = (part_instance, )
+    mdb.models[model_name].rootAssembly.seedPartInstance(seq, size)
+    mdb.models[model_name].rootAssembly.generateMesh(regions=seq)
 
 
 
 # Create an equilbirium step after another specified step.
-def create_equilibrium_step(name, name_step_to_follow, model_name, mdb):
-# type: (str, str, str, Any) -> None
+def create_equilibrium_step(name, name_step_to_follow, model_name, mdb_metadata, mdb):
+# type: (str, str, str, md.MDBMetadata, Any) -> None
+
+    # Step creation means that MDB metadata must be updated.
+    mdb_metadata.add_step_to_model(model_name, name)
 
     return mdb.models[model_name].StaticStep(name, name_step_to_follow)
 

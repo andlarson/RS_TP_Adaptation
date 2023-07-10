@@ -5,6 +5,9 @@ import core.tool_pass.tool_pass as tp
 
 import sys
 
+# DEBUG
+from util.debug import *
+
 
 if __name__ == "__main__":
 
@@ -14,7 +17,7 @@ if __name__ == "__main__":
     path_to_cae = "/home/andlars/Downloads/script_testing/test_initial_geometry.cae"
     abaqus_part = part.AbaqusDefinedPart("an_example_part", path_to_cae)
     
-    sys.__stderr__.write("Initial geometry loaded.\n")
+    dp("Initial geometry loaded.")
 
     # Specifying the tool passes. 
 
@@ -36,7 +39,7 @@ if __name__ == "__main__":
 
     tool_pass_plan = tp.ToolPassPlan(tool_passes)
 
-    sys.__stderr__.write("Tool pass has been specified.\n") 
+    dp("Tool pass has been specified.\n") 
 
     # Building the machining object.
     machining_process = mach.MachiningProcess(None, abaqus_part, tool_pass_plan)

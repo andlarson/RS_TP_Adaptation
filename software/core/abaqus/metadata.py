@@ -1,3 +1,4 @@
+import core.abaqus.abaqus_shim as shim
 
 """
 Fulfills the need for metadata assocaited with Abaqus simualtions.
@@ -26,6 +27,10 @@ Also, this metadata only includes additional information which is necessary.
    replace or duplicate it. For example, it's unnecessary to track the parts
    associated with a particular model since we don't care about ordering,
    etc.
+
+Things we care about:
+    A MDB's working model.
+    Step sequence for each model in a MDB.
 """
 class MDBMetadata:
     
@@ -37,6 +42,10 @@ class MDBMetadata:
 
         # The record maps model names to data structures.
         self.record = {}
+       
+        # Every model comes with a default initial step.
+        self.add_model(working_model_name)
+        self.add_step_to_model(working_model_name, shim.STANDARD_INITIAL_STEP_NAME)
 
 
     def add_model(self, model_name):
@@ -44,6 +53,9 @@ class MDBMetadata:
 
         # We don't care about the ordering of models.
         self.record[model_name] = []
+
+        # Every model comes with a default initial step.
+        self.add_step_to_model(model_name, shim.STANDARD_INITIAL_STEP_NAME)
 
 
     def set_working_model(self, model_name):
