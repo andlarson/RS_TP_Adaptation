@@ -7,7 +7,7 @@ from abaqusConstants import *
 
 import os
 
-import core.abaqus.metadata as md
+import metadata as md
 
 # DEBUG
 from util.debug import *

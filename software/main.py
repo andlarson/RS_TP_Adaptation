@@ -5,21 +5,19 @@ import core.tool_pass.tool_pass as tp
 
 import sys
 
-# DEBUG
-from util.debug import *
-
 
 if __name__ == "__main__":
 
-    # Need a part and a tool pass plan.    
+
+    # ----- Specifying the initial geometry and stress profile -----
    
     # The initial geometry with a stress profile defined in Abaqus.
     path_to_cae = "/home/andlars/Downloads/script_testing/test_initial_geometry.cae"
     abaqus_part = part.AbaqusDefinedPart("an_example_part", path_to_cae)
-    
-    dp("Initial geometry loaded.")
 
-    # Specifying the tool passes. 
+
+    
+    # ----- Specifying the tool passes -----
 
     # Tool Pass #1
     v1 = geom.Point3D(40, 9, 215)
@@ -39,15 +37,12 @@ if __name__ == "__main__":
 
     tool_pass_plan = tp.ToolPassPlan(tool_passes)
 
-    dp("Tool pass has been specified.\n") 
 
-    # Building the machining object.
+
+    # ----- Running the Simulation -----
+
     machining_process = mach.MachiningProcess(None, abaqus_part, tool_pass_plan)
-
-    # And simulate the next tool pass.
     machining_process.sim_next_tool_pass("/home/andlars/Downloads/script_testing/test_post_tool_pass.cae")
-
-
 
 
 

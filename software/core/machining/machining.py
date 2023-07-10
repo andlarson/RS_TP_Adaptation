@@ -51,7 +51,7 @@ class MachiningProcess:
        
         mdb = shim.use_mdb(self.working_mdb_path)
         model_name = self.get_working_model_name()
-        metadata = self.mdb_to_metadata(self.working_mdb_path)
+        metadata = self.mdb_to_metadata[self.working_mdb_path]
        
         # Instance the initial geometry part.
         # We assume the presence of an initial geometry part. 
@@ -91,9 +91,7 @@ class MachiningProcess:
         job_name = tool_pass_name 
         shim.create_and_run_job(job_name, model_name, mdb) 
 
-        # And save off the result.
-        # TODO: Need a general solution here. Maybe access the MDB metadata or
-        #    use the storage functionality to determine where to save.
+        # Save off the resulting MDB and the ODB produced by the job.
         shim.save_mdb(save_location, mdb)
 
         shim.close_mdb(mdb) 

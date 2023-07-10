@@ -1,4 +1,4 @@
-import core.abaqus.abaqus_shim as shim
+import abaqus_shim as shim
 
 """
 Fulfills the need for metadata assocaited with Abaqus simualtions.
