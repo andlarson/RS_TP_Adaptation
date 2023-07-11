@@ -4,12 +4,19 @@ import core.part.part as part
 import core.tool_pass.tool_pass as tp
 
 import sys
+import os
 
 
 if __name__ == "__main__":
 
+    # ----- Specifying the working directory -----
 
-    # ----- Specifying the initial geometry and stress profile -----
+    working_dir = "/home/andlars/Downloads/script_testing/"
+    os.chdir(working_dir)
+
+
+    """
+    # ----- Specifying the initial geometry -----
    
     # The initial geometry with a stress profile defined in Abaqus.
     path_to_cae = "/home/andlars/Downloads/script_testing/test_initial_geometry.cae"
@@ -43,6 +50,18 @@ if __name__ == "__main__":
 
     machining_process = mach.MachiningProcess(None, abaqus_part, tool_pass_plan)
     machining_process.sim_next_tool_pass("/home/andlars/Downloads/script_testing/test_post_tool_pass.cae")
+
+    """
+    
+    
+    # ----- Test imbuing part with spatially defined stress profile -----
+
+    path_to_cae = "/home/andlars/Downloads/script_testing/test_initial_geometry.cae"
+    abaqus_part = part.AbaqusDefinedPart("an_example_part", path_to_cae)
+
+    machining_process = mach.MachiningProcess(None, abaqus_part, [])
+
+
 
 
 

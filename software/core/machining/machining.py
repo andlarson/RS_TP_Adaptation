@@ -52,7 +52,14 @@ class MachiningProcess:
         mdb = shim.use_mdb(self.working_mdb_path)
         model_name = self.get_working_model_name()
         metadata = self.mdb_to_metadata[self.working_mdb_path]
-       
+        
+        # TODO: Only instance if necessary.
+        #       If initial geometry is supplied by user in the form of a .cae
+        #          and an initial residual stress profile is specified, then
+        #          it must be the case that an instance of the initial geometry
+        #          was created. This must be the case because a predefined field
+        #          can only be applied to a part instance in the Assembly
+        #          module.
         # Instance the initial geometry part.
         # We assume the presence of an initial geometry part. 
         initial_geom_part = shim.get_part(shim.STANDARD_INIT_GEOM_PART_NAME, mdb)
@@ -78,7 +85,7 @@ class MachiningProcess:
         post_tool_pass_instance = shim.instance_part_into_assembly(post_tool_pass_name, post_tool_pass_part, False, model_name, mdb)
 
         # Then mesh the part in the assembly module.
-        # Picking a pretty fine seed density heuristically....
+        # Picking a seed density randomly....
         shim.naive_mesh(post_tool_pass_instance, 1, model_name, mdb)
 
         # Add an equilibrium step following the last step on record.

@@ -68,7 +68,6 @@ def save_mdb(save_path, mdb):
 
 # Verify that the mdb the user passed as an initial part geometry really contains
 #    what we expect it to.
-# TODO: Check that there are partitions, sections, etc.
 def verify_init_geom_mdb(mdb):    
 # type: (Any) -> None
 
@@ -77,10 +76,12 @@ def verify_init_geom_mdb(mdb):
     assert len(mdb.models[STANDARD_MODEL_NAME].parts) == 1
     assert STANDARD_INIT_GEOM_PART_NAME in mdb.models[STANDARD_MODEL_NAME].parts
     assert len(mdb.jobs) == 0
-    assert mdb.models[STANDARD_MODEL_NAME].rootAssembly != None
-    assert len(mdb.models[STANDARD_MODEL_NAME].predefinedFields) != 0
     assert len(mdb.models[STANDARD_MODEL_NAME].loads) == 0
     assert len(mdb.models[STANDARD_MODEL_NAME].materials) != 0
+
+    # No initial stress field expected.
+    assert mdb.models[STANDARD_MODEL_NAME].rootAssembly == None
+    assert len(mdb.models[STANDARD_MODEL_NAME].predefinedFields) == 0
 
     # There is always an initial step.
     assert len(mdb.models[STANDARD_MODEL_NAME].steps) == 1

@@ -37,8 +37,15 @@ class Part:
     # TODO:
     def update_part_with_real_data(self): 
     # type: (None) -> None
-
         pass
+
+    
+    # Associate a stress profile, as defined by a particular subroutine file,
+    #    with this part.
+    def add_stress_profile(self, mdb, model_name):
+    # type: (None) -> None
+
+          
 
 
 

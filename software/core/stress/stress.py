@@ -2,12 +2,6 @@ import util.geom as geom
 
 
 
-# TODO: Compute how near the stress field is to equilibrium.
-def check_equil():
-    pass
-
-
-
 class StressTensor:
     
     def __init__(self, s11, s22, s33, s13, s12, s23):
@@ -31,3 +25,7 @@ class StressProfile:
         #   user if the stress field is not in equilibrium.
 
         self.stress_profile_list = stress_profile_list
+
+
+
+
