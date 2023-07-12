@@ -39998,6 +39998,7 @@
 *Material, name=Material-1
 *Elastic
  3e+08, 0.3
+*Initial Conditions, type=Stress, User
 ** ----------------------------------------------------------------
 ** 
 ** STEP: Equilbirium
