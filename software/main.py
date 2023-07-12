@@ -56,11 +56,13 @@ if __name__ == "__main__":
     
     # ----- Test imbuing part with spatially defined stress profile -----
 
-    path_to_cae = "/home/andlars/Downloads/script_testing/test_initial_geometry.cae"
+    path_to_cae = "/home/andlars/Downloads/script_testing/simple_geometry.cae"
     abaqus_part = part.AbaqusDefinedPart("an_example_part", path_to_cae)
+    no_tool_pass_plan = tp.ToolPassPlan([])
 
-    machining_process = mach.MachiningProcess(None, abaqus_part, [])
-
+    machining_process = mach.MachiningProcess(None, abaqus_part, no_tool_pass_plan)
+    
+    machining_process.imbue_user_def_stress()
 
 
 

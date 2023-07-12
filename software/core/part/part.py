@@ -39,12 +39,13 @@ class Part:
     # type: (None) -> None
         pass
 
-    
+
+    # TODO: 
     # Associate a stress profile, as defined by a particular subroutine file,
     #    with this part.
     def add_stress_profile(self, mdb, model_name):
     # type: (None) -> None
-
+        pass
           
 
 

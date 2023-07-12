@@ -124,7 +124,19 @@ class MachiningProcess:
     # type: (bool) -> StressProfile
         
         pass
-    
+
+
+    # TODO: For Test / Debug 
+    # Used to imbue part with user-defined stress profile.
+    def imbue_user_def_stress(self):
+    # type: (None) -> None
+  
+        mdb = shim.use_mdb(self.working_mdb_path)
+        model_name = self.get_working_model_name()
+
+        shim.imbue_stress_profile(model_name, mdb) 
+        
+        shim.close_mdb(mdb)
 
 
 

@@ -12,6 +12,8 @@ import metadata as md
 # DEBUG
 from util.debug import *
 
+
+
 # There are standard names/prefixes/suffixes which we expect in Abaqus MDBs.
 # These act as invariants.
 # Whenever an MDB is created, these names are used.
@@ -80,7 +82,7 @@ def verify_init_geom_mdb(mdb):
     assert len(mdb.models[STANDARD_MODEL_NAME].materials) != 0
 
     # No initial stress field expected.
-    assert mdb.models[STANDARD_MODEL_NAME].rootAssembly == None
+    assert len(mdb.models[STANDARD_MODEL_NAME].rootAssembly.instances) == 0
     assert len(mdb.models[STANDARD_MODEL_NAME].predefinedFields) == 0
 
     # There is always an initial step.
@@ -228,10 +230,20 @@ def print_job_messages(job):
 # type: (Any) -> None
 
     for message in job.messages:
-        print("A message of type " + str(message.type) + " was received when the job ran!")
+        dp("A message of type " + str(message.type) + " was received when the job ran!")
     
 
 
+# TODO:
 # Enable visualization to some degree.
 def enable_visualization():
     pass
+
+
+
+# TODO: For Test.
+# For testing user-defined stress profile.
+def imbue_stress_profile(model_name, mdb):
+# type: (None) -> None
+
+    mdb.models[model_name].Stress(name="A_User_Defined_Field", region=None, distributionType=FROM_FILE)
