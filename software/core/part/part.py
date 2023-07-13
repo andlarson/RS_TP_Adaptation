@@ -18,7 +18,7 @@ class PartHistory:
 
 
     def append(self, part):
-    # type: (None, Part) -> None
+    # type: (Part) -> None
         
         self.part_history.append(part)
         
@@ -32,6 +32,7 @@ class Part:
     # type: (str) -> None
 
         self.name = name
+        self.path_to_stress_subroutine = None
         
 
     # TODO:
@@ -40,30 +41,26 @@ class Part:
         pass
 
 
-    # TODO: 
     # Associate a stress profile, as defined by a particular subroutine file,
     #    with this part.
-    def add_stress_profile(self, mdb, model_name):
-    # type: (None) -> None
-        pass
-          
+    def add_stress_profile(self, path_to_subroutine):
+    # type: (str) -> None
+         
+         self.path_to_stress_subroutine = path_to_subroutine
 
 
 
 class UserDefinedPart(Part):
     
-    # TODO
-    def __init__(self, name, part_rep, stress_profile, material_properties):
+    # TODO:
+    def __init__(self, name, part_rep, material_properties):
     # type: (str, geom.SpecRightRectPrism, stress.StressProfile, mat_props.MaterialProperties) -> None
 
-        Part.__init__(self, name)
         pass
 
 
 
-# A part built in Abaqus is really both a part and a simulation. This
-#    motivates the use of multiple inheritance.
-class AbaqusDefinedPart(Part, sim.Simulation):
+class AbaqusDefinedPart(Part):
     
     def __init__(self, name, path):
     # type: (str, str) -> None

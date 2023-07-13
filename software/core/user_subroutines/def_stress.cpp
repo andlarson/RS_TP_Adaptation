@@ -1,13 +1,24 @@
-// Required for Fortran/C++ interoperability.
+// Included in Abaqus install.
+// Includes macros to call C/C++ from Fortran.
 #include <omi_for_c.h>
+
+// For some reason the system is unable to find this header. This header
+//    will be helpful if we ever want to call Fortran subroutines defined
+//    by Abaqus from our C++ code. This header really has nothing to do with
+//    GCC, it is included via the Intel Fortran compiler. One potential
+//    approach to get this working is to overwrite the compilation options
+//    in the Abaqus environment files via a new local environment file.
+// See the Intel Fortran compiler documentation for more information.
+// Included via Intel Fortran compiler.
+// Includes utilities for calling Fortran from C/C++.
+// #include <ISO_Fortran_binding.h>
 
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
 
-// For DEBUG
-#include <fstream>
-#include <iostream>
+
+// GCC is the compiler and C++ 14 is being used.
 
 
 // Get rid of this eventually...
@@ -15,9 +26,8 @@ using namespace std;
 
 
 // Utility subroutines written in Fortran.
-extern "C" void stdb_abqerr_(int *, char *, int *, double *, char **);
+// extern "C" void stdb_abqerr_(int *, char *, int *, double *, char **);
 
-static int testing = 1;
 
 // This function is called at particular material points.
 // Note that the argument types are not specified in the Abaqus documentation - 
@@ -27,31 +37,25 @@ extern "C" void FOR_NAME(sigini, SIGINI) (double *sigma, double *coords, int *nt
                                           int *layer, int *kspt, int *lrebar,
                                           char **names)
 {
-    sigma[0] = 10;
+    sigma[0] = coords[0] * coords[0];
 
-    if (testing == 1) {
-        ofstream myfile;
-        myfile.open("/home/andlars/Downloads/abaqus_script_logging.txt");
-        myfile << "Got here!";
-        myfile.close();
-        testing = 0;
-    }
-
+    // Calling a Fortran subroutine.
+    // Doing things this way doesn't quite work. It appears as though the lop
+    //    argument is properly interpreted but the my_msg argument is not. This
+    //    is evident by looking at the .msg file. There are message headings, but
+    //    the messages don't go through properly.
+    /* 
     int *ints_to_output = NULL;
     double *reals_to_output = NULL;
-    char **strings_to_output = (char **) 5;
-
-    int *lop = (int *) malloc(sizeof(int));
-    *lop = 1;
-
-    char *message = (char *) malloc(15 * sizeof(char));
+    char **strings_to_output = NULL; 
+    int lop = 1;
     char *my_msg = "HELLO WORLD!!!";
-    memcpy(message, my_msg, 15);
 
-    stdb_abqerr_(lop, message, ints_to_output, reals_to_output, strings_to_output);
+    stdb_abqerr_(&lop, my_msg, ints_to_output, reals_to_output, strings_to_output);
+    */
 
-    free(message);
-    free(lop);
+     
+
 }
 
 

@@ -15,13 +15,22 @@ if __name__ == "__main__":
     os.chdir(working_dir)
 
 
-    """
     # ----- Specifying the initial geometry -----
    
-    # The initial geometry with a stress profile defined in Abaqus.
     path_to_cae = "/home/andlars/Downloads/script_testing/test_initial_geometry.cae"
     abaqus_part = part.AbaqusDefinedPart("an_example_part", path_to_cae)
 
+
+    # ----- Specifying the stress profile -----
+
+    # The stress profile comes from a user subroutine.
+    # We associate the stress profile with the part, then when a simulation is
+    #    done using the part, the user subroutine is automatically invoked to
+    #    imbue the stress profile. The user subroutine is inherently invoked at
+    #    simulation runtime, so only setup can be done defore that.
+
+    path_to_subroutine = "/home/andlars/Desktop/RS_TP_Adaptation/software/core/user_subroutines/def_stress.cpp"
+    abaqus_part.add_stress_profile(path_to_subroutine)
 
     
     # ----- Specifying the tool passes -----
@@ -45,25 +54,8 @@ if __name__ == "__main__":
     tool_pass_plan = tp.ToolPassPlan(tool_passes)
 
 
-
     # ----- Running the Simulation -----
 
     machining_process = mach.MachiningProcess(None, abaqus_part, tool_pass_plan)
-    machining_process.sim_next_tool_pass("/home/andlars/Downloads/script_testing/test_post_tool_pass.cae")
-
-    """
-    
-    
-    # ----- Test imbuing part with spatially defined stress profile -----
-
-    path_to_cae = "/home/andlars/Downloads/script_testing/simple_geometry.cae"
-    abaqus_part = part.AbaqusDefinedPart("an_example_part", path_to_cae)
-    no_tool_pass_plan = tp.ToolPassPlan([])
-
-    machining_process = mach.MachiningProcess(None, abaqus_part, no_tool_pass_plan)
-    
-    machining_process.imbue_user_def_stress()
-
-
-
-
+    save_loc = "/home/andlars/Downloads/script_testing/test_post_tool_pass.cae"
+    machining_process.sim_next_tool_pass(save_loc)

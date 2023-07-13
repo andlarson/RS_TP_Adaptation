@@ -19,7 +19,7 @@ class MachiningProcess:
         self.name = name
         self.part = init_part
         self.tool_pass_plan = tool_pass_plan 
-        self.part_history = part.PartHistory()
+        self.part_history = part.PartHistory() 
 
         # A single machining process may contain many model databases (i.e. MDBs).
         #    This gives the most flexibility. We may want to chain simulations
@@ -94,11 +94,28 @@ class MachiningProcess:
         equil_step_name = shim.STANDARD_EQUIL_STEP_PREFIX + str(step_cnt + 1)
         shim.create_equilibrium_step(equil_step_name, last_step, model_name, metadata, mdb)
 
-        # Then create and run a job.
-        job_name = tool_pass_name 
-        shim.create_and_run_job(job_name, model_name, mdb) 
+        # Now, just before creating and submitting the job, modify the input 
+        #    file so that the stress profile is included!
+        # There is nuance here:
+        #    1) Each model has an input file which mirrors the functionality in
+        #          the model. Further modifications to the model after the input
+        #          file has been (essentailly) manually modified can cause things
+        #          to get out of sync and be messed up. This should be the last 
+        #          thing done before the job is created and runs.
+        #    2) We are really superimposing the user subroutine defined stress
+        #          profile on the part which has undergone boolean removal. 
+        assert(init_part.path_to_stress_subroutine != None)
 
-        # Save off the resulting MDB and the ODB produced by the job.
+
+
+
+
+        # Then create the job.
+        job_name = tool_pass_name 
+        job = shim.create_job(job_name, model_name, mdb) 
+
+        # Save off the resulting MDB.
+        # The files produced by the job go in the working directory.
         shim.save_mdb(save_location, mdb)
 
         shim.close_mdb(mdb) 
@@ -124,22 +141,6 @@ class MachiningProcess:
     # type: (bool) -> StressProfile
         
         pass
-
-
-    # TODO: For Test / Debug 
-    # Used to imbue part with user-defined stress profile.
-    def imbue_user_def_stress(self):
-    # type: (None) -> None
-  
-        mdb = shim.use_mdb(self.working_mdb_path)
-        model_name = self.get_working_model_name()
-
-        shim.imbue_stress_profile(model_name, mdb) 
-        
-        shim.close_mdb(mdb)
-
-
-
 
 
 

@@ -167,6 +167,34 @@ def get_part(name, mdb):
 
 
 
+def find_step_keyword(kwb):
+# type: (Any) -> None
+    
+    for 
+
+     
+
+# Add a keyword and any associated data to the current representation of the 
+#    input file associated with a model.
+def modify_inp(keyword, parameters, data_lines, model_name, mdb):
+# type: (str, str, str, Any) -> None
+
+    if keyword != "*Initial Conditions" or parameters[0] != "Type=Stress" or \
+       parameters[1] != "User":
+        raise RuntimeError("No support for adding the keyword to the input file.")
+
+    # First we must synchronize the kwb to the current state of the model.
+    # This must happen even if there have been no previous modifications to the
+    #    input file.
+    kwb = mdb.models[model_name].keywordBlock
+    kwb.synchVersions()
+
+
+
+           
+
+
+
 def get_step_cnt(model_name, mdb):
 # type: (str, Any) -> None
 
@@ -215,10 +243,16 @@ def create_equilibrium_step(name, name_step_to_follow, model_name, mdb_metadata,
 
 
 
-def create_and_run_job(job_name, model_name, mdb):
+def create_job(job_name, model_name, mdb):
 # type: (str, str, Any) -> None 
 
-    job = mdb.Job(job_name, model_name)
+    return mdb.Job(job_name, model_name)
+
+
+
+def run_job(job):
+# type: (Any) -> None
+
     job.submit()
     job.waitForCompletion()
     print_job_messages(job)
@@ -238,12 +272,3 @@ def print_job_messages(job):
 # Enable visualization to some degree.
 def enable_visualization():
     pass
-
-
-
-# TODO: For Test.
-# For testing user-defined stress profile.
-def imbue_stress_profile(model_name, mdb):
-# type: (None) -> None
-
-    mdb.models[model_name].Stress(name="A_User_Defined_Field", region=None, distributionType=FROM_FILE)
