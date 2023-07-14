@@ -28,15 +28,7 @@ if __name__ == "__main__":
     #    done using the part, the user subroutine is automatically invoked to
     #    imbue the stress profile. The user subroutine is inherently invoked at
     #    simulation runtime, so only setup can be done defore that.
-
-    # HACK! This is actually a cpp source file which has been renamed to end 
-    #    with .o.
-    # This needs to be done because the ModelJob.setValues(subroutine=...)
-    #    appears to be out of date. It only accepts a .f or .o file, even
-    #    though when using the command line statement "abaqus job=... user=..."
-    #    a .cpp source file can be passed as to the user option. I'm guessing
-    #    the Python implementation is out of date.
-    path_to_subroutine = "/home/andlars/Desktop/RS_TP_Adaptation/software/core/user_subroutines/def_stress.o"
+    path_to_subroutine = "/home/andlars/Desktop/RS_TP_Adaptation/software/core/user_subroutines/def_stress-std.o"
     abaqus_part.add_stress_profile(path_to_subroutine)
 
     

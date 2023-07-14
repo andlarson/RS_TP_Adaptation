@@ -25,6 +25,7 @@ STANDARD_TOOL_PASS_PART_PREFIX = "Tool_Pass_"
 STANDARD_POST_TOOL_PASS_PART_PREFIX = "Post_Tool_Pass_"
 STANDARD_INITIAL_STEP_NAME = "Initial"
 STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
+STANDARD_SECTION_NAME = "Section-1"
 
 
 
@@ -38,6 +39,17 @@ def create_mdb(name, path):
         raise RuntimeError("Path for MDB creation does not exist.") 
 
     return Mdb(path + name)
+
+
+
+# Assign the standard section to some set associated with a simple part.
+# A simple part must have only a single cell associated with it.
+def assign_standard_sec_to_simple_part(part):
+# type: (Any, Any) -> Any
+
+    full_set = part.Set(name="simple_set", cells=part.cells)
+    
+    return part.SectionAssignment(full_set, STANDARD_SECTION_NAME)
 
 
 
@@ -73,20 +85,34 @@ def save_mdb(save_path, mdb):
 def verify_init_geom_mdb(mdb):    
 # type: (Any) -> None
 
+    # Check for model existence.
     assert len(mdb.models) == 1
     assert STANDARD_MODEL_NAME in mdb.models
-    assert len(mdb.models[STANDARD_MODEL_NAME].parts) == 1
-    assert STANDARD_INIT_GEOM_PART_NAME in mdb.models[STANDARD_MODEL_NAME].parts
-    assert len(mdb.jobs) == 0
-    assert len(mdb.models[STANDARD_MODEL_NAME].loads) == 0
-    assert len(mdb.models[STANDARD_MODEL_NAME].materials) != 0
+    model = mdb.models[STANDARD_MODEL_NAME]
 
+    # Check for part existence.
+    assert STANDARD_INIT_GEOM_PART_NAME in model.parts
+    assert len(mdb.models[STANDARD_MODEL_NAME].parts) == 1
+    part = model.parts[STANDARD_INIT_GEOM_PART_NAME]
+
+    # We expect a material to exist and a section to exist.
+    # The user is responsible for material creation and assignment.
+    assert len(model.materials) == 1
+    assert len(model.sections) == 1
+    assert STANDARD_SECTION_NAME in model.sections 
+    assert len(part.sectionAssignments) == 1
+    
     # No initial stress field expected.
-    assert len(mdb.models[STANDARD_MODEL_NAME].rootAssembly.instances) == 0
-    assert len(mdb.models[STANDARD_MODEL_NAME].predefinedFields) == 0
+    assert len(model.rootAssembly.instances) == 0
+    assert len(model.predefinedFields) == 0
 
     # There is always an initial step.
-    assert len(mdb.models[STANDARD_MODEL_NAME].steps) == 1
+    assert len(model.steps) == 1
+    
+    # Various negative checks.
+    assert len(mdb.jobs) == 0
+    assert len(model.loads) == 0
+    
 
 
 

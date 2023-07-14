@@ -67,10 +67,13 @@ class MachiningProcess:
         # Instance the tool pass part.
         tool_pass_part_instance = shim.instance_part_into_assembly(tool_pass_name, tool_pass_part, True, model_name, mdb)
 
-        # Create the post cut geometry as a part.
+        # Create the post tool pass geometry as a part.
         post_tool_pass_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(self.tool_pass_plan.done_so_far())
         cut_instances = (tool_pass_part_instance, )
         post_tool_pass_part = shim.cut_instances_in_assembly(post_tool_pass_name, initial_geom_instance, cut_instances, model_name, mdb)
+
+        # Assign a section to the post tool pass geometry part.
+        shim.assign_standard_sec_to_simple_part(post_tool_pass_part)
 
         # Instance the post cut geometry.
         # The instance is independent so that meshing can be done in the Assembly
