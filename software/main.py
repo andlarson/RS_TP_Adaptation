@@ -10,6 +10,7 @@ import os
 if __name__ == "__main__":
 
     # ----- Specifying the working directory -----
+    # This is where the files produced by the simulation go (i.e. .log, .odb, etc.).
 
     working_dir = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/"
     os.chdir(working_dir)

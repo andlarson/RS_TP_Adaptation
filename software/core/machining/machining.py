@@ -120,26 +120,23 @@ class MachiningProcess:
 
 
 
-    # TODO:
     # Use multiple consecutive simulations to simulate the results of multiple
-    #   consecutive tool passes. We could also implement a naive-approach which
-    #   could simulate multiple tool passes with a single simulation with the
-    #   implicit assumption that each tool path, except possibly the last one,
-    #   would not cause a large deformation.
+    #   consecutive tool passes. 
+    # TODO: The current implementation chains simulations (1 simulation = 1 model) 
+    #    within the working mdb.
     def sim_consecutive_tool_passes(self, cnt):
     # type: (int) -> None
 
-        pass 
-       
          
+        
+
     # TODO:
     # This does the backward direction (estimate residual stress which caused
     #   a particular deformation).
-    def estimate_stress_via_last_tool_pass(self, use_real_meas_data):
+    def estimate_stress_via_last_tool_pass(self):
     # type: (bool) -> StressProfile
         
         pass
-
 
 
 
