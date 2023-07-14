@@ -11,13 +11,13 @@ if __name__ == "__main__":
 
     # ----- Specifying the working directory -----
 
-    working_dir = "/home/andlars/Downloads/script_testing/"
+    working_dir = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/"
     os.chdir(working_dir)
 
 
     # ----- Specifying the initial geometry -----
    
-    path_to_cae = "/home/andlars/Downloads/script_testing/test_initial_geometry.cae"
+    path_to_cae = working_dir + "test_initial_geometry.cae" 
     abaqus_part = part.AbaqusDefinedPart("an_example_part", path_to_cae)
 
 
@@ -29,7 +29,14 @@ if __name__ == "__main__":
     #    imbue the stress profile. The user subroutine is inherently invoked at
     #    simulation runtime, so only setup can be done defore that.
 
-    path_to_subroutine = "/home/andlars/Desktop/RS_TP_Adaptation/software/core/user_subroutines/def_stress.cpp"
+    # HACK! This is actually a cpp source file which has been renamed to end 
+    #    with .o.
+    # This needs to be done because the ModelJob.setValues(subroutine=...)
+    #    appears to be out of date. It only accepts a .f or .o file, even
+    #    though when using the command line statement "abaqus job=... user=..."
+    #    a .cpp source file can be passed as to the user option. I'm guessing
+    #    the Python implementation is out of date.
+    path_to_subroutine = "/home/andlars/Desktop/RS_TP_Adaptation/software/core/user_subroutines/def_stress.o"
     abaqus_part.add_stress_profile(path_to_subroutine)
 
     
@@ -57,5 +64,8 @@ if __name__ == "__main__":
     # ----- Running the Simulation -----
 
     machining_process = mach.MachiningProcess(None, abaqus_part, tool_pass_plan)
-    save_loc = "/home/andlars/Downloads/script_testing/test_post_tool_pass.cae"
+    save_loc = working_dir + "test_post_tool_pass.cae"
     machining_process.sim_next_tool_pass(save_loc)
+
+
+

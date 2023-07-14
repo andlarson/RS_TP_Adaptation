@@ -53,13 +53,6 @@ class MachiningProcess:
         model_name = self.get_working_model_name()
         metadata = self.mdb_to_metadata[self.working_mdb_path]
         
-        # TODO: Only instance if necessary.
-        #       If initial geometry is supplied by user in the form of a .cae
-        #          and an initial residual stress profile is specified, then
-        #          it must be the case that an instance of the initial geometry
-        #          was created. This must be the case because a predefined field
-        #          can only be applied to a part instance in the Assembly
-        #          module.
         # Instance the initial geometry part.
         # We assume the presence of an initial geometry part. 
         initial_geom_part = shim.get_part(shim.STANDARD_INIT_GEOM_PART_NAME, mdb)
@@ -99,20 +92,22 @@ class MachiningProcess:
         # There is nuance here:
         #    1) Each model has an input file which mirrors the functionality in
         #          the model. Further modifications to the model after the input
-        #          file has been (essentailly) manually modified can cause things
+        #          file has been (essentially) manually modified can cause things
         #          to get out of sync and be messed up. This should be the last 
         #          thing done before the job is created and runs.
         #    2) We are really superimposing the user subroutine defined stress
-        #          profile on the part which has undergone boolean removal. 
-        assert(init_part.path_to_stress_subroutine != None)
+        #          profile on the part which has undergone material removal via
+        #          a boolean operation.
+        assert(self.part.path_to_stress_subroutine != None)
+        shim.modify_inp("*Initial Conditions", ("Type=Stress", "User"), "", model_name, mdb)
 
-
-
-
-
-        # Then create the job.
         job_name = tool_pass_name 
         job = shim.create_job(job_name, model_name, mdb) 
+
+        # Associate the user subroutine with the job.
+        shim.add_user_subroutine(job, self.part.path_to_stress_subroutine)
+
+        shim.run_job(job)
 
         # Save off the resulting MDB.
         # The files produced by the job go in the working directory.

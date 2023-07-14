@@ -168,20 +168,27 @@ def get_part(name, mdb):
 
 
 def find_step_keyword(kwb):
-# type: (Any) -> None
+# type: (Any) -> int
     
-    for 
+    for index, string in enumerate(kwb.sieBlocks):
+        if "Step" in string:
+            return index
 
      
+# TODO:
+# A lot of this is bespoke b/c we only modify the input file for adding stress
+#    user subroutine right now.
 
 # Add a keyword and any associated data to the current representation of the 
 #    input file associated with a model.
 def modify_inp(keyword, parameters, data_lines, model_name, mdb):
-# type: (str, str, str, Any) -> None
+# type: (str, tuple[str], str, Any) -> None
 
-    if keyword != "*Initial Conditions" or parameters[0] != "Type=Stress" or \
-       parameters[1] != "User":
-        raise RuntimeError("No support for adding the keyword to the input file.")
+    if (keyword != "*Initial Conditions") or \
+       (parameters[0] != "Type=Stress") or \
+       (parameters[1] != "User") or \
+       (data_lines != ""):
+        raise RuntimeError("No support for that combination of keyword and parameters and data lines!")
 
     # First we must synchronize the kwb to the current state of the model.
     # This must happen even if there have been no previous modifications to the
@@ -189,10 +196,10 @@ def modify_inp(keyword, parameters, data_lines, model_name, mdb):
     kwb = mdb.models[model_name].keywordBlock
     kwb.synchVersions()
 
-
-
-           
-
+    idx_step = find_step_keyword(kwb)
+    idx_before_step = idx_step - 1
+    kwb.insert(idx_before_step, keyword + ", " + parameters[0] + ", " + parameters[1])
+    
 
 
 def get_step_cnt(model_name, mdb):
@@ -247,6 +254,14 @@ def create_job(job_name, model_name, mdb):
 # type: (str, str, Any) -> None 
 
     return mdb.Job(job_name, model_name)
+
+
+
+def add_user_subroutine(job, path_to_subroutine):
+# type: (Any, str) -> None
+
+    assert(job.userSubroutine == "")
+    job.setValues(userSubroutine=path_to_subroutine)
 
 
 
