@@ -68,7 +68,11 @@ class AbaqusDefinedPart(Part):
         Part.__init__(self, name)
 
         mdb = shim.use_mdb(path)
-        shim.verify_init_geom_mdb(mdb)
+
+        is_init_geom = shim.check_init_geom(mdb)
+        if not is_init_geom:
+            raise RuntimeError("The MDB doesn't contain what we expect it to!")
+
         shim.close_mdb(mdb)
 
         self.path_to_mdb = path

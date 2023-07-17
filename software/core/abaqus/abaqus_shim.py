@@ -14,11 +14,8 @@ from util.debug import *
 
 
 
-# There are standard names/prefixes/suffixes which we expect in Abaqus MDBs.
-# These act as invariants.
-# Whenever an MDB is created, these names are used.
-# Whenever an MDB is passed to this program, we check that the existing names
-#    match these.
+# There are standard names/prefixes/suffixes which we expect and impose in Abaqus 
+#    MDBs.
 STANDARD_MODEL_NAME = "Model-1"
 STANDARD_INIT_GEOM_PART_NAME = "Initial_Geometry"
 STANDARD_TOOL_PASS_PART_PREFIX = "Tool_Pass_"
@@ -26,7 +23,6 @@ STANDARD_POST_TOOL_PASS_PART_PREFIX = "Post_Tool_Pass_"
 STANDARD_INITIAL_STEP_NAME = "Initial"
 STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
 STANDARD_SECTION_NAME = "Section-1"
-
 
 
 # Create a MDB and open it. 
@@ -80,81 +76,81 @@ def save_mdb(save_path, mdb):
 
 
 
-# Verify that the mdb the user passed as an initial part geometry really contains
-#    what we expect it to.
-def verify_init_geom_mdb(mdb):    
-# type: (Any) -> None
+# Check if the mdb contains a simple, user defined, initial geometry.
+def check_init_geom(mdb):    
+# type: (Any) -> bool
 
-    # Check for model existence.
-    assert len(mdb.models) == 1
-    assert STANDARD_MODEL_NAME in mdb.models
+    if len(mdb.models) != 1 or
+       STANDARD_MODEL_NAME not in mdb.models or
+       len(model.parts) != 1 or
+       STANDARD_INIT_GEOM_PART_NAME not in model.parts:
+        return False
+
     model = mdb.models[STANDARD_MODEL_NAME]
-
-    # Check for part existence.
-    assert STANDARD_INIT_GEOM_PART_NAME in model.parts
-    assert len(mdb.models[STANDARD_MODEL_NAME].parts) == 1
     part = model.parts[STANDARD_INIT_GEOM_PART_NAME]
 
-    # We expect a material to exist and a section to exist.
-    # The user is responsible for material creation and assignment.
-    assert len(model.materials) == 1
-    assert len(model.sections) == 1
-    assert STANDARD_SECTION_NAME in model.sections 
-    assert len(part.sectionAssignments) == 1
-    
-    # No initial stress field expected.
-    assert len(model.rootAssembly.instances) == 0
-    assert len(model.predefinedFields) == 0
+    if len(model.materials) != 1 or
+       len(model.sections) != 1 or
+       STANDARD_SECTION_NAME not in model.sections or
+       len(part.sectionAssignments) != 1:
+        return False
 
-    # There is always an initial step.
-    assert len(model.steps) == 1
-    
-    # Various negative checks.
-    assert len(mdb.jobs) == 0
-    assert len(model.loads) == 0
+       
+    if len(model.rootAssembly.instances) != 0 or
+       len(model.predefinedFields) != 0 or
+       len(model.steps) != 1 or
+       len(mdb.jobs) != 0 or
+       len(model.loads) != 0:
+        return False
+
+    return True
     
 
 
-# Verifies that the model in the mdb contains the output of a previous
-#    simulation. 
-def verify_orphan_mesh(part_name, model_name, mdb):
-    
-    assert len(mdb.models[model_name].parts) == 1
-    part = mdb.models[model_name].parts[part_name]
+# Checks if the model contains only an orphan mesh.
+# This is the content we expect when a new model is created and the results of
+#    a previous simulation have been imported via an ODB.
+# This really only does sanity checks. For instance, it doesn't actually check
+#    that the only part feature is an orphan mesh.
+def check_orphan_mesh(model_name, mdb):
+# type: (str, str, Any) -> bool
 
-    
+    if model_name not in mdb.models or
+       len(mdb.models[model_name].parts) != 1:
+        return False
 
-    # We expect a material to exist and a section to exist.
-    # These should have been imported from the previous simulation. 
-    assert len(model.materials) == 1
-    assert len(model.sections) == 1
-    assert len(part.sectionAssignments) == 1
- 
-    # No initial stress field expected.
-    # The stress field will be imported from the results of the previous simulation.
-    assert len(model.rootAssembly.instances) == 0
-    assert len(model.predefinedFields) == 0
+    model = mdb.models[model_name].parts
 
-    # There is always an initial step.
-    assert len(model.steps) == 1
-    
-    # Various negative checks.
-    assert len(mdb.jobs) == 0
-    assert len(model.loads) == 0
+    if len(model.materials) != 1 or
+       len(model.sections) != 1 or
+       len(part.sectionAssignments) != 1 or
+       len(model.rootAssembly.instances) != 0 or
+       len(model.predefinedFields) != 0 or
+        return False
+
+    if len(model.steps) != 1 or
+       len(mdb.jobs) != 0 or
+       len(model.loads) != 0:
+        return False
+
+    return True
 
 
 
 
 # TODO: We assume a special right rectangular prism geometry. 
 # TODO: Break this up into modular chunks.
-def build_part(name, spec_right_rect_prism, model_name, mdb):
-# type: (str, SpecRightRectPrism, str, Any) -> Any
+def build_part(name, spec_right_rect_prism, model_name, mdb_metadata, mdb):
+# type: (str, SpecRightRectPrism, str, Any, Any) -> Any
    
     # ----- Part Creation -----
 
     # Create the part in the model. 
     part = mdb.models[model_name].Part(name=name, dimensionality=THREE_D, type=DEFORMABLE_BODY)
 
+    # ----- Metadata Updates -----
+
+    mdb_metadata.add_part_to_model(model_name, name)
 
     # ----- Sketch Creation -----
 
@@ -209,7 +205,7 @@ def build_part(name, spec_right_rect_prism, model_name, mdb):
     #   updated.
     depth = spec_right_rect_prism.get_dims()[2]
     mdb.models[model_name].parts[name].BaseSolidExtrude(sketch=sketch, depth=depth)
-    
+
     return part
 
 

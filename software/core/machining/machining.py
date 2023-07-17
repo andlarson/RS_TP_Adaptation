@@ -36,22 +36,43 @@ class MachiningProcess:
             pass
         else:
             assert(name == None)
-            self.mdb_to_metadata[init_part.path_to_mdb] = md.MDBMetadata(init_part.path_to_mdb, shim.STANDARD_MODEL_NAME)
+            self.mdb_to_metadata[init_part.path_to_mdb] = md.MDBMetadata(init_part.path_to_mdb)
+
+            # In general, all modifications to MDB metadata should happen in the
+            #    abaqus_shim.py file at the same time as modifications are made
+            #    to the MDB.
+            # This is an exceptional case because the user has passed an MDB,
+            #    so it's necessary to sync the metadata with the content of the
+            #    MDB.
+            self.mdb_to_meta_data[init_part.path_to_mdb].add_model(STANDARD_MODEL_NAME)
+
             self.working_mdb_path = init_part.path_to_mdb
 
-
-
-    def get_working_model_name(self):
-    # type: (None) -> None
-
-        return self.mdb_to_metadata[self.working_mdb_path].get_working_model_name()
 
 
     def sim_next_tool_pass(self, save_location):
     # type: (str) -> None
        
-        # ID source based on content of current MDB and current model.
-        
+        mdb = shim.use_mdb(self.working_mdb_path)
+        metadata = self.mdb_to_metadata[self.working_mdb_path]
+
+        # The way that the next tool pass is simulated depends on the content of
+        #    the MDB.
+        # If the MDB contains a single model which represents an initial
+        #    geometry, then we must be simulating the first tool pass.
+        # If the MDB contains n (where n > 1) models and the last model to be 
+        #    added contains an orphan mesh, then we must be simulating the n-th 
+        #    tool pass.
+        last_model_name = metadata.get_last_model_name()
+        last_part_name = metadata.get_last_part_name()
+        if shim.check_init_geom(mdb):
+              
+        elif shim.check_orphan_mesh(last_part_name, last_model_name, mdb):
+
+        else:
+            raise RuntimeError("Unable to identify how to continue with the \
+                                next tool pass simulation!")
+
         # If the source is a simple part geometry specification, then build the
         #    model up and run a first simulation.
 
@@ -76,10 +97,6 @@ class MachiningProcess:
         # We're only ever working with a single MDB, so there is just a single
         #    save location.
 
-        mdb = shim.use_mdb(self.working_mdb_path)
-        model_name = self.get_working_model_name()
-        metadata = self.mdb_to_metadata[self.working_mdb_path]
-        
         # Instance the initial geometry part.
         # We assume the presence of an initial geometry part. 
         initial_geom_part = shim.get_part(shim.STANDARD_INIT_GEOM_PART_NAME, mdb)
