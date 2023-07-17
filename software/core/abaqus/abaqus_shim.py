@@ -115,6 +115,34 @@ def verify_init_geom_mdb(mdb):
     
 
 
+# Verifies that the model in the mdb contains the output of a previous
+#    simulation. 
+def verify_orphan_mesh(part_name, model_name, mdb):
+    
+    assert len(mdb.models[model_name].parts) == 1
+    part = mdb.models[model_name].parts[part_name]
+
+    
+
+    # We expect a material to exist and a section to exist.
+    # These should have been imported from the previous simulation. 
+    assert len(model.materials) == 1
+    assert len(model.sections) == 1
+    assert len(part.sectionAssignments) == 1
+ 
+    # No initial stress field expected.
+    # The stress field will be imported from the results of the previous simulation.
+    assert len(model.rootAssembly.instances) == 0
+    assert len(model.predefinedFields) == 0
+
+    # There is always an initial step.
+    assert len(model.steps) == 1
+    
+    # Various negative checks.
+    assert len(mdb.jobs) == 0
+    assert len(model.loads) == 0
+
+
 
 
 # TODO: We assume a special right rectangular prism geometry. 

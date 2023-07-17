@@ -39,7 +39,8 @@ class MachiningProcess:
             self.mdb_to_metadata[init_part.path_to_mdb] = md.MDBMetadata(init_part.path_to_mdb, shim.STANDARD_MODEL_NAME)
             self.working_mdb_path = init_part.path_to_mdb
 
-    
+
+
     def get_working_model_name(self):
     # type: (None) -> None
 
@@ -49,6 +50,32 @@ class MachiningProcess:
     def sim_next_tool_pass(self, save_location):
     # type: (str) -> None
        
+        # ID source based on content of current MDB and current model.
+        
+        # If the source is a simple part geometry specification, then build the
+        #    model up and run a first simulation.
+
+        # If the source is a previous simulation, import the results of the simulation 
+        #    into a new model in the working MDB, add the next cut, and go from 
+        #    there.
+        # The importing process isn't trivial. The output of the previous
+        #    simulation is an ODB which contains a representation of a deformed
+        #    mesh. This deformed mesh can be imported into Abaqus and viewed.
+        #    This mesh is an "Orphan Mesh" and has no associated underlying
+        #    part geometry. In order or simulate the next cut via the boolean
+        #    cut procedure, it's necessary to generate a part geometry from the
+        #    underlying mesh. Doing so requires mapping mesh element faces ->
+        #    part surfaces, and then (potntially) using the virtual topology
+        #    toolset to simplify the part geometry (removing all the unnecessary
+        #    surface partitions, but also potentially degrading the part
+        #    representation). 
+        # It also requires mapping the stress values which existed at the end
+        #    of the previous simulation as the stress values which exist at the
+        #    beginning of the current simulation.
+
+        # We're only ever working with a single MDB, so there is just a single
+        #    save location.
+
         mdb = shim.use_mdb(self.working_mdb_path)
         model_name = self.get_working_model_name()
         metadata = self.mdb_to_metadata[self.working_mdb_path]
@@ -85,7 +112,7 @@ class MachiningProcess:
         shim.naive_mesh(post_tool_pass_instance, 1, model_name, mdb)
 
         # Add an equilibrium step following the last step on record.
-        last_step = self.mdb_to_metadata[self.working_mdb_path].get_last_step(model_name)
+        last_step = metadata.get_last_step(model_name)
         step_cnt = shim.get_step_cnt(model_name, mdb)
         equil_step_name = shim.STANDARD_EQUIL_STEP_PREFIX + str(step_cnt + 1)
         shim.create_equilibrium_step(equil_step_name, last_step, model_name, metadata, mdb)
