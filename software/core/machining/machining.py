@@ -59,19 +59,19 @@ class MachiningProcess:
         # The way that the next tool pass is simulated depends on the content of
         #    the MDB.
         # If the MDB contains a single model which represents an initial
-        #    geometry, then we must be simulating the first tool pass.
+        #    geometry, then it's necessary to simulate the first tool pass. 
         # If the MDB contains n (where n > 1) models and the last model to be 
         #    added contains an orphan mesh, then we must be simulating the n-th 
         #    tool pass.
         last_model_name = metadata.get_last_model_name()
         last_part_name = metadata.get_last_part_name()
         if shim.check_init_geom(mdb):
-              
+            sim_first_tool_pass(save_location, mdb)  
         elif shim.check_orphan_mesh(last_part_name, last_model_name, mdb):
-
+            sim_nth_tool_pass(save_location, last_part_name, last_model_name, mdb)
         else:
-            raise RuntimeError("Unable to identify how to continue with the \
-                                next tool pass simulation!")
+            raise RuntimeError("Can't figure out how to do next tool pass...")
+
 
         # If the source is a simple part geometry specification, then build the
         #    model up and run a first simulation.
@@ -97,70 +97,6 @@ class MachiningProcess:
         # We're only ever working with a single MDB, so there is just a single
         #    save location.
 
-        # Instance the initial geometry part.
-        # We assume the presence of an initial geometry part. 
-        initial_geom_part = shim.get_part(shim.STANDARD_INIT_GEOM_PART_NAME, mdb)
-        initial_geom_instance = shim.instance_part_into_assembly(shim.STANDARD_INIT_GEOM_PART_NAME, initial_geom_part, True, model_name, mdb)  
-
-        # Build the next tool pass path as a part.
-        tool_pass = self.tool_pass_plan.pop()
-        tool_pass_geom = tool_pass.geom
-        tool_pass_name = shim.STANDARD_TOOL_PASS_PART_PREFIX + str(self.tool_pass_plan.done_so_far())
-        tool_pass_part = shim.build_part(tool_pass_name, tool_pass_geom, model_name, mdb)
-
-        # Instance the tool pass part.
-        tool_pass_part_instance = shim.instance_part_into_assembly(tool_pass_name, tool_pass_part, True, model_name, mdb)
-
-        # Create the post tool pass geometry as a part.
-        post_tool_pass_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(self.tool_pass_plan.done_so_far())
-        cut_instances = (tool_pass_part_instance, )
-        post_tool_pass_part = shim.cut_instances_in_assembly(post_tool_pass_name, initial_geom_instance, cut_instances, model_name, mdb)
-
-        # Assign a section to the post tool pass geometry part.
-        shim.assign_standard_sec_to_simple_part(post_tool_pass_part)
-
-        # Instance the post cut geometry.
-        # The instance is independent so that meshing can be done in the Assembly
-        #    module.
-        post_tool_pass_instance = shim.instance_part_into_assembly(post_tool_pass_name, post_tool_pass_part, False, model_name, mdb)
-
-        # Then mesh the part in the assembly module.
-        # Picking a seed density randomly....
-        shim.naive_mesh(post_tool_pass_instance, 1, model_name, mdb)
-
-        # Add an equilibrium step following the last step on record.
-        last_step = metadata.get_last_step(model_name)
-        step_cnt = shim.get_step_cnt(model_name, mdb)
-        equil_step_name = shim.STANDARD_EQUIL_STEP_PREFIX + str(step_cnt + 1)
-        shim.create_equilibrium_step(equil_step_name, last_step, model_name, metadata, mdb)
-
-        # Now, just before creating and submitting the job, modify the input 
-        #    file so that the stress profile is included!
-        # There is nuance here:
-        #    1) Each model has an input file which mirrors the functionality in
-        #          the model. Further modifications to the model after the input
-        #          file has been (essentially) manually modified can cause things
-        #          to get out of sync and be messed up. This should be the last 
-        #          thing done before the job is created and runs.
-        #    2) We are really superimposing the user subroutine defined stress
-        #          profile on the part which has undergone material removal via
-        #          a boolean operation.
-        assert(self.part.path_to_stress_subroutine != None)
-        shim.modify_inp("*Initial Conditions", ("Type=Stress", "User"), "", model_name, mdb)
-
-        job_name = tool_pass_name 
-        job = shim.create_job(job_name, model_name, mdb) 
-
-        # Associate the user subroutine with the job.
-        shim.add_user_subroutine(job, self.part.path_to_stress_subroutine)
-
-        shim.run_job(job)
-
-        # Save off the resulting MDB.
-        # The files produced by the job go in the working directory.
-        shim.save_mdb(save_location, mdb)
-
-        shim.close_mdb(mdb) 
 
 
 
@@ -182,6 +118,77 @@ class MachiningProcess:
         
         pass
 
+
+
+
+
+def sim_first_tool_pass(mdb):
+# type: (Any) -> None
+
+    # Instance the initial geometry part.
+    # We assume the presence of an initial geometry part. 
+    initial_geom_part = shim.get_part(shim.STANDARD_INIT_GEOM_PART_NAME, mdb)
+    initial_geom_instance = shim.instance_part_into_assembly(shim.STANDARD_INIT_GEOM_PART_NAME, initial_geom_part, True, model_name, mdb)  
+    
+    # Build the next tool pass path as a part.
+    tool_pass = self.tool_pass_plan.pop()
+    tool_pass_geom = tool_pass.geom
+    tool_pass_name = shim.STANDARD_TOOL_PASS_PART_PREFIX + str(self.tool_pass_plan.done_so_far())
+    tool_pass_part = shim.build_part(tool_pass_name, tool_pass_geom, model_name, mdb)
+
+    # Instance the tool pass part.
+    tool_pass_part_instance = shim.instance_part_into_assembly(tool_pass_name, tool_pass_part, True, model_name, mdb)
+
+    # Create the post tool pass geometry as a part.
+    post_tool_pass_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(self.tool_pass_plan.done_so_far())
+    cut_instances = (tool_pass_part_instance, )
+    post_tool_pass_part = shim.cut_instances_in_assembly(post_tool_pass_name, initial_geom_instance, cut_instances, model_name, mdb)
+
+    # Assign a section to the post tool pass geometry part.
+    shim.assign_standard_sec_to_simple_part(post_tool_pass_part)
+
+    # Instance the post cut geometry.
+    # The instance is independent so that meshing can be done in the Assembly
+    #    module.
+    post_tool_pass_instance = shim.instance_part_into_assembly(post_tool_pass_name, post_tool_pass_part, False, model_name, mdb)
+
+    # Then mesh the part in the assembly module.
+    # Picking a seed density randomly....
+    shim.naive_mesh(post_tool_pass_instance, 1, model_name, mdb)
+
+    # Add an equilibrium step following the last step on record.
+    last_step = metadata.get_last_step(model_name)
+    step_cnt = shim.get_step_cnt(model_name, mdb)
+    equil_step_name = shim.STANDARD_EQUIL_STEP_PREFIX + str(step_cnt + 1)
+    shim.create_equilibrium_step(equil_step_name, last_step, model_name, metadata, mdb)
+
+    # Now, just before creating and submitting the job, modify the input 
+    #    file so that the stress profile is included!
+    # There is nuance here:
+    #    1) Each model has an input file which mirrors the functionality in
+    #          the model. Further modifications to the model after the input
+    #          file has been (essentially) manually modified can cause things
+    #          to get out of sync and be messed up. This should be the last 
+    #          thing done before the job is created and runs.
+    #    2) We are really superimposing the user subroutine defined stress
+    #          profile on the part which has undergone material removal via
+    #          a boolean operation.
+    assert(self.part.path_to_stress_subroutine != None)
+    shim.modify_inp("*Initial Conditions", ("Type=Stress", "User"), "", model_name, mdb)
+
+    job_name = tool_pass_name 
+    job = shim.create_job(job_name, model_name, mdb) 
+
+    # Associate the user subroutine with the job.
+    shim.add_user_subroutine(job, self.part.path_to_stress_subroutine)
+
+    shim.run_job(job)
+
+    # Save off the resulting MDB.
+    # The files produced by the job go in the working directory.
+    shim.save_mdb(save_location, mdb)
+
+    shim.close_mdb(mdb)
 
 
 
