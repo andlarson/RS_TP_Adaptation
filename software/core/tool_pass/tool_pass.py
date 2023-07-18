@@ -1,4 +1,10 @@
+
 import util.geom as geom
+import core.abaqus.abaqus_metadata as abq_md
+import core.part.part as part
+import core.abaqus.abaqus_shim as shim
+
+
 
 """ 
 There needs to be a nice relationship between the residual stress field
@@ -76,3 +82,9 @@ class ToolPassPlan:
     # type: (None) -> int 
 
         return len(self.passes_done)
+        
+
+
+
+
+

@@ -7,7 +7,7 @@ from abaqusConstants import *
 
 import os
 
-import metadata as md
+import abaqus_metadata as abq_md
 
 # DEBUG
 from util.debug import *
@@ -27,12 +27,9 @@ STANDARD_SECTION_NAME = "Section-1"
 
 # Create a MDB and open it. 
 # This function does not automatically save the MDB. However, the path used
-#   here is the location of save when a save does happen.
+#   here is the location of save when a save (not save as) does happen.
 def create_mdb(name, path):
 # type: (str, str) -> Any
-
-    if not os.access(path, os.F_OK):
-        raise RuntimeError("Path for MDB creation does not exist.") 
 
     return Mdb(path + name)
 
@@ -67,8 +64,7 @@ def close_mdb(mdb):
 
 
 
-# Save a MDB object to the location which was specified during its creation.
-def save_mdb(save_path, mdb):
+def save_mdb_as(save_path, mdb):
 # type: (str, Any) -> None
 
     mdb.saveAs(save_path)    
@@ -80,26 +76,29 @@ def save_mdb(save_path, mdb):
 def check_init_geom(mdb):    
 # type: (Any) -> bool
 
-    if len(mdb.models) != 1 or
-       STANDARD_MODEL_NAME not in mdb.models or
-       len(model.parts) != 1 or
-       STANDARD_INIT_GEOM_PART_NAME not in model.parts:
+    if len(mdb.models) != 1 or \
+       STANDARD_MODEL_NAME not in mdb.models:
         return False
 
     model = mdb.models[STANDARD_MODEL_NAME]
+
+    if len(model.parts) != 1 or \
+       STANDARD_INIT_GEOM_PART_NAME not in model.parts:
+       return False
+
     part = model.parts[STANDARD_INIT_GEOM_PART_NAME]
 
-    if len(model.materials) != 1 or
-       len(model.sections) != 1 or
-       STANDARD_SECTION_NAME not in model.sections or
+    if len(model.materials) != 1 or \
+       len(model.sections) != 1 or \
+       STANDARD_SECTION_NAME not in model.sections or \
        len(part.sectionAssignments) != 1:
         return False
 
        
-    if len(model.rootAssembly.instances) != 0 or
-       len(model.predefinedFields) != 0 or
-       len(model.steps) != 1 or
-       len(mdb.jobs) != 0 or
+    if len(model.rootAssembly.instances) != 0 or \
+       len(model.predefinedFields) != 0 or \
+       len(model.steps) != 1 or \
+       len(mdb.jobs) != 0 or \
        len(model.loads) != 0:
         return False
 
@@ -115,21 +114,21 @@ def check_init_geom(mdb):
 def check_orphan_mesh(model_name, mdb):
 # type: (str, str, Any) -> bool
 
-    if model_name not in mdb.models or
+    if model_name not in mdb.models or \
        len(mdb.models[model_name].parts) != 1:
         return False
 
     model = mdb.models[model_name].parts
 
-    if len(model.materials) != 1 or
-       len(model.sections) != 1 or
-       len(part.sectionAssignments) != 1 or
-       len(model.rootAssembly.instances) != 0 or
-       len(model.predefinedFields) != 0 or
+    if len(model.materials) != 1 or \
+       len(model.sections) != 1 or \
+       len(part.sectionAssignments) != 1 or \
+       len(model.rootAssembly.instances) != 0 or \
+       len(model.predefinedFields) != 0:
         return False
 
-    if len(model.steps) != 1 or
-       len(mdb.jobs) != 0 or
+    if len(model.steps) != 1 or \
+       len(mdb.jobs) != 0 or \
        len(model.loads) != 0:
         return False
 
@@ -140,8 +139,8 @@ def check_orphan_mesh(model_name, mdb):
 
 # TODO: We assume a special right rectangular prism geometry. 
 # TODO: Break this up into modular chunks.
-def build_part(name, spec_right_rect_prism, model_name, mdb_metadata, mdb):
-# type: (str, SpecRightRectPrism, str, Any, Any) -> Any
+def build_part(name, spec_right_rect_prism, model_name, abq_metadata, mdb):
+# type: (str, SpecRightRectPrism, str, abq_md.ABQMetadata, Any) -> Any
    
     # ----- Part Creation -----
 
@@ -150,7 +149,7 @@ def build_part(name, spec_right_rect_prism, model_name, mdb_metadata, mdb):
 
     # ----- Metadata Updates -----
 
-    mdb_metadata.add_part_to_model(model_name, name)
+    abq_md.add_part_to_model(model_name, name)
 
     # ----- Sketch Creation -----
 
@@ -290,11 +289,11 @@ def naive_mesh(part_instance, size, model_name, mdb):
 
 
 # Create an equilbirium step after another specified step.
-def create_equilibrium_step(name, name_step_to_follow, model_name, mdb_metadata, mdb):
-# type: (str, str, str, md.MDBMetadata, Any) -> None
+def create_equilibrium_step(name, name_step_to_follow, model_name, abq_metadata, mdb):
+# type: (str, str, str, abq_md.ABQMetadata, Any) -> None
 
     # Step creation means that MDB metadata must be updated.
-    mdb_metadata.add_step_to_model(model_name, name)
+    abq_md.add_step_to_model(model_name, name)
 
     return mdb.models[model_name].StaticStep(name, name_step_to_follow)
 

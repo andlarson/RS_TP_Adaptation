@@ -9,16 +9,9 @@ import os
 
 if __name__ == "__main__":
 
-    # ----- Specifying the working directory -----
-    # This is where the files produced by the simulation go (i.e. .log, .odb, etc.).
-
-    working_dir = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/"
-    os.chdir(working_dir)
-
-
     # ----- Specifying the initial geometry -----
    
-    path_to_cae = working_dir + "test_initial_geometry.cae" 
+    path_to_cae = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_initial_geometry.cae" 
     abaqus_part = part.AbaqusDefinedPart("an_example_part", path_to_cae)
 
 
@@ -57,8 +50,8 @@ if __name__ == "__main__":
     # ----- Running the Simulation -----
 
     machining_process = mach.MachiningProcess(None, abaqus_part, tool_pass_plan)
-    save_loc = working_dir + "test_post_tool_pass.cae"
-    machining_process.sim_next_tool_pass(save_loc)
+    save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass.cae"
+    machining_process.sim_next_potential_tool_pass(save_loc)
 
 
 

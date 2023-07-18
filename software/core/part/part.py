@@ -1,8 +1,9 @@
 import util.geom as geom
-import core.simulation.simulation as sim
 import core.stress.stress as stress
 import core.material_properties.material_properties as mat_props 
 import core.abaqus.abaqus_shim as shim
+
+import os.path as path
 
 
 class PartHistory:
