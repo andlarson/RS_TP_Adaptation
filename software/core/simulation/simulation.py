@@ -61,8 +61,8 @@ def sim_first_tool_pass(tool_pass, tool_pass_cnt, abq_metadata, path_to_stress_s
     """
     shim.modify_inp("*Initial Conditions", ("Type=Stress", "User"), "", model_name, mdb)
 
-    job_name = tool_pass_name 
-    job = shim.create_job(job_name, model_name, mdb) 
+    job_name = tool_pass_name
+    job = shim.create_job(job_name, model_name, abq_metadata, mdb) 
 
     # Associate the user subroutine with the job.
     shim.add_user_subroutine(job, path_to_stress_subroutine)
@@ -92,10 +92,39 @@ It also requires mapping the stress values which existed at the end
    of the previous simulation as the stress values which exist at the
    beginning of the current simulation.
 """
-def sim_nth_tool_pass():
-# type: ()
+def sim_nth_tool_pass(tool_pass, tool_pass_cnt, last_part_name, last_odb_name, abq_metadata, mdb):
+# type: (tp.ToolPass, int, str, str, abq_md.ABQMetadata, Any) -> Any
 
-    pass
+    # 1) Create a new model, import the orphan mesh, map the orphan mesh to an
+    #    underlying geometry.
+    
+    new_model_name = shim.STANDARD_MODEL_PREFIX + str(tool_pass_cnt) 
+    new_model = shim.create_model_from_odb(last_odb_name, new_model_name, abq_metadata, mdb)
+
+    convert_orphan_mesh_to_part()
+
+    # Map the resulting stress profile onto the new geometry.
+
+    # ~~~~ Everything below is repeated behavior from previous function. ~~~~~ 
+    # Create the tool pass part, do the boolean intersection, assign a section
+    #    to the resulting part.
+
+    # Instance the part into the assembly.
+
+    # Mesh the post tool pass part in the assembly module.
+
+    # Create the equilbirium step.
+
+    # Create the job and submit it.
 
 
+
+# The orphan mesh is assumed to be the only thing in the model. 
+def convert_orphan_mesh_to_part(part_name, model_name, mdb)
+
+    assert(shim.check_orphan_mesh(part_name, model_name, mdb))
+
+    new_part = 
+      
+     
 

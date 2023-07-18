@@ -17,13 +17,14 @@ from util.debug import *
 # There are standard names/prefixes/suffixes which we expect and impose in Abaqus 
 #    MDBs.
 STANDARD_MODEL_NAME = "Model-1"
+STANDARD_MODEL_NAME_PREFIX = "Model-"
 STANDARD_INIT_GEOM_PART_NAME = "Initial_Geometry"
 STANDARD_TOOL_PASS_PART_PREFIX = "Tool_Pass_"
 STANDARD_POST_TOOL_PASS_PART_PREFIX = "Post_Tool_Pass_"
 STANDARD_INITIAL_STEP_NAME = "Initial"
 STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
 STANDARD_SECTION_NAME = "Section-1"
-
+STANDARD_ORPHAN_MESH_FEATURE_NAME = "Orphan mesh-1"
 
 # Create a MDB and open it. 
 # This function does not automatically save the MDB. However, the path used
@@ -106,19 +107,44 @@ def check_init_geom(mdb):
     
 
 
-# Checks if the model contains only an orphan mesh.
-# This is the content we expect when a new model is created and the results of
-#    a previous simulation have been imported via an ODB.
-# This really only does sanity checks. For instance, it doesn't actually check
-#    that the only part feature is an orphan mesh.
-def check_orphan_mesh(model_name, mdb):
+"""
+Checks if the model contains multiple steps.
+"""
+def check_multiple_steps(model_name, mdb):
+# type: (str, Any) -> bool
+
+    if model_name not in mdb.models:
+        return False
+
+    if len(mdb.models[model_name].steps) > 1:
+        return True
+
+    return False
+
+
+
+"""
+Checks if the model contains only an orphan mesh.
+This is the content we expect when a new model is created and the results of
+   a previous simulation have been imported via an ODB.
+"""
+def check_orphan_mesh(part_name, model_name, mdb):
 # type: (str, str, Any) -> bool
 
     if model_name not in mdb.models or \
        len(mdb.models[model_name].parts) != 1:
         return False
 
-    model = mdb.models[model_name].parts
+    model = mdb.models[model_name]
+
+    if part_name not in model:
+        return False
+
+    part = mdb.models[model_name].parts[part_name]
+
+    if len(part.features) != 1 or \
+       STANDARD_ORPHAN_MESH_FEATURE_NAME not in part.features:
+       return False
 
     if len(model.materials) != 1 or \
        len(model.sections) != 1 or \
@@ -292,17 +318,24 @@ def naive_mesh(part_instance, size, model_name, mdb):
 def create_equilibrium_step(name, name_step_to_follow, model_name, abq_metadata, mdb):
 # type: (str, str, str, abq_md.ABQMetadata, Any) -> None
 
-    # Step creation means that MDB metadata must be updated.
+    step = mdb.models[model_name].StaticStep(name, name_step_to_follow)
+    
     abq_metadata.add_step_to_model(model_name, name)
 
-    return mdb.models[model_name].StaticStep(name, name_step_to_follow)
+    return step 
 
 
 
-def create_job(job_name, model_name, mdb):
-# type: (str, str, Any) -> None 
+# Note that the name of the job matches the name of the various files produced
+#    by the job when it is run (the .odb, .dat, etc. files).
+def create_job(job_name, model_name, abq_metadata, mdb):
+# type: (str, str, Any, Any) -> None 
 
-    return mdb.Job(job_name, model_name)
+    job = mdb.Job(job_name, model_name)
+    
+    abq_metadata.add_job_to_model(model_name, job_name)
+    
+    return job
 
 
 
@@ -332,7 +365,22 @@ def print_job_messages(job):
     
 
 
-# TODO:
-# Enable visualization to some degree.
-def enable_visualization():
-    pass
+def create_model_from_odb(odb_path, model_name, abq_metadata, mdb):
+# type: (str, str, abq_md.ABQMetadata, Any) -> None
+
+    model = mdb.ModelFromOdbFile(model_name, odb_path)
+
+    abq_metadata.add_model(model_name)  
+
+    return model
+
+
+
+def part_from_orphan_mesh()
+
+
+
+
+
+
+
