@@ -149,7 +149,7 @@ def build_part(name, spec_right_rect_prism, model_name, abq_metadata, mdb):
 
     # ----- Metadata Updates -----
 
-    abq_md.add_part_to_model(model_name, name)
+    abq_metadata.add_part_to_model(model_name, name)
 
     # ----- Sketch Creation -----
 
@@ -293,7 +293,7 @@ def create_equilibrium_step(name, name_step_to_follow, model_name, abq_metadata,
 # type: (str, str, str, abq_md.ABQMetadata, Any) -> None
 
     # Step creation means that MDB metadata must be updated.
-    abq_md.add_step_to_model(model_name, name)
+    abq_metadata.add_step_to_model(model_name, name)
 
     return mdb.models[model_name].StaticStep(name, name_step_to_follow)
 
