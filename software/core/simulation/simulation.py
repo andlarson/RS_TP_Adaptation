@@ -119,12 +119,29 @@ def sim_nth_tool_pass(tool_pass, tool_pass_cnt, last_part_name, last_odb_name, a
 
 
 
-# The orphan mesh is assumed to be the only thing in the model. 
 def convert_orphan_mesh_to_part(part_name, model_name, mdb)
 
+    # Make sure things are as we expect.
     assert(shim.check_orphan_mesh(part_name, model_name, mdb))
 
     new_part = 
       
      
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

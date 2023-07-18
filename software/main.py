@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
     # ----- Running the Simulation -----
 
-    machining_process = mach.MachiningProcess(None, abaqus_part, tool_pass_plan)
+    machining_process = mach.MachiningProcess(abaqus_part, tool_pass_plan)
     save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass.cae"
     machining_process.sim_next_potential_tool_pass(save_loc)
 

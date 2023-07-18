@@ -10,10 +10,9 @@ import os.path as path
 
 class MachiningProcess:
    
-    def __init__(self, name, init_part, tool_pass_plan):
-    # type: (str, part.Part, tp.ToolPassPlan) -> None
+    def __init__(self, init_part, tool_pass_plan):
+    # type: (part.Part, tp.ToolPassPlan) -> None
     
-        self.name = name
         self.part_history = part.PartHistory()
        
         """

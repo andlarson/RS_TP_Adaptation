@@ -378,7 +378,7 @@ def create_model_from_odb(odb_path, model_name, abq_metadata, mdb):
 
 def part_from_orphan_mesh()
 
-
+      
 
 
 
