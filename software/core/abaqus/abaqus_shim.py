@@ -4,6 +4,7 @@ This file is the only file which makes calls into the Abaqus API.
 
 from abaqus import *
 from abaqusConstants import * 
+import regionToolset            # Not clear why this is necessary.
 
 import os
 
@@ -137,14 +138,14 @@ def check_orphan_mesh(part_name, model_name, mdb):
 
     model = mdb.models[model_name]
 
-    if part_name not in model:
+    if part_name not in model.parts:
         return False
 
     part = mdb.models[model_name].parts[part_name]
 
     if len(part.features) != 1 or \
        STANDARD_ORPHAN_MESH_FEATURE_NAME not in part.features:
-       return False
+        return False
 
     if len(model.materials) != 1 or \
        len(model.sections) != 1 or \
@@ -380,7 +381,6 @@ def create_model_from_odb(odb_path, model_name, abq_metadata, mdb):
 #    context means that, even if two elements are next to one another and share
 #    a face, the shared face will only be listed once in the returned sequence
 #    of MeshFace objects.
-# The part should have only one feature which is an orphan mesh.
 def get_unique_element_faces(orphan_mesh_part):
 # type: (Any) -> Any  
 
@@ -393,15 +393,14 @@ def get_unique_element_faces(orphan_mesh_part):
 def get_mesh_face_elements(mesh_face):
 # type: (Any) -> Any
     
-    return meshface.getElements()
+    return mesh_face.getElements()
 
 
 
-# Build a region composed of both sides of a single face.
-def build_region_both_sides_face(face):
-# type: (Any) -> Any
-    
-    return Region(side12faces=face)
+def build_region_with_face(face):
+# type: (Any, Any) -> Any
+ 
+    return regionToolset.Region(faces=(face, ))
 
 
 
@@ -410,8 +409,8 @@ def add_face_from_region(region, part):
 # type: (Any, Any) -> Any
     
     # Note that the face is still assciated with the mesh. This doesn't seem
-    #    like it actually matters.
-    return part.faceFromElementFaces(region)
+    #    like it matters.
+    return part.FaceFromElementFaces(region)
 
 
 

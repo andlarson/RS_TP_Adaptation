@@ -2,6 +2,8 @@ import core.abaqus.abaqus_shim as shim
 import core.tool_pass.tool_pass as tp
 import core.abaqus.abaqus_metadata as abq_md
 
+# DEBUG
+from util.debug import *
 
 
 # This works for the first tool pass in an MDB.
@@ -117,10 +119,12 @@ def sim_nth_tool_pass(tool_pass, tool_pass_cnt, last_part_name, last_odb_name, a
 
     # Create the job and submit it.
 
+    return mdb
+
 
 
 # This function simply adds additional geometric features to the part.
-def orphan_mesh_to_geometry(part_name, model_name, mdb)
+def orphan_mesh_to_geometry(part_name, model_name, mdb):
 # type: (str, str, Any) -> None 
 
     assert(shim.check_orphan_mesh(part_name, model_name, mdb))
@@ -128,16 +132,16 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb)
     part = shim.get_part(part_name, model_name, mdb) 
     unique_elem_faces = shim.get_unique_element_faces(part)
 
-    # For each unique face in mesh, we know the face is on the surface if it is
+    # For each unique face in the mesh, we know the face is on the surface if it is
     #    associated with exactly one element.
     # We need to construct a region for each face on the surface of the part. 
     # Each region is then used to build a geometric face feature associated
     #    with the part.
     face_features = []
-    for mesh_face in unique_elem_faces:
-        if len(shim.get_mesh_face_elements(mesh_face)) == 1:
-            reg = build_region_both_sides_face(mesh_face)
-            face_feature = shim.add_face_from_region(reg)
+    for elem_face in unique_elem_faces:
+        if len(shim.get_mesh_face_elements(elem_face)) == 1:
+            face_reg = shim.build_region_with_face(elem_face)
+            face_feature = shim.add_face_from_region(face_reg, part)
             face_features.append(face_feature)
 
     # Build the solid feature from the face features.
