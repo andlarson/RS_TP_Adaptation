@@ -95,13 +95,13 @@ It also requires mapping the stress values which existed at the end
 def sim_nth_tool_pass(tool_pass, tool_pass_cnt, last_part_name, last_odb_name, abq_metadata, mdb):
 # type: (tp.ToolPass, int, str, str, abq_md.ABQMetadata, Any) -> Any
 
-    # 1) Create a new model, import the orphan mesh, map the orphan mesh to an
-    #    underlying geometry.
-    
+    """
+    1) Create a new model, import the orphan mesh, map the orphan mesh to an
+       underlying geometry.
+    """
     new_model_name = shim.STANDARD_MODEL_PREFIX + str(tool_pass_cnt) 
     new_model = shim.create_model_from_odb(last_odb_name, new_model_name, abq_metadata, mdb)
-
-    convert_orphan_mesh_to_part()
+    orphan_mesh_to_geometry(last_part_name, new_model_name, mdb)
 
     # Map the resulting stress profile onto the new geometry.
 
@@ -119,14 +119,37 @@ def sim_nth_tool_pass(tool_pass, tool_pass_cnt, last_part_name, last_odb_name, a
 
 
 
-def convert_orphan_mesh_to_part(part_name, model_name, mdb)
+# This function simply adds additional geometric features to the part.
+def orphan_mesh_to_geometry(part_name, model_name, mdb)
+# type: (str, str, Any) -> None 
 
-    # Make sure things are as we expect.
     assert(shim.check_orphan_mesh(part_name, model_name, mdb))
 
-    new_part = 
-      
-     
+    part = shim.get_part(part_name, model_name, mdb) 
+    unique_elem_faces = shim.get_unique_element_faces(part)
+
+    # For each unique face in mesh, we know the face is on the surface if it is
+    #    associated with exactly one element.
+    # We need to construct a region for each face on the surface of the part. 
+    # Each region is then used to build a geometric face feature associated
+    #    with the part.
+    face_features = []
+    for mesh_face in unique_elem_faces:
+        if len(shim.get_mesh_face_elements(mesh_face)) == 1:
+            reg = build_region_both_sides_face(mesh_face)
+            face_feature = shim.add_face_from_region(reg)
+            face_features.append(face_feature)
+
+    # Build the solid feature from the face features.
+    shim.add_solid_from_faces(face_features, part)
+
+    # TODO: This is a bit experimental. I'm not exactly sure what this will do
+    #       if the part is curved, etc. It seems to work well when the part has
+    #       a geometry composed to right angles.
+    # And use the virtual topology tool to remove all the excess partitions.
+    shim.add_virtual_topology(part)
+
+
 
 
 

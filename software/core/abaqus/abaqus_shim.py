@@ -235,10 +235,10 @@ def build_part(name, spec_right_rect_prism, model_name, abq_metadata, mdb):
 
 
 
-def get_part(name, mdb):
-# type: (str, Any) -> Any    
+def get_part(part_name, model_name, mdb):
+# type: (str, str, Any) -> Any    
     
-    return mdb.models[STANDARD_MODEL_NAME].parts[name]
+    return mdb.models[model_name].parts[part_name]
 
 
 
@@ -376,11 +376,61 @@ def create_model_from_odb(odb_path, model_name, abq_metadata, mdb):
 
 
 
-def part_from_orphan_mesh()
+# Returns all the unique element faces which exist in the part. Unique in this 
+#    context means that, even if two elements are next to one another and share
+#    a face, the shared face will only be listed once in the returned sequence
+#    of MeshFace objects.
+# The part should have only one feature which is an orphan mesh.
+def get_unique_element_faces(orphan_mesh_part):
+# type: (Any) -> Any  
 
-      
+    return orphan_mesh_part.elementFaces
 
 
 
+# Get the elements associated with a particular MeshFace object.
+# A MeshFace object corresponds to a face which lives in a mesh.
+def get_mesh_face_elements(mesh_face):
+# type: (Any) -> Any
+    
+    return meshface.getElements()
+
+
+
+# Build a region composed of both sides of a single face.
+def build_region_both_sides_face(face):
+# type: (Any) -> Any
+    
+    return Region(side12faces=face)
+
+
+
+# Add a face feature to a part based on a region which contains an element face.
+def add_face_from_region(region, part):
+# type: (Any, Any) -> Any
+    
+    # Note that the face is still assciated with the mesh. This doesn't seem
+    #    like it actually matters.
+    return part.faceFromElementFaces(region)
+
+
+
+# Use a sequence of face features to add a solid feature to the part.
+# Note that this may fail, and the Abaqus documentation doesn't give any hint
+#    to the circumstances under which it may fail. Presumably it will fail if
+#    if the face features don't easily lead to a solid. 
+def add_solid_from_faces(face_list, part):
+# type: (Any, Any) -> Any 
+
+    return part.AddCells(face_list)
+
+
+
+# This adds a virtual topology feature to the part. All default options are
+#    used. The goal of this is to simplify unimportant, small, and redundant 
+#    geometric features, resulting in a part geometry which is easier to mesh.
+def add_virtual_topology(part):
+
+    return part.CreateVirtualTopology()
 
 
