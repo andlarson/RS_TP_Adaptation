@@ -24,9 +24,7 @@ class PartHistory:
         self.part_history.append(part)
         
 
-# TODO:
-# This is really an abstract base class and the proper Python infrastructure
-#    should be used. No one should ever create an object of this type.
+
 class Part:
 
     def __init__(self, name):

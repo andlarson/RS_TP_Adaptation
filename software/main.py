@@ -29,8 +29,13 @@ if __name__ == "__main__":
     path_to_subroutine = "/home/andlars/Desktop/RS_TP_Adaptation/software/core/user_subroutines/def_stress-std.o"
     abaqus_part.add_stress_profile(path_to_subroutine)
 
+
+    # ----- Building the top-level machining object -----
+
+    machining_process = mach.MachiningProcess(abaqus_part)
+
     
-    # ----- Specifying the tool passes -----
+    # ----- Specifying the first tool pass -----
 
     # Tool Pass #1
     v1 = geom.Point3D(40, 9, 215)
@@ -51,9 +56,8 @@ if __name__ == "__main__":
     tool_pass_plan = tp.ToolPassPlan(tool_passes)
 
 
-    # ----- Running the Simulation -----
+    # ----- Simulating the first potential tool pass ----- 
 
-    machining_process = mach.MachiningProcess(abaqus_part, tool_pass_plan)
     save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass.cae"
     machining_process.sim_next_potential_tool_pass(save_loc)
 

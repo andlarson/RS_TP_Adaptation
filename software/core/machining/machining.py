@@ -10,8 +10,8 @@ import os.path as path
 
 class MachiningProcess:
    
-    def __init__(self, init_part, tool_pass_plan):
-    # type: (part.Part, tp.ToolPassPlan) -> None
+    def __init__(self, init_part):
+    # type: (part.Part) -> None
     
         self.part_history = part.PartHistory()
        
@@ -19,45 +19,31 @@ class MachiningProcess:
         This list contains objects which each encapsulate all the data associated
            with a single tool pass.
         """
-        self.single_tool_pass_records = []
-
-        record = tp_sandbox.SingleToolPass(init_part, tool_pass_plan)
-        self.single_tool_pass_records.append(record)  
+        self.tool_pass_records = []
 
 
-    """
-    The next tool pass has been decided upon.
-    Either the next tool pass will be done in real life or it can be simulated
-       if there is no real life data available.
-    """
-    def exec_tool_pass(self, tool_pass, real_life_data):
-    # type: (tp.ToolPass, Any) -> None
+    
+    # When a tool pass is committed, it means that it has been decided upon.
+    # If the machining process is happening in real life, then there may be
+    #    some measurement data collected after the tool pass happened.
+    def commit_tool_pass(self, tool_pass, in_real_life, measurement_data):
+    # type: (tp.ToolPass, bool, Any) -> None
 
         pass
 
 
 
-    def sim_next_potential_tool_pass(self, save_path):
-    # type: (str) -> None
+    # Simulate tool passes without committing to anything. 
+    def sim_potential_tool_passes(self, tool_pass_plan, save_path):
+    # type: (tp.ToolPassPlan, str) -> None
        
         # Retrieve the last record on file. 
-        last_record = self.single_tool_pass_records[-1]
+        last_record = self.tool_pass_records[-1]
 
         # Simulate the next tool pass and record as such in the record.
         last_record.sim_next_tool_pass(save_path)
 
 
-
-    # Use multiple consecutive simulations to simulate the results of multiple
-    #   consecutive tool passes. 
-    # TODO: The current implementation chains simulations (1 simulation = 1 model) 
-    #    within the working mdb.
-    def sim_consecutive_tool_passes(self, cnt):
-    # type: (int) -> None
-    
-        pass
-         
-        
 
     # TODO:
     # This does the backward direction (estimate residual stress which caused

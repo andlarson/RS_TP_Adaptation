@@ -8,27 +8,22 @@ import os.path
 
 
 """
-Encapsulates all data associated with a particular executed (in real life or
-   in simulation) tool pass.
-The philosophy is that a single MDB is used for a single executed tool pass.
-   It might be the case that multiple potential tool paths need to be simulated.
-   In this case, all simulations live in this single MDB. When a single tool
-   path is decided upon, the decision is stored in this object.
+Encapsulates all data associated with a single committed tool pass.
+The philosophy is that a single MDB is used for a single committed tool pass.
+   It might be the case that multiple potential tool paths need to be simulated
+   before the user commits to a single tool pass. In this case, all simulations 
+   live in this single MDB. When a single tool path is decided upon and committed
+   to, the decision is recorded in this object.
 """
-class SingleToolPass:
+class ExecutedToolPass:
 
-    def __init__(self, init_part, tool_pass_plan):
-    # type: (part.Part, ToolPassPlan) -> None
+    def __init__(self, init_part):
+    # type: (part.Part) -> None
         
-        self.tool_pass_plan = tool_pass_plan
         self.init_part = init_part
 
         if isinstance(init_part, part.UserDefinedPart):
-            """
-            TODO: We don't handle this case right now...
-            """
-            pass
-
+           raise RuntimeError("Can't handle user defined parts right now...") 
         else:
             self.path_to_mdb = init_part.path_to_mdb
             self.abq_metadata = abq_md.ABQMetadata(self.path_to_mdb)
