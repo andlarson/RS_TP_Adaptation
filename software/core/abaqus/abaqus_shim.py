@@ -4,7 +4,8 @@ This file is the only file which makes calls into the Abaqus API.
 
 from abaqus import *
 from abaqusConstants import * 
-import regionToolset            # Not clear why this is necessary.
+import regionToolset             # Unclear why necessary.   
+import part                      # Unclear why necessary.
 
 import os
 
@@ -397,19 +398,70 @@ def get_mesh_face_elements(mesh_face):
 
 
 
-def build_region_with_face(face):
-# type: (Any, Any) -> Any
- 
-    return regionToolset.Region(faces=(face, ))
+def build_region_with_face(face, part):
+# type: (Any) -> Any
+
+    # Find the face number that the face belongs to on the element.
+    face_num = face.face
+    assert(face_num in (FACE1, FACE2, FACE3, FACE4, FACE5, FACE6))
+
+    # Get the element that the face belongs to.
+    # There better be only a single element. The face should belong to a unique
+    #    element.
+    # The result is a tuple of MeshElement objects.
+    elems = face.getElements()
+    assert(len(elems) == 1)
+
+    # The tuple of MeshElement objects cannot be used directly to create a Region 
+    #    object. This is because Region creation requires a MeshSequence, not a 
+    #    tuple of MeshElement objects.
+    # From the examples at Scripting Reference > Python Commands > Region Commands
+    #    > Region Object, it appears that the standard way to obtain a
+    #    MeshSequence is to do something like elements[3:5] where elements is
+    #    the elements repository associated with a particular part. In our case,
+    #    we can't do that directly because we only have the MeshElement object,
+    #    not the index into the elements repository that the MeshElement object
+    #    lives at.
+    # This necessitates a more circuitious solution. We get the label of the
+    #    MeshElement and then use the label to create a MeshElementArray, which
+    #    I believe is a type of MeshSequence (i.e. MeshElementArray is derived
+    #    from MeshSequence).
+
+    # Get the element label for the single element.
+    # This label is distinct from the index into the elements repository.
+    elem_label = elems[0].label
+
+    # Use the element label to get a MeshElementArray, which I believe is a
+    #    type of MeshSequence.
+    seq = part.elements.sequenceFromLabels((elem_label,))
+        
+    if face_num == FACE1:
+        region = regionToolset.Region(face1Elements=seq)
+    elif face_num == FACE2:
+        region = regionToolset.Region(face2Elements=seq)
+    elif face_num == FACE3:
+        region = regionToolset.Region(face3Elements=seq)
+    elif face_num == FACE4:
+        region = regionToolset.Region(face4Elements=seq)
+    elif face_num == FACE5:
+        region = regionToolset.Region(face5Elements=seq)
+    elif face_num == FACE6:
+        region = regionToolset.Region(face6Elements=seq)
+    else:
+        raise RuntimeError("Failed to build region from face!")
+
+    return region 
 
 
 
-# Add a face feature to a part based on a region which contains an element face.
+# Add a face feature to a part based on a region. 
 def add_face_from_region(region, part):
 # type: (Any, Any) -> Any
-    
-    # Note that the face is still assciated with the mesh. This doesn't seem
-    #    like it matters.
+   
+    # According to Scripting Reference > Python Commands > Region Commands >
+    #    Region Object, whenever a command accepts a named set or surface, it
+    #    will also accept a Region object. However, the converse does not seem
+    #    to be true. Therefore a Region object really is required.
     return part.FaceFromElementFaces(region)
 
 
@@ -417,11 +469,11 @@ def add_face_from_region(region, part):
 # Use a sequence of face features to add a solid feature to the part.
 # Note that this may fail, and the Abaqus documentation doesn't give any hint
 #    to the circumstances under which it may fail. Presumably it will fail if
-#    if the face features don't easily lead to a solid. 
-def add_solid_from_faces(face_list, part):
-# type: (Any, Any) -> Any 
+#    if the face features don't obviously outline a solid.
+def add_solid_from_faces(part):
+# type: (Any) -> Any 
 
-    return part.AddCells(face_list)
+    return part.AddCells(part.faces)
 
 
 
@@ -430,6 +482,7 @@ def add_solid_from_faces(face_list, part):
 #    geometric features, resulting in a part geometry which is easier to mesh.
 def add_virtual_topology(part):
 
-    return part.CreateVirtualTopology()
+    return part.createVirtualTopology(mergeSmallFaces = True, 
+                                      smallFaceAreaThreshold = 100)
 
 

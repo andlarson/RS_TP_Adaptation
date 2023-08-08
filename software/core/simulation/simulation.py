@@ -123,7 +123,12 @@ def sim_nth_tool_pass(tool_pass, tool_pass_cnt, last_part_name, last_odb_name, a
 
 
 
-# This function simply adds additional geometric features to the part.
+# This function adds geometric features to an orphan mesh. The result of a
+#    simulation is an orphan mesh (i.e. just a bunch of vertices and elements
+#    connecting the vertices together). An orphan mesh by itself is not very
+#    useful. For example, to do boolean operations between parts, the parts
+#    need to have geometries associated with them. This function adds geoemtric
+#    features to a part, giving it a geometry.
 def orphan_mesh_to_geometry(part_name, model_name, mdb):
 # type: (str, str, Any) -> None 
 
@@ -137,20 +142,20 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
     # We need to construct a region for each face on the surface of the part. 
     # Each region is then used to build a geometric face feature associated
     #    with the part.
-    face_features = []
     for elem_face in unique_elem_faces:
         if len(shim.get_mesh_face_elements(elem_face)) == 1:
-            face_reg = shim.build_region_with_face(elem_face)
+            face_reg = shim.build_region_with_face(elem_face, part)
             face_feature = shim.add_face_from_region(face_reg, part)
-            face_features.append(face_feature)
 
     # Build the solid feature from the face features.
-    shim.add_solid_from_faces(face_features, part)
-
+    shim.add_solid_from_faces(part)
+    
     # TODO: This is a bit experimental. I'm not exactly sure what this will do
     #       if the part is curved, etc. It seems to work well when the part has
     #       a geometry composed to right angles.
-    # And use the virtual topology tool to remove all the excess partitions.
+    # Use the virtual topology tool to remove all the redundent features.
+    # We don't want the geometry to have a bunch of excess partitions on its
+    #    surface.
     shim.add_virtual_topology(part)
 
 

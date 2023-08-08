@@ -13,8 +13,6 @@ import os
 
 if __name__ == "__main__":
 
-    """
-
     # ----- Specifying the initial geometry -----
    
     path_to_cae = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_initial_geometry.cae" 
@@ -58,14 +56,4 @@ if __name__ == "__main__":
     machining_process = mach.MachiningProcess(abaqus_part, tool_pass_plan)
     save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass.cae"
     machining_process.sim_next_potential_tool_pass(save_loc)
-
-    """
-
-    path_to_cae_with_only_orphan_mesh = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/only_orphan_mesh/only_orphan_mesh.cae" 
-    mdb = shim.use_mdb(path_to_cae_with_only_orphan_mesh)
-    sim.orphan_mesh_to_geometry("PART-1", "Model-1", mdb)
-    save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/only_orphan_mesh/test.cae"
-    shim.save_mdb_as(save_loc, mdb)
-    shim.close_mdb(mdb)
-
 
