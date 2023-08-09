@@ -72,11 +72,15 @@ class ToolPassPlan:
     
     def pop(self):
     # type: (None) -> ToolPass 
-        
-        tool_pass = self.passes_todo.pop(0)
-        self.passes_done.append(tool_pass)
 
-        return tool_pass
+        if len(self.passes_todo) == 0:
+            return None
+        else:
+            tool_pass = self.passes_todo.pop(0)
+            self.passes_done.append(tool_pass)
+
+            return tool_pass
+
 
     def done_so_far(self):
     # type: (None) -> int 

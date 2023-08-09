@@ -3,10 +3,6 @@ import util.geom as geom
 import core.part.part as part
 import core.tool_pass.tool_pass as tp
 
-# DEBUG
-import core.simulation.simulation as sim
-import core.abaqus.abaqus_shim as shim
-
 import sys
 import os
 
@@ -51,13 +47,32 @@ if __name__ == "__main__":
 
     tp1 = tp.ToolPass(tp1_shape)
 
-    tool_passes = [tp1]
+
+    # ----- Specifying the second tool pass -----
+
+    v1 = geom.Point3D(40, 9, 215)
+    v2 = geom.Point3D(40, 20, 215)
+    v3 = geom.Point3D(40, 9, 185)
+    v4 = geom.Point3D(40, 20, 185)
+    v5 = geom.Point3D(0, 9, 215)
+    v6 = geom.Point3D(0, 20, 215)
+    v7 = geom.Point3D(0, 9, 185)
+    v8 = geom.Point3D(0, 20, 185)
+
+    tp2_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
+
+    tp2 = tp.ToolPass(tp2_shape)
+
+    
+    # ----- Construct the tool pass plan -----
+
+    tool_passes = [tp1, tp2]
 
     tool_pass_plan = tp.ToolPassPlan(tool_passes)
 
 
-    # ----- Simulating the first potential tool pass ----- 
+    # ----- Simulate the potential tool passes ----- 
 
     save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass.cae"
-    machining_process.sim_next_potential_tool_pass(save_loc)
+    machining_process.sim_potential_tool_passes(tool_pass_plan, save_loc)
 

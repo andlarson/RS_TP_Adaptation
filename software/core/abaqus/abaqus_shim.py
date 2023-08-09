@@ -1,7 +1,3 @@
-"""
-This file is the only file which makes calls into the Abaqus API.
-"""
-
 from abaqus import *
 from abaqusConstants import * 
 import regionToolset             # Unclear why necessary.   
@@ -10,10 +6,12 @@ import part                      # Unclear why necessary.
 import os
 
 import abaqus_metadata as abq_md
-
-# DEBUG
 from util.debug import *
 
+
+"""
+This is the only file which should make calls directly into the Abaqus API.
+"""
 
 
 # There are standard names/prefixes/suffixes which we expect and impose in Abaqus 
@@ -27,6 +25,8 @@ STANDARD_INITIAL_STEP_NAME = "Initial"
 STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
 STANDARD_SECTION_NAME = "Section-1"
 STANDARD_ORPHAN_MESH_FEATURE_NAME = "Orphan mesh-1"
+
+
 
 # Create a MDB and open it. 
 # This function does not automatically save the MDB. However, the path used
@@ -76,18 +76,22 @@ def save_mdb_as(save_path, mdb):
 
 
 # Check if the mdb contains a simple, user defined, initial geometry.
-def check_init_geom(mdb):    
-# type: (Any) -> bool
+def check_init_geom(should_print, mdb):    
+# type: (bool, Any) -> bool
 
     if len(mdb.models) != 1 or \
        STANDARD_MODEL_NAME not in mdb.models:
+        if should_print:
+            dp("check_init_geom failure 1")
         return False
 
     model = mdb.models[STANDARD_MODEL_NAME]
 
     if len(model.parts) != 1 or \
        STANDARD_INIT_GEOM_PART_NAME not in model.parts:
-       return False
+        if should_print:
+            dp("check_init_geom failure 2")
+        return False
 
     part = model.parts[STANDARD_INIT_GEOM_PART_NAME]
 
@@ -95,6 +99,8 @@ def check_init_geom(mdb):
        len(model.sections) != 1 or \
        STANDARD_SECTION_NAME not in model.sections or \
        len(part.sectionAssignments) != 1:
+        if should_print:
+            dp("check_init_geom failure 3")
         return False
 
        
@@ -103,6 +109,8 @@ def check_init_geom(mdb):
        len(model.steps) != 1 or \
        len(mdb.jobs) != 0 or \
        len(model.loads) != 0:
+        if should_print:
+            dp("check_init_geom failure 4")
         return False
 
     return True
@@ -112,13 +120,17 @@ def check_init_geom(mdb):
 """
 Checks if the model contains multiple steps.
 """
-def check_multiple_steps(model_name, mdb):
-# type: (str, Any) -> bool
+def check_multiple_steps(should_print, model_name, mdb):
+# type: (bool, str, Any) -> bool
 
     if model_name not in mdb.models:
+        if should_print:
+            dp("check_multiple_steps failure 1")
         return False
 
     if len(mdb.models[model_name].steps) > 1:
+        if should_print:
+            dp("check_multiple_steps failure 2")
         return True
 
     return False
@@ -130,38 +142,46 @@ Checks if the model contains only an orphan mesh.
 This is the content we expect when a new model is created and the results of
    a previous simulation have been imported via an ODB.
 """
-def check_orphan_mesh(part_name, model_name, mdb):
-# type: (str, str, Any) -> bool
+def check_orphan_mesh(should_print, part_name, model_name, mdb):
+# type: (bool, str, str, Any) -> bool
 
     if model_name not in mdb.models or \
        len(mdb.models[model_name].parts) != 1:
+        if should_print:
+            dp("check_orphan_mesh failure 1")
         return False
 
     model = mdb.models[model_name]
 
     if part_name not in model.parts:
+        if should_print:
+            dp("check_orphan_mesh failure 2")
         return False
 
     part = mdb.models[model_name].parts[part_name]
 
     if len(part.features) != 1 or \
        STANDARD_ORPHAN_MESH_FEATURE_NAME not in part.features:
+        if should_print:
+            dp("check_orphan_mesh failure 3")
         return False
 
     if len(model.materials) != 1 or \
        len(model.sections) != 1 or \
        len(part.sectionAssignments) != 1 or \
-       len(model.rootAssembly.instances) != 0 or \
+       len(model.rootAssembly.instances) != 1 or \
        len(model.predefinedFields) != 0:
+        if should_print:
+            dp("check_orphan_mesh failure 4")
         return False
 
     if len(model.steps) != 1 or \
-       len(mdb.jobs) != 0 or \
        len(model.loads) != 0:
+        if should_print:
+            dp("check_orphan_mesh failure 5")
         return False
 
     return True
-
 
 
 
@@ -255,7 +275,6 @@ def find_step_keyword(kwb):
 # TODO:
 # A lot of this is bespoke b/c we only modify the input file for adding stress
 #    user subroutine right now.
-
 # Add a keyword and any associated data to the current representation of the 
 #    input file associated with a model.
 def modify_inp(keyword, parameters, data_lines, model_name, mdb):
@@ -297,8 +316,10 @@ def instance_part_into_assembly(instance_name, part, dependent, model_name, mdb)
 # Cut a single part instance via multiple other part instances. 
 # The result is a new part in the model.
 # Remember to instance the resulting part!
-def cut_instances_in_assembly(name, instance_to_be_cut, cutting_instances, model_name, mdb):
-# type: (str, Any, tuple[Any], str, Any) -> Any
+def cut_instances_in_assembly(name, instance_to_be_cut, cutting_instances, model_name, abq_metadata, mdb):
+# type: (str, Any, tuple[Any], str, Any, Any) -> Any
+
+    abq_metadata.add_part_to_model(model_name, name)
 
     # Beware, the argument list ordering in the documentation for PartFrom
     #    BooleanCut() appears to be incorrect.
@@ -473,7 +494,10 @@ def add_face_from_region(region, part):
 def add_solid_from_faces(part):
 # type: (Any) -> Any 
 
-    return part.AddCells(part.faces)
+    feature = part.AddCells(part.faces)
+    assert(feature != None)
+
+    return feature 
 
 
 
@@ -483,6 +507,6 @@ def add_solid_from_faces(part):
 def add_virtual_topology(part):
 
     return part.createVirtualTopology(mergeSmallFaces = True, 
-                                      smallFaceAreaThreshold = 100)
+                                      smallFaceAreaThreshold = 1000)
 
 
