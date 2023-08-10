@@ -5,11 +5,16 @@ Two high level options:
           model change interaction. 
        Creating the new partition invalidates the predefined field which existed 
           in the instance of the initial part geometry.
+
     2) Use the cut operation to do a boolean intersection of initial geometry part
           and the tool path part. 
        This causes a new instance to be created in the Assembly module, 
           invalidating predefined fields which may have been defined for the 
           instance of the initial part geometry.
+
+       ***
+       The implementation currently uses this technique.
+       ***
 
 Both of these options suffer from the same problem: Any predefined field which
    existed in the initial geometry is invalidated.
@@ -19,21 +24,18 @@ There are three possible solutions:
           aforementioned options.
        This requires figuring out what part regions still exist and applying
           the same predefined fields to those regions.
+
     2) Require the user to specify the initial residual stress field, in
           addition to the tool path geometries, and use this information to
           imbue a geometry with an initial stress field.
        This requires a general purpose technique of representing a residual
           stress field and a method to map it onto a part representation in
           Abaqus.
-       Constructing a residual stress field representation and mapping
-          it onto a part geometry in Abaqus is a problem which will need to
-          be solved eventually.
+       If the user specifies a residual stress field which does not achieve
+          equilibrium, then a relaxation to equilibrium is necessary.
+
        ***
-       I like this solution.
-       The user has two ways to specify a RS field. They either pass a function
-          of one spatial variable which can be piecewise and a resolution
-          or they pass geometries (i.e. rectangular prisms) which represent
-          regions of equal stress.
+       The implementation currently uses this technique.
        ***
 
     3) Create representations of everything outside of Abaqus. For example,
@@ -43,3 +45,4 @@ There are three possible solutions:
           without being constrined by the state that Abaqus makes available
           to us via its API.
         This approach requires a lot of legwork.
+
