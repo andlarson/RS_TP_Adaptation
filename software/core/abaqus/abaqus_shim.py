@@ -38,14 +38,21 @@ def create_mdb(name, path):
 
 
 
-# Assign the standard section to some set associated with a simple part.
-# A simple part must have only a single cell associated with it.
-def assign_standard_sec_to_simple_part(part):
-# type: (Any, Any) -> Any
+# Assign the only section in the model to the whole part.
+def assign_only_section_to_part(part, model_name, mdb):
+# type: (Any) -> Any
+
+    model = mdb.models[model_name]
+
+    # There better be only a single section.
+    assert(len(model.sections) == 1)
+
+    # A little hacky...We could also keep track of section names.
+    section_name = model.sections.keys()[0]
 
     full_set = part.Set(name="simple_set", cells=part.cells)
     
-    return part.SectionAssignment(full_set, STANDARD_SECTION_NAME)
+    return part.SectionAssignment(full_set, section_name)
 
 
 
@@ -271,31 +278,77 @@ def find_step_keyword(kwb):
         if "Step" in string:
             return index
 
-     
-# TODO:
-# A lot of this is bespoke b/c we only modify the input file for adding stress
-#    user subroutine right now.
-# Add a keyword and any associated data to the current representation of the 
-#    input file associated with a model.
-def modify_inp(keyword, parameters, data_lines, model_name, mdb):
-# type: (str, tuple[str], str, Any) -> None
+    raise RuntimeError("Failed to find step keyword!")
 
-    if (keyword != "*Initial Conditions") or \
-       (parameters[0] != "Type=Stress") or \
-       (parameters[1] != "User") or \
-       (data_lines != ""):
-        raise RuntimeError("No support for that combination of keyword and parameters and data lines!")
 
-    # First we must synchronize the kwb to the current state of the model.
+
+# Modify the input file so that a stress subroutine is included.
+# The stress subroutine must also be associated with the job. This is done
+#    elsewhere.
+def inp_add_stress_subroutine(model_name, mdb):
+# type: (str, Any) -> None
+
+    # Synchronize the kwb to the current state of the model.
     # This must happen even if there have been no previous modifications to the
     #    input file.
     kwb = mdb.models[model_name].keywordBlock
     kwb.synchVersions()
 
+    # The initial condition keyword is placed right before the first step in
+    #    the input file.
     idx_step = find_step_keyword(kwb)
     idx_before_step = idx_step - 1
-    kwb.insert(idx_before_step, keyword + ", " + parameters[0] + ", " + parameters[1])
+    kwb.insert(idx_before_step, "*Initial Conditions, Type=Stress, User")
+
+
+
+# Modify the input file so that the stress state of the part is initialized
+#    and mapped from the result of some other simulation. 
+def inp_map_stress(path_sim_file, model_name, mdb):
+# type: () -> None
+
+    """
+    There is some subtlety here.
+    It seems like there are two ways to import a stress field which was 
+       generated from a previous simulation as the initial state of a new
+       simulation.
+    We can use the "FILE" parameter in conjunction with the "*Initial Conditions"
+       keyword. This technique does not offer any control over how mapping is
+       done, which concerns me. What happens if the mesh used in the previous
+       simulation and the mesh used for the current simulation are wildly
+       different? A .odb or a .sim file can be used with this technique.
+    Alternatively, we can use the more general "*External Field" keyword in
+       conjunction with the "*Initial Conditions" keyword. This technique offers
+       control over how mapping is done. It is also capable of accounting for
+       translations and rotations of the geometry. A .sim file must be used
+       with this technique.
+    """
+
+    # Synchronize the kwb to the current state of the model.
+    # This must happen even if there have been no previous modifications to the
+    #    input file.
+    kwb = mdb.models[model_name].keywordBlock
+    kwb.synchVersions()
     
+    # The initial condition keyword is placed right before the first step in
+    #    the input file.
+    idx_step = find_step_keyword(kwb)
+    idx_before_step = idx_step - 1
+    kwb.insert(idx_before_step, "*Initial Conditions, Type=Stress")
+    idx_before_external_field = idx_before_step + 1
+
+    """
+    Read Keywords > E > External Field to understand the content of the data
+       line. 
+    The source region is the whole previous model, the target region is the 
+       whole new model, default mapping controls are used, and all stress 
+       components are included from the tensors.
+    """
+    external_field_data_line = " , , , , ,S, , "
+    kwb.insert(idx_before_external_field, "*External Field, File=" + path_sim_file + 
+               "\n" + external_field_data_line)
+
+
 
 
 def get_step_cnt(model_name, mdb):
@@ -354,7 +407,10 @@ def create_equilibrium_step(name, name_step_to_follow, model_name, abq_metadata,
 def create_job(job_name, model_name, abq_metadata, mdb):
 # type: (str, str, Any, Any) -> None 
 
-    job = mdb.Job(job_name, model_name)
+    # The "resultsFormat=BOTH" causes Abaqus to generate .odb and .sim files
+    #    when the simulation runs. This functionality is currently undocumented
+    #    in the Abaqus documentation.
+    job = mdb.Job(job_name, model_name, resultsFormat=BOTH)
     
     abq_metadata.add_job_to_model(model_name, job_name)
     

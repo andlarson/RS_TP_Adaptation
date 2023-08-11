@@ -89,40 +89,13 @@ def sim_first_tool_pass(tool_pass, tool_pass_cnt, abq_metadata, path_to_stress_s
 # type: (tp.ToolPass, int, abq_md.ABQMetadata, str, Any) -> Any
 
     model_name = shim.STANDARD_MODEL_NAME
-
-    # Instance the initial geometry part.
-    initial_geom_part = shim.get_part(shim.STANDARD_INIT_GEOM_PART_NAME, model_name, mdb)
-    initial_geom_instance = shim.instance_part_into_assembly(shim.STANDARD_INIT_GEOM_PART_NAME, initial_geom_part, True, model_name, mdb)  
-    
-    # Build the next tool pass path as a part.
-    tool_pass_geom = tool_pass.geom
-    tool_pass_name = shim.STANDARD_TOOL_PASS_PART_PREFIX + str(tool_pass_cnt)
-    tool_pass_part = shim.build_part(tool_pass_name, tool_pass_geom, model_name, abq_metadata, mdb)
-
-    # Instance the tool pass part.
-    tool_pass_part_instance = shim.instance_part_into_assembly(tool_pass_name, tool_pass_part, True, model_name, mdb)
-
-    # Create the post tool pass geometry as a part.
-    post_tool_pass_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(tool_pass_cnt)
-    cut_instances = (tool_pass_part_instance, )
-    post_tool_pass_part = shim.cut_instances_in_assembly(post_tool_pass_name, initial_geom_instance, cut_instances, model_name, abq_metadata, mdb)
-
-    # Assign a section to the post tool pass geometry part.
-    shim.assign_standard_sec_to_simple_part(post_tool_pass_part)
-
-    # Instance the post cut geometry.
-    # The instance is independent so that meshing can be done in the Assembly
-    #    module.
-    post_tool_pass_instance = shim.instance_part_into_assembly(post_tool_pass_name, post_tool_pass_part, False, model_name, mdb)
-
-    # Then mesh the part in the assembly module.
-    shim.naive_mesh(post_tool_pass_instance, 30, model_name, mdb)
-
-    # Add an equilibrium step following the last step on record.
-    last_step = abq_metadata.get_last_step(model_name)
+    orig_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
+    tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX + str(tool_pass_cnt)
+    post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(tool_pass_cnt)
     step_cnt = shim.get_step_cnt(model_name, mdb)
     equil_step_name = shim.STANDARD_EQUIL_STEP_PREFIX + str(step_cnt + 1)
-    shim.create_equilibrium_step(equil_step_name, last_step, model_name, abq_metadata, mdb)
+
+    do_boilerplate_sim_ops(orig_part_name, tool_pass_part_name, post_tool_pass_part_name, equil_step_name, model_name, tool_pass, abq_metadata, mdb) 
 
     """
     Now, just before creating and submitting the job, modify the input 
@@ -137,9 +110,9 @@ def sim_first_tool_pass(tool_pass, tool_pass_cnt, abq_metadata, path_to_stress_s
              profile on the part which has undergone material removal via
              a boolean operation.
     """
-    shim.modify_inp("*Initial Conditions", ("Type=Stress", "User"), "", model_name, mdb)
+    shim.inp_add_stress_subroutine(model_name, mdb)
 
-    job_name = tool_pass_name
+    job_name = tool_pass_part_name
     job = shim.create_job(job_name, model_name, abq_metadata, mdb) 
 
     # Associate the user subroutine with the job.
@@ -148,6 +121,7 @@ def sim_first_tool_pass(tool_pass, tool_pass_cnt, abq_metadata, path_to_stress_s
     shim.run_job(job)
 
     return mdb 
+
 
 
 
@@ -170,34 +144,84 @@ def sim_nth_tool_pass(tool_pass, tool_pass_cnt, last_part_name, last_odb_name, a
 
     """
     1) Create a new model, import the orphan mesh, map the orphan mesh to a
-       geometry.
+          geometry.
     """
     new_model_name = shim.STANDARD_MODEL_NAME_PREFIX + str(tool_pass_cnt) 
     new_model = shim.create_model_from_odb(last_odb_name, new_model_name, abq_metadata, mdb)
 
-    # DEBUG
-    dp("Starting orphan mesh to geometry conversion!")
-
     orphan_mesh_to_geometry(last_part_name, new_model_name, mdb)
 
-    # DEBUG
-    dp("Finished with orphan mesh to geometry conversion!")
 
-    # Map the resulting stress profile onto the new geometry.
+    """
+    2) Do all of the generic simulation preparation.
+    """
+    tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX + str(tool_pass_cnt)
+    post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(tool_pass_cnt)
+    step_cnt = shim.get_step_cnt(new_model_name, mdb)
+    equil_step_name = shim.STANDARD_EQUIL_STEP_PREFIX + str(step_cnt + 1)
 
-    # ~~~~ Everything below is repeated behavior from previous function. ~~~~~ 
-    # Create the tool pass part, do the boolean intersection, assign a section
-    #    to the resulting part.
+    do_boilerplate_sim_ops(last_part_name, tool_pass_part_name, post_tool_pass_part_name, equil_step_name, new_model_name, tool_pass, abq_metadata, mdb)
+       
 
-    # Instance the part into the assembly.
+    """
+    3) Map the stress profile which existed at the end of the last simulation
+          onto the new geometry. 
+       Since this modifies the input file directly, this should be the last
+          thing that happens before the job is submitted and runs.
+    """
+    sim_file_path = last_part_name + ".sim"
+    shim.inp_map_stress(sim_file_path, new_model_name, mdb)
 
-    # Mesh the post tool pass part in the assembly module.
 
-    # Create the equilbirium step.
-
-    # Create the job and submit it.
+    """
+    4) Create the job and submit it.
+    """
+    job_name = tool_pass_part_name
+    job = shim.create_job(job_name, new_model_name, abq_metadata, mdb) 
+    shim.run_job(job)
 
     return mdb
+
+
+
+# Executes a sequence of operations which commonly occur in preparation for running
+#    a simulation.
+def do_boilerplate_sim_ops(orig_part_name, tool_pass_part_name, post_tool_pass_part_name, equil_step_name, model_name, tool_pass, abq_metadata, mdb):
+# type: (str, str, str, str, Any, abq_md.ABQMetadata)
+
+    # Instance the initial geometry part.
+    initial_geom_part = shim.get_part(orig_part_name, model_name, mdb)
+    initial_geom_instance = shim.instance_part_into_assembly(orig_part_name, initial_geom_part, True, model_name, mdb)  
+    
+    # Build the next tool pass path as a part.
+    tool_pass_geom = tool_pass.geom
+    tool_pass_part = shim.build_part(tool_pass_part_name, tool_pass_geom, model_name, abq_metadata, mdb)
+
+    # Instance the tool pass part.
+    tool_pass_part_instance = shim.instance_part_into_assembly(tool_pass_part_name, tool_pass_part, True, model_name, mdb)
+
+    # DEBUG
+    save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass_intermed.cae"
+    shim.save_mdb_as(save_loc, mdb)
+
+    # Create the post tool pass geometry as a part.
+    cut_instances = (tool_pass_part_instance, )
+    post_tool_pass_part = shim.cut_instances_in_assembly(post_tool_pass_part_name, initial_geom_instance, cut_instances, model_name, abq_metadata, mdb)
+
+    # Assign a section to the part.
+    shim.assign_only_section_to_part(post_tool_pass_part, model_name, mdb)
+
+    # Instance the post cut geometry.
+    # The instance is independent so that meshing can be done in the Assembly
+    #    module.
+    post_tool_pass_instance = shim.instance_part_into_assembly(post_tool_pass_part_name, post_tool_pass_part, False, model_name, mdb)
+
+    # Then mesh the part in the assembly module.
+    shim.naive_mesh(post_tool_pass_instance, 30, model_name, mdb)
+
+    # Add an equilibrium step following the last step on record.
+    last_step = abq_metadata.get_last_step(model_name)
+    shim.create_equilibrium_step(equil_step_name, last_step, model_name, abq_metadata, mdb)
 
 
 
@@ -239,5 +263,5 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
     # Use the virtual topology tool to remove all the redundent features.
     # We don't want the geometry to have a bunch of excess partitions on its
     #    surface.
-    shim.add_virtual_topology(part)
+    # shim.add_virtual_topology(part)
 

@@ -50,14 +50,14 @@ if __name__ == "__main__":
 
     # ----- Specifying the second tool pass -----
 
-    v1 = geom.Point3D(40, 9, 215)
-    v2 = geom.Point3D(40, 20, 215)
-    v3 = geom.Point3D(40, 9, 185)
-    v4 = geom.Point3D(40, 20, 185)
-    v5 = geom.Point3D(0, 9, 215)
-    v6 = geom.Point3D(0, 20, 215)
-    v7 = geom.Point3D(0, 9, 185)
-    v8 = geom.Point3D(0, 20, 185)
+    v1 = geom.Point3D(40, 5, 30)
+    v2 = geom.Point3D(40, 5, 60)
+    v3 = geom.Point3D(40, 30, 30)
+    v4 = geom.Point3D(40, 30, 60)
+    v5 = geom.Point3D(0, 5, 30)
+    v6 = geom.Point3D(0, 5, 60)
+    v7 = geom.Point3D(0, 30, 30)
+    v8 = geom.Point3D(0, 30, 60)
 
     tp2_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
 
