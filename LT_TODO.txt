@@ -1,0 +1,65 @@
+
+Long Term TODO.
+
+Compare the deformation which results from geometry change to element deletion.
+
+Build a good debugging setup for making calls into the Abaqus API....
+
+Resolve the fact that if the initial residual stress field is far from equilibrium,
+  then building the post-cut geometry and allowing relaxation is not equivalent
+  to allowing relaxation and then doing material removal. SEE ASSUMPTION LIST
+  FOR THIS!
+
+Make the sim_next_tool_pass() and estimate_stress_via_last_pass() significantly
+  more modular. This probably includes explicitly associating simulation objects
+  with the MachiningProcess object.
+The following is a subproblem related to the previous issue.
+It also feels brittle to intermingle the stress equilibration and the machining
+  procedures. That is, material removal is really unrelated to a sometimes
+  necessary stress equilibration step. Stress equilibration is sometimes necessary
+  because the way that a stress field is represented doesn't exactly match
+  reality. Material removal is a fundamental procedure which is required during
+  the machining process.
+
+Figure out a way to make the naming cleaner. Specifically, we expect some names to
+  be present and we always pick some particular names for use. Also, try to make
+  some of my variable names in simulation.py more concise. The names currently
+  make my eyes bleed.
+
+Get the MyPy static analysis up and running.
+
+Fix the way that imports are done so that main.py can be invoked from directories
+  other than /software/ and without using its full path name.
+
+Move on from using naked strings as paths. Use the builtin Python functionality.
+
+Use cleaner technique to deal with opening and closing an mdb. Figure out how to
+  deal with exceptional conditions when an MDB is open and needs to be closed.
+
+Think about Prof. Dick's claim: We need only a single BC constraining an element
+  in order to prvent numerial errors from resulting in non-physical deformations.
+  I agree with the claim. If the constrained element does not deform, then there
+  is a slight amount of error introduced. This error is small if the element/region
+  is small. If we restrict ourselves to situations where the clamps do not prevent
+  the deformations due to residual stress, then I believe that the only purpose of
+  boundary conditions is to prevent non-physical deformations due to numerical
+  error. Therefore, constraining a single element is sufficient.
+
+Deal with possibility that a tool path doesn't intersect the part geometry. If this
+  is the case, the PartFromBooleanCut() method will throw an exception.
+
+Make meshing more robust. The current approach relies on picking a seed size
+  that just works. 
+
+There is an awful lot of runtime spent mapping an orphan mesh to a new geometry.
+  If we could instead chain simulations together within a single model, this could
+  be avoided. To do this, it's necessary to somehow delete part regions/elements
+  which live a prespecified locations in space across different steps in a simulation.
+  For example, in step 1 we would want the elements that live in a particular
+  region of space to be deactivated, some deformation would occur, in step 2 we 
+  would want the elements that live in some other region of space to be deactivated,
+  etc. 
+Potential element deletion techniques: Contact interaction / damage model, 
+  simulation restart with new model change.
+Also might be possible to speed things up by using my current approach but
+  doing things outside of Abaqus.

@@ -200,16 +200,15 @@ def do_boilerplate_sim_ops(orig_part_name, tool_pass_part_name, post_tool_pass_p
     # Instance the tool pass part.
     tool_pass_part_instance = shim.instance_part_into_assembly(tool_pass_part_name, tool_pass_part, True, model_name, mdb)
 
-    # DEBUG
-    save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass_intermed.cae"
-    shim.save_mdb_as(save_loc, mdb)
-
     # Create the post tool pass geometry as a part.
     cut_instances = (tool_pass_part_instance, )
     post_tool_pass_part = shim.cut_instances_in_assembly(post_tool_pass_part_name, initial_geom_instance, cut_instances, model_name, abq_metadata, mdb)
 
     # Assign a section to the part.
     shim.assign_only_section_to_part(post_tool_pass_part, model_name, mdb)
+
+    # Simplify the part geometry using some heuristics.
+    shim.add_virtual_topology(post_tool_pass_part)
 
     # Instance the post cut geometry.
     # The instance is independent so that meshing can be done in the Assembly
@@ -248,7 +247,6 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
     Each region is then used to build a geometric face feature associated
        with the part.
     """
-
     for elem_face in unique_elem_faces:
         if len(shim.get_mesh_face_elements(elem_face)) == 1:
             face_reg = shim.build_region_with_face(elem_face, part)
@@ -256,12 +254,8 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
 
     # Build the solid feature from the face features.
     shim.add_solid_from_faces(part)
-    
-    # TODO: This is a bit experimental. I'm not exactly sure what this will do
-    #       if the part is curved, etc. It seems to work well when the part has
-    #       a geometry composed to right angles.
-    # Use the virtual topology tool to remove all the redundent features.
-    # We don't want the geometry to have a bunch of excess partitions on its
-    #    surface.
-    # shim.add_virtual_topology(part)
 
+    # Remove any dependency on the orphan mesh.
+    # Not doing this causes the orphan mesh to still appear in the Assembly
+    #    module, which can make appearence confusing. 
+    shim.suppress_feature(shim.STANDARD_ORPHAN_MESH_FEATURE_NAME, part)
