@@ -13,8 +13,7 @@ from util.debug import *
 def sim_consecutive_tool_passes(tool_pass_plan, save_path, record):
 # type: (tp.ToolPassPlan, str, tprk.CommittedToolPassRecord) -> None
 
-    # Ensure that the results of the simulations go into the same directory that
-    #    the MDB lives in.
+    # The results of the simulations go into the same directory as the MDB. 
     os.chdir(record.working_dir)
 
     mdb = shim.use_mdb(record.path_to_mdb)
@@ -67,12 +66,6 @@ def sim_single_tool_pass(tool_pass, tool_pass_cnt, record, mdb):
         #    the model was run. Therefore, it's necessary to use the results
         #    of that model to chain the simulations together. 
 
-        """
-        Assumption here. The last job from the last model produced the 
-           output we care about. Also assume the last part created in
-           the last model is deformed, and is therefore responsible for
-           the orphan mesh.
-        """
         last_odb_name = record.abq_metadata.get_last_job_name(last_model_name) + ".odb"
         last_part_name = record.abq_metadata.get_last_part_name(last_model_name).upper()
         sim_nth_tool_pass(tool_pass, tool_pass_cnt, last_part_name, last_odb_name, record.abq_metadata, mdb)

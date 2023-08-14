@@ -60,7 +60,21 @@ There is an awful lot of runtime spent mapping an orphan mesh to a new geometry.
   region of space to be deactivated, some deformation would occur, in step 2 we 
   would want the elements that live in some other region of space to be deactivated,
   etc. 
-Potential element deletion techniques: Contact interaction / damage model, 
-  simulation restart with new model change.
+Potential element deletion techniques: 
+    1) Contact interaction / damage model. 
+    2) Simulation restart with new model change.
+    3) Abaqus' Additive Manufacturing Process Simulation toolset (See Analysis 
+       > Analysis Techniques > Additive Manufacturing Process Simulation, also 
+       see User Subroutines > Toolpath-Mesh Intersection Utility Routines, and 
+       see Analysis > Analysis Techniques > Special Purpose Techniques > Progressive 
+       Element Activation. The most promising approach embedded in all of this 
+       is to use Progressive Element Activation to do element DEactivation at 
+       across multiple steps. We could define all elements in an initial mesh 
+       as eligible for element deactivation and then, in the user subroutine 
+       UEPACTIVATIONVOL, find all the elements in a particular tool path (this 
+       might involve querying all elements), and setting their material volume
+       fractions to 0). 
+    4) Approximating element removal by making the element elasticity modulus 
+       very small (this was Jan's suggestion, it doesn't fully make sense to me).
 Also might be possible to speed things up by using my current approach but
   doing things outside of Abaqus.

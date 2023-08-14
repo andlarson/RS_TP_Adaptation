@@ -115,3 +115,4 @@ class SpecRightRectPrism:
         return Point3D(avg_x, avg_y, avg_z) 
 
 
+

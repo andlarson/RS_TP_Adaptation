@@ -4,8 +4,6 @@ import core.abaqus.abaqus_metadata as abq_md
 import core.tool_pass.tool_pass_record_keeping as tprk
 import core.simulation.simulation as sim
 
-import os
-
 
 
 class MachiningProcess:
@@ -56,7 +54,7 @@ class MachiningProcess:
     # This does the backward direction (estimate residual stress which caused
     #   a particular deformation).
     def estimate_stress_via_last_tool_pass(self):
-    # type: (bool) -> StressProfile
+    # type: (None) -> None
         
         raise RuntimeError("Not yet supported.")
 

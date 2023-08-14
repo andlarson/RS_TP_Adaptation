@@ -82,7 +82,7 @@ def save_mdb_as(save_path, mdb):
 
 
 
-# Check if the mdb contains a simple, user defined, initial geometry.
+# Check if the mdb contains an initial geometry.
 def check_init_geom(should_print, mdb):    
 # type: (bool, Any) -> bool
 
@@ -109,7 +109,6 @@ def check_init_geom(should_print, mdb):
         if should_print:
             dp("check_init_geom failure 3")
         return False
-
        
     if len(model.rootAssembly.instances) != 0 or \
        len(model.predefinedFields) != 0 or \
