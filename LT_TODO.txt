@@ -48,8 +48,9 @@ Think about Prof. Dick's claim: We need only a single BC constraining an element
 Deal with possibility that a tool path doesn't intersect the part geometry. If this
   is the case, the PartFromBooleanCut() method will throw an exception.
 
-Make meshing more robust. The current approach relies on picking a seed size
-  that just works. 
+Make meshing more robust. Currently we just try some parameters (seed density,
+  mesh shape, etc.) and if those parameters don't work we try some other
+  parameters.
 
 There is an awful lot of runtime spent mapping an orphan mesh to a new geometry.
   If we could instead chain simulations together within a single model, this could

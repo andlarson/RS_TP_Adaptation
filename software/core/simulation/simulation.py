@@ -112,7 +112,7 @@ def sim_first_tool_pass(tool_pass, tool_pass_cnt, abq_metadata, path_to_stress_s
     """
     shim.inp_add_stress_subroutine(model_name, mdb)
 
-    job_name = tool_pass_part_name
+    job_name = post_tool_pass_part_name
     job = shim.create_job(job_name, model_name, abq_metadata, mdb) 
 
     # Associate the user subroutine with the job.
@@ -176,7 +176,7 @@ def sim_nth_tool_pass(tool_pass, tool_pass_cnt, last_part_name, last_odb_name, a
     """
     4) Create the job and submit it.
     """
-    job_name = tool_pass_part_name
+    job_name = post_tool_pass_part_name
     job = shim.create_job(job_name, new_model_name, abq_metadata, mdb) 
     shim.run_job(job)
 

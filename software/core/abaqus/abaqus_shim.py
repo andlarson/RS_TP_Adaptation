@@ -390,20 +390,23 @@ def cut_instances_in_assembly(name, instance_to_be_cut, cutting_instances, model
 def naive_mesh(part_instance, size, model_name, mdb):
 # type: (Any, float, str, Any) -> None
 
-    # mdb.models[model_name].rootAssembly.setMeshControls(regions=part_instance.cells,
-    #                                                     elemShape=TET, technique=FREE)
+    # Tetrahedrons seem to be able to mesh the widest variety of geometries. 
+    mdb.models[model_name].rootAssembly.setMeshControls(part_instance.cells, elemShape=TET, technique=FREE)
 
     seq = (part_instance, )
     mdb.models[model_name].rootAssembly.seedPartInstance(seq, size)
     mdb.models[model_name].rootAssembly.generateMesh(regions=seq)
 
-    # DEBUG
-    save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass_intermed.cae"
-    save_mdb_as(save_loc, mdb)
+    while mdb.models[model_name].rootAssembly.getUnmeshedRegions() != None:
+        size = size - 1
 
-    if mdb.models[model_name].rootAssembly.getUnmeshedRegions() != None:
-        raise RuntimeError("Meshing failed! Some part of the assembly is unmeshed!")
+        if size <= 0:
+            raise RuntimeError("There is no global element size that allows meshing for this particular mesh technique.")
 
+        dp("An attempt at meshing failed. Decreasing global element size to " + str(size) + " and giving it another go.") 
+        mdb.models[model_name].rootAssembly.deleteSeeds(seq)
+        mdb.models[model_name].rootAssembly.seedPartInstance(seq, size)
+        mdb.models[model_name].rootAssembly.generateMesh(regions=seq)
 
 
 # Create an equilbirium step after another specified step.
@@ -447,6 +450,10 @@ def run_job(job):
 
     job.submit()
     job.waitForCompletion()
+
+    if job.status == ABORTED:
+        raise RuntimeError("The job with name " + job.name + " was aborted!")
+
     print_job_messages(job)
 
 
@@ -454,6 +461,9 @@ def run_job(job):
 # Check the messages produced by an analysis job.
 def print_job_messages(job):
 # type: (Any) -> None
+
+    if len(job.messages) != 0:
+        dp("The job with name " + job.name + " ran and some messages were received!")
 
     for message in job.messages:
         dp("A message of type " + str(message.type) + " was received when the job ran!")
