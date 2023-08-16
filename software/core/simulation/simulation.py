@@ -1,7 +1,8 @@
 import core.abaqus.abaqus_shim as shim
 import core.tool_pass.tool_pass as tp
 import core.abaqus.abaqus_metadata as abq_md
-import core.tool_pass.tool_pass_record_keeping as tprk 
+import core.tool_pass.tool_pass_record_keeping as tprk
+import core.boundary_conditions.boundary_conditions as bc
 
 import os
 
@@ -55,7 +56,7 @@ def sim_single_tool_pass(tool_pass, tool_pass_cnt, record, mdb):
         # DEBUG
         dp("Simulating a first tool pass!")
 
-        sim_first_tool_pass(tool_pass, tool_pass_cnt, record.abq_metadata, path_to_stress_subroutine, mdb)  
+        sim_first_tool_pass(tool_pass, tool_pass_cnt, record.BCs, record.abq_metadata, path_to_stress_subroutine, mdb)  
 
     elif shim.check_multiple_steps(False, last_model_name, mdb):
 
@@ -68,7 +69,7 @@ def sim_single_tool_pass(tool_pass, tool_pass_cnt, record, mdb):
 
         last_odb_name = record.abq_metadata.get_last_job_name(last_model_name) + ".odb"
         last_part_name = record.abq_metadata.get_last_part_name(last_model_name).upper()
-        sim_nth_tool_pass(tool_pass, tool_pass_cnt, last_part_name, last_odb_name, record.abq_metadata, mdb)
+        sim_nth_tool_pass(tool_pass, tool_pass_cnt, last_part_name, last_odb_name, record.BCs, record.abq_metadata, mdb)
 
     else:
         raise RuntimeError("Can't figure out how to do next tool pass...")
@@ -78,8 +79,8 @@ def sim_single_tool_pass(tool_pass, tool_pass_cnt, record, mdb):
 # This works for the first tool pass in an MDB.
 # Because it's the first tool pass, assumptions are made about how things are
 #    named.
-def sim_first_tool_pass(tool_pass, tool_pass_cnt, abq_metadata, path_to_stress_subroutine, mdb):
-# type: (tp.ToolPass, int, abq_md.ABQMetadata, str, Any) -> Any
+def sim_first_tool_pass(tool_pass, tool_pass_cnt, BCs, abq_metadata, path_to_stress_subroutine, mdb):
+# type: (tp.ToolPass, int, List[bc.BC], abq_md.ABQMetadata, str, Any) -> Any
 
     model_name = shim.STANDARD_MODEL_NAME
     orig_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
@@ -132,8 +133,8 @@ The importing process isn't trivial. The output of the previous
 It also requires mapping the stress state which existed at the end of
    the previous simulation in as the initial stress state.
 """
-def sim_nth_tool_pass(tool_pass, tool_pass_cnt, last_part_name, last_odb_name, abq_metadata, mdb):
-# type: (tp.ToolPass, int, str, str, abq_md.ABQMetadata, Any) -> Any
+def sim_nth_tool_pass(tool_pass, tool_pass_cnt, last_part_name, last_odb_name, BCs, abq_metadata, mdb):
+# type: (tp.ToolPass, int, str, str, List[bc.BC], abq_md.ABQMetadata, Any) -> Any
 
     """
     1) Create a new model, import the orphan mesh, map the orphan mesh to a
@@ -179,8 +180,8 @@ def sim_nth_tool_pass(tool_pass, tool_pass_cnt, last_part_name, last_odb_name, a
 
 # Executes a sequence of operations which commonly occur in preparation for running
 #    a simulation.
-def do_boilerplate_sim_ops(orig_part_name, tool_pass_part_name, post_tool_pass_part_name, equil_step_name, model_name, tool_pass, abq_metadata, mdb):
-# type: (str, str, str, str, Any, abq_md.ABQMetadata)
+def do_boilerplate_sim_ops(orig_part_name, tool_pass_part_name, post_tool_pass_part_name, equil_step_name, model_name, tool_pass, BCs, abq_metadata, mdb):
+# type: (str, str, str, str, Any, List[bc.BC], abq_md.ABQMetadata)
 
     # Instance the initial geometry part.
     initial_geom_part = shim.get_part(orig_part_name, model_name, mdb)
@@ -207,6 +208,9 @@ def do_boilerplate_sim_ops(orig_part_name, tool_pass_part_name, post_tool_pass_p
     # The instance is independent so that meshing can be done in the Assembly
     #    module.
     post_tool_pass_instance = shim.instance_part_into_assembly(post_tool_pass_part_name, post_tool_pass_part, False, model_name, mdb)
+
+    # Apply the boundary conditions to the instance.
+    shim.apply_surface_BCs(post_tool_pass_instace, BCs)
 
     # Then mesh the part in the assembly module.
     shim.naive_mesh(post_tool_pass_instance, 30, model_name, mdb)

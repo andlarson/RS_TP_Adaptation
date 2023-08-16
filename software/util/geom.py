@@ -1,9 +1,13 @@
-
 """
 Utilities for general geometric tasks.
 """
 
+import numpy as np
 import sys
+
+# DEBUG
+from debug import *
+
 
 class Point2DXY:
     
@@ -113,6 +117,45 @@ class SpecRightRectPrism:
         avg_z = (self.same_z_g1[0].z + self.same_z_g2[0].z)/2
 
         return Point3D(avg_x, avg_y, avg_z) 
+
+
+
+class NGonIn3D:
+
+    def __init__(self, points, interior_point):
+    # type: (List[Point3D], Point3D) -> None
+
+        if not on_single_plane(points):
+            raise RuntimeError("The points don't describe a valid n-gon!")
+
+        # TODO:
+        # Technically we can do further checks here. Not only should all the points
+        #    lie on a single plane, but they should not be on the interior of the
+        #    n-gon.
+        self.vertices = points
+
+
+
+def on_single_plane(points):
+# type: (List[Point3D]) -> bool
+
+    # Find the coefficients of the plane equation ax + by + cz = d based on
+    #    the first three points.
+    x1, y1, z1 = points[0]
+    x2, y2, z2 = points[1]
+    x3, y3, z3 = points[2]
+
+    coords = np.array([[x1, y1, z1], [x2, y2, z2], [x3, y3, z3]])
+    vals = np.array([1, 1, 1])
+    coeffs = np.linalg.solve(coords, vals)
+
+    # Then check that all points lie on this plane.
+    for point in points:
+        if coeffs[0] * point[0] + coeffs[1] * point[1] + coeffs[2] * point[2] != 1:
+            return False
+
+    return True
+
 
 
 

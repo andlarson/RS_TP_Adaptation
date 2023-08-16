@@ -5,7 +5,9 @@ import part                      # Unclear why necessary.
 
 import os
 
-import abaqus_metadata as abq_md
+import core.abaqus.abaqus_metadata as abq_md
+import core.boundary_conditions.boundary_conditions as bc
+import core.util.geom as geom
 from util.debug import *
 
 
@@ -25,7 +27,7 @@ STANDARD_INITIAL_STEP_NAME = "Initial"
 STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
 STANDARD_SECTION_NAME = "Section-1"
 STANDARD_ORPHAN_MESH_FEATURE_NAME = "Orphan mesh-1"
-
+STANDARD_BC_PREFIX = "Boundary_Condition_"
 
 
 # Create a MDB and open it. 
@@ -361,7 +363,13 @@ def get_step_cnt(model_name, mdb):
 # type: (str, Any) -> None
 
     return len(mdb.models[model_name].steps)
- 
+
+
+
+def get_BC_cnt(model_name, mdb):
+# type: (str, Any) -> None
+
+    return len(mdb.models[model_name].boundaryConditions)
 
 
 # Create part instance in the root assembly for the default model.
@@ -406,6 +414,7 @@ def naive_mesh(part_instance, size, model_name, mdb):
         mdb.models[model_name].rootAssembly.deleteSeeds(seq)
         mdb.models[model_name].rootAssembly.seedPartInstance(seq, size)
         mdb.models[model_name].rootAssembly.generateMesh(regions=seq)
+
 
 
 # Create an equilbirium step after another specified step.
@@ -500,6 +509,13 @@ def get_mesh_face_elements(mesh_face):
 
 
 
+def build_region_with_ref_points(ref_points):
+# type: (List[Any]) -> None
+
+    return regionToolset.Region(referencePoints=ref_points)
+
+
+
 def build_region_with_face(face, part):
 # type: (Any) -> Any
 
@@ -586,6 +602,7 @@ def add_solid_from_faces(part):
 #    used. The goal of this is to simplify unimportant, small, and redundant 
 #    geometric features, resulting in a part geometry which is easier to mesh.
 def add_virtual_topology(part):
+# type: (Any) -> None
 
     # The documentation says that createVirtualTopology() will not issue exceptions.
     # I found that if createVirtualTopology() does not eliminate any features,
@@ -594,6 +611,34 @@ def add_virtual_topology(part):
     try:
         feature = part.createVirtualTopology(ignoreRedundantEntities=True)
     except:
-       dp("No excess features were removed by creating a virtual topology!") 
+       dp("No excess features were removed by creating a virtual topology! This does not necessarily indicate that there is a bug.") 
 
 
+
+# Add some reference points to a part or a part instance.
+# The reference points can, for example, then be used to build a region.
+def add_ref_points(points, part_rep):
+# type: (List[geom.Point3D], Any) -> None
+
+    ref_point_features = []
+    for point in points:
+        ref_point_features.append(part_rep.ReferencePoint((point.x, point.y, point.z)))
+
+    return ref_point_features
+
+
+
+def create_bc_for_region(BC, region, step_name, BC_name, model_name, mdb):
+# type: (bc.BC, Any, str, str, str, Any) -> None
+
+    if isinstance(BC.bc_settings, bc.DisplacementBCSettings):
+        fix_x = SET if BC.bc_settings.fix_x else UNSET
+        fix_y = SET if BC.bc_settings.fix_y else UNSET
+        fix_z = SET if BC.bc_settings.fix_z else UNSET
+        prevent_x_rot = SET if BC.bc_settings.prevent_x_rot else UNSET
+        prevent_y_rot = SET if BC.bc_settings.prevent_y_rot else UNSET
+        prevent_z_rot = SET if BC.bc_settings.prevent_z_rot else UNSET
+        model.DisplacementBC(BC_name, step_name, region, u1=fix_x, u2=fix_y, u3=fix_z, ur1=prevent_x_rot, ur2=prevent_y_rot, ur3=prevent_z_rot)
+    else:
+        raise RuntimeError("An attempt was made to add an unsupported type of boundary condition to a region!")
+    

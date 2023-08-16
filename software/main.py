@@ -9,6 +9,7 @@ import os
 
 if __name__ == "__main__":
 
+    """
     # ----- Specifying the initial geometry -----
    
     path_to_cae = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_initial_geometry.cae" 
@@ -106,4 +107,6 @@ if __name__ == "__main__":
 
     save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass.cae"
     machining_process.sim_potential_tool_passes(tool_pass_plan, save_loc)
+    """
 
+    four_gon = geom.FourGon((1, 2, 3, 4))

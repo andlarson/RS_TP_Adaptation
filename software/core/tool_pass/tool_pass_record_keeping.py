@@ -1,7 +1,8 @@
-import tool_pass as tp
+import core.tool_pass.tool_pass as tp
 import core.part.part as part
 import core.abaqus.abaqus_metadata as abq_md
 import core.abaqus.abaqus_shim as shim
+import core.boundary_conditions.boundary_conditions as bc
 
 import os.path
 
@@ -16,10 +17,11 @@ The philosophy is that a single MDB is used for a single committed tool pass.
 """
 class CommittedToolPassRecord:
 
-    def __init__(self, init_part):
-    # type: (part.Part) -> None
+    def __init__(self, init_part, boundary_conditions):
+    # type: (part.Part, List[bc.BC]) -> None
         
         self.init_part = init_part
+        self.BCs = boundary_conditions
 
         if isinstance(init_part, part.UserDefinedPart):
            raise RuntimeError("Can't handle user defined parts right now...") 

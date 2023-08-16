@@ -3,18 +3,18 @@ import core.abaqus.abaqus_shim as shim
 import core.abaqus.abaqus_metadata as abq_md
 import core.tool_pass.tool_pass_record_keeping as tprk
 import core.simulation.simulation as sim
-
+import core.boundary_conditions.boundary_conditions as bc
 
 
 class MachiningProcess:
    
-    def __init__(self, init_part):
-    # type: (part.Part) -> None
+    def __init__(self, init_part, boundary_conditions):
+    # type: (part.Part, List[bc.BC]) -> None
    
         """
         It is necessary to keep track of things at two levels.
         The part history tracks part changes across committed tool passes.
-           No information about attempted tool passes is maintained.
+           It does not maintain information about attempted tool passes. 
         Each tool pass record maps to a single committed tool pass. The
            record encapsulates all information which led to the decision to
            commit to the tool pass. The primary purpose of the record is to
@@ -24,6 +24,7 @@ class MachiningProcess:
         self.tool_pass_records = []
 
         self.init_part = init_part
+        self.boundary_conditions = boundary_conditions
 
 
     """ 
@@ -43,7 +44,7 @@ class MachiningProcess:
     # type: (tp.ToolPassPlan, str) -> None
         
         if len(self.tool_pass_records) == 0:
-            self.tool_pass_records.append(tprk.CommittedToolPassRecord(self.init_part))
+            self.tool_pass_records.append(tprk.CommittedToolPassRecord(self.init_part, self.boundary_conditions))
 
         last_record = self.tool_pass_records[-1]
 
