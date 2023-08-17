@@ -7,15 +7,15 @@ Short Term TODO.
     2) Map old stress profile to new geometry.
     3) Propagate boundary conditions and account for them if necessary.
 
-2) Add C++ support for defining some simple stress profiles.
+2) Pause to map out current code structure and do clean up.
 
-3) Create a small library of examples illustrating current functionality, 
+3) Add C++ support for defining some simple stress profiles.
+
+4) Create a small library of examples illustrating current functionality, 
       including BCs in the initial .cae files.
 
-4) Add support for commiting a tool pass. This will include functionality 
+5) Add support for commiting a tool pass. This will include functionality 
       for chaining across MDBs, since one committed tool pass = one MDB.
 
-5) Add support for back calculating stress which caused a particular
+6) Add support for back calculating stress which caused a particular
       deformation.
-
-6) 

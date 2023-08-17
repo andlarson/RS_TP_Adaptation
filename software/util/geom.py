@@ -18,6 +18,7 @@ class Point2DXY:
         self.y = y
 
 
+
 class Point3D:
 
     def __init__(self, x, y, z):
@@ -27,10 +28,17 @@ class Point3D:
         self.y = y
         self.z = z
 
+
     def proj_xy(self):
     # type: (None) -> tuple[float, float]
         
         return Point2DXY(self.x, self.y) 
+
+
+    def get_xyz(self):
+    # type: (None) -> tuple[float, float, float]
+
+        return (self.x, self.y, self.z)
 
 
 
@@ -120,10 +128,10 @@ class SpecRightRectPrism:
 
 
 
-class NGonIn3D:
+class NGon3D:
 
-    def __init__(self, points, interior_point):
-    # type: (List[Point3D], Point3D) -> None
+    def __init__(self, points):
+    # type: (List[Point3D]) -> None
 
         if not on_single_plane(points):
             raise RuntimeError("The points don't describe a valid n-gon!")
@@ -135,26 +143,109 @@ class NGonIn3D:
         self.vertices = points
 
 
+    def get_plane_coeffs(self):
+    # type: (None) -> np.ndarray 
 
-def on_single_plane(points):
-# type: (List[Point3D]) -> bool
+        return get_plane_coeffs(self.vertices[0], self.vertices[1]. self.vertices[2])
 
-    # Find the coefficients of the plane equation ax + by + cz = d based on
-    #    the first three points.
-    x1, y1, z1 = points[0]
-    x2, y2, z2 = points[1]
-    x3, y3, z3 = points[2]
+
+
+def float_equals(a, b):
+# type: (float, float) -> bool
+
+    if abs(a - b) <= 10**(-6):
+        return True
+
+    return False
+
+
+
+# Check if three points are collinear.
+def are_collinear(point1, point2, point3):
+# type: (Point3D, Point3D, Point3D) -> bool
+
+    vec1x, vec1y, vec1z = point2.x - point1.x, point2.y - point1.x, point2.z - point1.z
+    vec2x, vec2y, vec2z = point3.x - point1.x, point3.y - point1.x, point3.z - point1.z
+
+    potential_scale_factor = vec2x / vec1x
+
+    if float_equals(vec1y * potential_scale_factor, vec2y) and \
+       float_equals(vec1z * potential_scale_factor, vec2z):
+        return True
+
+    return False
+
+
+
+# Given some points, find the coefficients a, b, c, and d so that all the points
+#    lie on the plane described by ax + by + cz + d = 0. If the points are
+#    collinear, an exception is thrown.
+def get_plane_coeffs(point1, point2, point3):
+# type: (Point3D, Point3D, Point3D) -> np.ndarray
+
+    if are_collinear(point1, point2, point3):
+        raise RuntimeError("Trying to find plane coefficients for some points
+        which are collinear!")
+
+    # We cannot know if the plane will pass through the origin (making d = 0)
+    #    or not apriori. 
+
+    # We first assume that the plane does not pass through the origin and try
+    #    to solve the system of equations accordingly. If there is no solution,
+    #    we know that the plane must go through the origin. Thus, the system
+    #    of equations is modified accordingly and resolved.
+    x1, y1, z1 = point1.x, point1.y, point1.z
+    x2, y2, z2 = point2.x, point2.y, point2.z
+    x3, y3, z3 = point3.x, point3.y, point3.z
 
     coords = np.array([[x1, y1, z1], [x2, y2, z2], [x3, y3, z3]])
     vals = np.array([1, 1, 1])
-    coeffs = np.linalg.solve(coords, vals)
+    try:
+        coeffs = np.concatenate((np.linalg.solve(coords, vals), np.array([1]))
+    except np.linalg.LinAlgError:
+        vals = np.array([0, 0, 0])
+        coeffs = np.concatenate((np.linalg.solve(coords, vals), np.array([0]))
 
-    # Then check that all points lie on this plane.
+    return coeffs
+
+
+
+# Check if the points all lie on a single plane.
+# Assumed that the first three points are not collinear.
+def on_any_plane(points):
+# type: (List[Point3D]) -> bool
+
+    # Find the coefficients of the plane which passes through the points.
+    coeffs = get_plane_coeffs(points[0], points[1], points[2])
+
+    # Check if all the points lie on this plane.
+    return on_particular_plane(points, coeffs)
+
+
+
+# Check if all points lie on a plane described by the coefficients of the plane.
+# The coefficent order should be a, b, c, d where the equation of the plane is
+#    ax + by + cz = d.
+def on_particular_plane(points, coeffs):
+# type: (List[Point3D], Seq[Float]) -> bool
+
     for point in points:
-        if coeffs[0] * point[0] + coeffs[1] * point[1] + coeffs[2] * point[2] != 1:
+        if not float_equals(coeffs[0] * point.x + coeffs[1] * point.y + coeffs[2] * point.z, coeffs[3]):
             return False
 
     return True
+
+
+
+# Check if a set of points all lie on the same plane as an ngon. 
+def points_on_plane_of_ngon(points, ngon):
+# type: (List[Point3D], NGon3D) -> bool
+
+    ngon_plane_coeffs = ngon.plane_coeffs()
+
+    return on_particular_plane(points, ngon_plane_coeffs)
+    
+
 
 
 

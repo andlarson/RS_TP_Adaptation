@@ -89,7 +89,7 @@ def sim_first_tool_pass(tool_pass, tool_pass_cnt, BCs, abq_metadata, path_to_str
     step_cnt = shim.get_step_cnt(model_name, mdb)
     equil_step_name = shim.STANDARD_EQUIL_STEP_PREFIX + str(step_cnt + 1)
 
-    do_boilerplate_sim_ops(orig_part_name, tool_pass_part_name, post_tool_pass_part_name, equil_step_name, model_name, tool_pass, abq_metadata, mdb) 
+    do_boilerplate_sim_ops(orig_part_name, tool_pass_part_name, post_tool_pass_part_name, equil_step_name, model_name, tool_pass, BCs, abq_metadata, mdb) 
 
     """
     Now, just before creating and submitting the job, modify the input 
@@ -154,7 +154,7 @@ def sim_nth_tool_pass(tool_pass, tool_pass_cnt, last_part_name, last_odb_name, B
     step_cnt = shim.get_step_cnt(new_model_name, mdb)
     equil_step_name = shim.STANDARD_EQUIL_STEP_PREFIX + str(step_cnt + 1)
 
-    do_boilerplate_sim_ops(last_part_name, tool_pass_part_name, post_tool_pass_part_name, equil_step_name, new_model_name, tool_pass, abq_metadata, mdb)
+    do_boilerplate_sim_ops(last_part_name, tool_pass_part_name, post_tool_pass_part_name, equil_step_name, new_model_name, tool_pass, BCs, abq_metadata, mdb)
        
 
     """
@@ -209,15 +209,15 @@ def do_boilerplate_sim_ops(orig_part_name, tool_pass_part_name, post_tool_pass_p
     #    module.
     post_tool_pass_instance = shim.instance_part_into_assembly(post_tool_pass_part_name, post_tool_pass_part, False, model_name, mdb)
 
-    # Apply the boundary conditions to the instance.
-    shim.apply_surface_BCs(post_tool_pass_instace, BCs)
-
     # Then mesh the part in the assembly module.
     shim.naive_mesh(post_tool_pass_instance, 30, model_name, mdb)
 
     # Add an equilibrium step following the last step on record.
     last_step = abq_metadata.get_last_step(model_name)
     shim.create_equilibrium_step(equil_step_name, last_step, model_name, abq_metadata, mdb)
+
+    # Apply the boundary conditions. 
+    bc.apply_surface_BCs(BCs, equil_step_name, model_name, mdb)
 
 
 
@@ -232,7 +232,7 @@ This function adds geometric features to an orphan mesh. The result of a
 def orphan_mesh_to_geometry(part_name, model_name, mdb):
 # type: (str, str, Any) -> None 
 
-    assert(shim.check_orphan_mesh(False, part_name, model_name, mdb))
+    assert(shim.check_orphan_mesh(True, part_name, model_name, mdb))
 
     part = shim.get_part(part_name, model_name, mdb) 
     unique_elem_faces = shim.get_unique_element_faces(part)
@@ -246,7 +246,7 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
     """
     for elem_face in unique_elem_faces:
         if len(shim.get_mesh_face_elements(elem_face)) == 1:
-            face_reg = shim.build_region_with_face(elem_face, part)
+            face_reg = shim.build_region_with_elem_face(elem_face, part)
             face_feature = shim.add_face_from_region(face_reg, part)
 
     # Build the solid feature from the face features.

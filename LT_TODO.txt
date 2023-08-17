@@ -78,3 +78,7 @@ Potential element deletion techniques:
        very small (this was Jan's suggestion, it doesn't fully make sense to me).
 Also might be possible to speed things up by using my current approach but
   doing things outside of Abaqus.
+
+Write a function which checks if a point lies within an ngon. There are multiple
+  places in the codebase where we assume that this is the case, but no checks
+  are done.

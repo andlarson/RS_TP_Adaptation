@@ -6,8 +6,6 @@ import part                      # Unclear why necessary.
 import os
 
 import core.abaqus.abaqus_metadata as abq_md
-import core.boundary_conditions.boundary_conditions as bc
-import core.util.geom as geom
 from util.debug import *
 
 
@@ -279,6 +277,32 @@ def get_part(part_name, model_name, mdb):
 
 
 
+def get_faces_of_assembly(model_name, mdb):
+# type: (str, Any) -> Any
+
+    return mdb.models[model_name].faces
+
+
+
+def get_vertices_of_faces_on_assembly(model_name, mdb):
+# type: (str, Any) -> List[List[Tuple[float, float, float]]]
+
+    faces = mdb.models[model_name].rootAssembly.faces
+
+    vertices = []
+    for face in faces:
+        vertices_on_face = []
+        vertex_ids = face.getVertices()
+
+        for vertex_id in vertex_ids:
+            vertices_on_face.append(mdb.models[model_name].rootAssembly.vertices[vertex_id])
+
+        vertices.append(vertices_on_face)
+
+    return vertices 
+
+
+
 def find_step_keyword(kwb):
 # type: (Any) -> int
     
@@ -509,14 +533,26 @@ def get_mesh_face_elements(mesh_face):
 
 
 
-def build_region_with_ref_points(ref_points):
-# type: (List[Any]) -> None
+# Build a region on a root assembly using the reference points which already
+#    exist on the root assembly.
+# Note that this function expects a list of reference point features, which it
+#    translates to reference point objects.
+def build_region_with_ref_points(ref_point_features, model_name, mdb):
+# type: (List[Any], str, Any) -> Any
 
-    return regionToolset.Region(referencePoints=ref_points)
+    root_assembly = mdb.models[model_name].rootAssembly
+
+    # Construct a sequence of ReferencePoint objects.
+    ref_point_objects = []
+    for ref_point_feature in ref_point_features:
+        key = ref_point_feature.id
+        ref_point_objects.append(root_assembly.referencePoints[key]) 
+
+    return regionToolset.Region(referencePoints=ref_point_objects)
 
 
 
-def build_region_with_face(face, part):
+def build_region_with_elem_face(face, part):
 # type: (Any) -> Any
 
     # Find the face number that the face belongs to on the element.
@@ -615,30 +651,35 @@ def add_virtual_topology(part):
 
 
 
-# Add some reference points to a part or a part instance.
+# Add some reference points to a root assembly.
 # The reference points can, for example, then be used to build a region.
-def add_ref_points(points, part_rep):
-# type: (List[geom.Point3D], Any) -> None
+# There is a bit of subtlety here. To build a region with reference points, a
+#    sequence of ReferencePoint objects is needed. This function returns a
+#    sequence of Feature objects which are tied to ReferencePoint objects. To
+#    translate from the Feature objects to ReferencePoint objects, it's
+#    necessary to use the 'id' data member of the Feature object to get the
+#    key for the referencePoint repository which is associated with the root
+#    assembly.
+def add_ref_points(points, model_name, mdb):
+# type: (List[geom.Point3D], str, Any) -> List[Any]
 
+    root_assembly = mdb.models[model_name].rootAssembly
     ref_point_features = []
+
     for point in points:
-        ref_point_features.append(part_rep.ReferencePoint((point.x, point.y, point.z)))
+        ref_point_features.append(root_assembly.ReferencePoint((point.x, point.y, point.z)))
 
     return ref_point_features
 
 
 
-def create_bc_for_region(BC, region, step_name, BC_name, model_name, mdb):
-# type: (bc.BC, Any, str, str, str, Any) -> None
-
-    if isinstance(BC.bc_settings, bc.DisplacementBCSettings):
-        fix_x = SET if BC.bc_settings.fix_x else UNSET
-        fix_y = SET if BC.bc_settings.fix_y else UNSET
-        fix_z = SET if BC.bc_settings.fix_z else UNSET
-        prevent_x_rot = SET if BC.bc_settings.prevent_x_rot else UNSET
-        prevent_y_rot = SET if BC.bc_settings.prevent_y_rot else UNSET
-        prevent_z_rot = SET if BC.bc_settings.prevent_z_rot else UNSET
-        model.DisplacementBC(BC_name, step_name, region, u1=fix_x, u2=fix_y, u3=fix_z, ur1=prevent_x_rot, ur2=prevent_y_rot, ur3=prevent_z_rot)
-    else:
-        raise RuntimeError("An attempt was made to add an unsupported type of boundary condition to a region!")
+def create_displacement_bc(BC_name, step_name, region, fix_u1, fix_u2, fix_u3, fix_ur1, fix_ur2, fix_ur3, model_name, mdb):
     
+    fix_x = SET if fix_u1 else UNSET
+    fix_y = SET if fix_u2 else UNSET
+    fix_z = SET if fix_u3 else UNSET
+    prevent_x_rot = SET if fix_ur1 else UNSET
+    prevent_y_rot = SET if fix_ur2 else UNSET
+    prevent_z_rot = SET if fix_ur3 else UNSET
+
+    mdb.models[model_name].DisplacementBC(BC_name, step_name, region, u1=fix_x, u2=fix_y, u3=fix_z, ur1=prevent_x_rot, ur2=prevent_y_rot, ur3=prevent_z_rot)

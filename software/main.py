@@ -2,6 +2,7 @@ import core.machining.machining as mach
 import util.geom as geom
 import core.part.part as part
 import core.tool_pass.tool_pass as tp
+import core.boundary_conditions.boundary_conditions as bc
 
 import sys
 import os
@@ -9,11 +10,37 @@ import os
 
 if __name__ == "__main__":
 
-    """
     # ----- Specifying the initial geometry -----
    
     path_to_cae = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_initial_geometry.cae" 
     abaqus_part = part.AbaqusDefinedPart("an_example_part", path_to_cae)
+
+
+    # ----- Specifying the clamping setup (aka the boundary conditions) -----
+
+    # Clamp on one side of bar.
+    v1 = geom.Point3D(0, 10, 0)
+    v2 = geom.Point3D(40, 10, 0)
+    v3 = geom.Point3D(0, 10, 40)
+    v4 = geom.Point3D(40, 10, 40)
+    clamp_surface_vertices = [v1, v2, v3, v4]
+    clamp_surface1 = geom.NGon3D(clamp_surface_vertices)
+
+    # Clamp on other side of bar.
+    v1 = geom.Point3D(0, 10, 400)
+    v2 = geom.Point3D(0, 10, 360)
+    v3 = geom.Point3D(40, 10, 400)
+    v4 = geom.Point3D(40, 10, 360)
+    clamp_surface_vertices = [v1, v2, v3, v4]
+    clamp_surface2 = geom.NGon3D(clamp_surface_vertices)
+
+    # Approximate how clamps restrict part movement. 
+    BC_settings = bc.DisplacementBCSettings(True, True, True, True, True, True)
+
+    BC1 = bc.BC(clamp_surface1, BC_settings)
+    BC2 = bc.BC(clamp_surface2, BC_settings)
+
+    BCs = [BC1, BC2]
 
 
     # ----- Specifying the stress profile -----
@@ -29,7 +56,7 @@ if __name__ == "__main__":
 
     # ----- Building the top-level machining object -----
 
-    machining_process = mach.MachiningProcess(abaqus_part)
+    machining_process = mach.MachiningProcess(abaqus_part, BCs)
 
     
     # ----- Specifying the first tool pass -----
@@ -51,14 +78,14 @@ if __name__ == "__main__":
 
     # ----- Specifying the second tool pass -----
 
-    v1 = geom.Point3D(40, 5, 30)
-    v2 = geom.Point3D(40, 5, 60)
-    v3 = geom.Point3D(40, 30, 30)
-    v4 = geom.Point3D(40, 30, 60)
-    v5 = geom.Point3D(0, 5, 30)
-    v6 = geom.Point3D(0, 5, 60)
-    v7 = geom.Point3D(0, 30, 30)
-    v8 = geom.Point3D(0, 30, 60)
+    v1 = geom.Point3D(40, 5, 40)
+    v2 = geom.Point3D(40, 5, 80)
+    v3 = geom.Point3D(40, 30, 40)
+    v4 = geom.Point3D(40, 30, 80)
+    v5 = geom.Point3D(0, 5, 40)
+    v6 = geom.Point3D(0, 5, 80)
+    v7 = geom.Point3D(0, 30, 40)
+    v8 = geom.Point3D(0, 30, 80)
 
     tp2_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
 
@@ -67,21 +94,21 @@ if __name__ == "__main__":
 
     # ----- Specifying the third tool pass -----
 
-    v1 = geom.Point3D(20, 5, 0)
-    v2 = geom.Point3D(30, 5, 0)
-    v3 = geom.Point3D(20, 20, 0)
-    v4 = geom.Point3D(30, 20, 0)
-    v5 = geom.Point3D(20, 5, 100)
-    v6 = geom.Point3D(30, 5, 100)
-    v7 = geom.Point3D(20, 20, 100)
-    v8 = geom.Point3D(30, 30, 100)
+    v1 = geom.Point3D(20, 5, 50)
+    v2 = geom.Point3D(30, 5, 50)
+    v3 = geom.Point3D(20, 20, 50)
+    v4 = geom.Point3D(30, 20, 50)
+    v5 = geom.Point3D(20, 5, 150)
+    v6 = geom.Point3D(30, 5, 150)
+    v7 = geom.Point3D(20, 20, 150)
+    v8 = geom.Point3D(30, 30, 150)
 
     tp3_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
 
     tp3 = tp.ToolPass(tp3_shape)
 
 
-    # ----- Specifying the third tool pass -----
+    # ----- Specifying the fourth tool pass -----
 
     v1 = geom.Point3D(10, 3, 300)
     v2 = geom.Point3D(30, 3, 300)
@@ -107,6 +134,4 @@ if __name__ == "__main__":
 
     save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass.cae"
     machining_process.sim_potential_tool_passes(tool_pass_plan, save_loc)
-    """
 
-    four_gon = geom.FourGon((1, 2, 3, 4))
