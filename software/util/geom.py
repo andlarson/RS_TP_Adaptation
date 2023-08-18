@@ -3,19 +3,43 @@ Utilities for general geometric tasks.
 """
 
 import numpy as np
+import matplotlib.Path as path
 import sys
 
 # DEBUG
 from debug import *
 
 
-class Point2DXY:
+UNDEF = "0/0"
+INF = "a/0"
+
+
+class Point2D:
     
-    def __init__(self, x, y):
+    def __init__(self, x1, x2):
     # type: (float, float) -> None
         
-        self.x = x
-        self.y = y
+        self.x1 = x1
+        self.x2 = x2 
+
+
+    def compute_scale_factors(self):
+    # type: (None) -> Tuple[Union[str, float]]
+
+        if self.x1 == 0 and self.x2 == 0:
+            t1 = UNDEF
+        elif self.x1 != 0 and self.x2 == 0:
+            t1 = INF
+        else:
+            t1 = self.x1 / self.x2
+
+        return (t1, )
+
+
+    def get_components(self):
+    # type: (None) -> Tuple[float, float]
+
+        return (self.x1, self.x2)
 
 
 
@@ -30,15 +54,41 @@ class Point3D:
 
 
     def proj_xy(self):
-    # type: (None) -> tuple[float, float]
+    # type: (None) -> Tuple[float, float]
         
-        return Point2DXY(self.x, self.y) 
+        return Point2D(self.x, self.y) 
 
 
-    def get_xyz(self):
-    # type: (None) -> tuple[float, float, float]
+    def proj_xz(self):
+    # type: (None) -> Tuple[float]
+
+        return Point2D(self.x, self.z)
+
+
+    def get_components(self):
+    # type: (None) -> Tuple[float, float, float]
 
         return (self.x, self.y, self.z)
+
+
+    def compute_scale_factors(self):
+    # type: (None) -> Tuple[Union[float, str], Union[float, str]]
+
+        if self.x == 0 and self.z == 0:
+            t1 = UNDEF
+        elif self.x != 0 and self.z == 0:
+            t1 = INF
+        else:
+            t1 = self.x / self.z
+
+        if self.y == 0 and self.z == 0:
+            t2 = UNDEF
+        elif self.y != 0 and self.z == 0:
+            t2 = INF
+        else:
+            t2 = self.y / self.z
+
+        return (t1, t2)
 
 
 
@@ -96,7 +146,7 @@ class SpecRightRectPrism:
     # Get the length in the x-direction, the width in the y-direction, and the
     #   height in the z-direction.
     def get_dims(self):
-    # type: (None) -> tuple(float, float, float)
+    # type: (None) -> Tuple(float, float, float)
        
         x_length = abs(self.same_x_g1[0].x - self.same_x_g2[0].x)
         y_width = abs(self.same_y_g1[0].y - self.same_y_g2[0].y)
@@ -108,7 +158,7 @@ class SpecRightRectPrism:
     # Get 2 vertices which have the same z coordinates but differing x and y
     #   coordinates.
     def get_rect_corners(self):
-    # type: (None) -> tuple[Point3D, Point3D] 
+    # type: (None) -> Tuple[Point3D, Point3D] 
 
         v1 = self.vertices[0]
 
@@ -128,8 +178,37 @@ class SpecRightRectPrism:
 
 
 
+class NGon2D:
+
+    # The points must be defined in order. In other words, the ngon will be
+    #    constructed under the assumption that a line segment connects the
+    #    first point to the second point, another line segment connects the
+    #    second point to the third point, etc. 
+    def __init__(self, points):
+    # type: (List[Point2D]) -> None
+
+        # TODO:
+        # We should really check that an ngon is well defined.
+        # In particular, that none of the points are on the interior of the ngon
+        #    and that there are no redundant points.
+        self.vertices = points
+
+
+    # Get a representation which is only composed of Python built-in types. 
+    # Useful for passing to other libraries.
+    def get_builtin_rep(self):
+    # type: (None) -> List[Tuple[float, float]] 
+
+        return [(vertex.x1, vertex.x2) for vertex in self.vertices]
+
+
+
 class NGon3D:
 
+    # The points must be defined in order. In other words, the ngon will be
+    #    constructed under the assumption that a line segment connects the
+    #    first point to the second point, another line segment connects the
+    #    second point to the third point, etc. 
     def __init__(self, points):
     # type: (List[Point3D]) -> None
 
@@ -137,9 +216,9 @@ class NGon3D:
             raise RuntimeError("The points don't describe a valid n-gon!")
 
         # TODO:
-        # Technically we can do further checks here. Not only should all the points
-        #    lie on a single plane, but they should not be on the interior of the
-        #    n-gon.
+        # We should really check that an ngon is well defined.
+        # In particular, that none of the points are on the interior of the ngon
+        #    and that there are no redundant points.
         self.vertices = points
 
 
@@ -147,6 +226,34 @@ class NGon3D:
     # type: (None) -> np.ndarray 
 
         return get_plane_coeffs(self.vertices[0], self.vertices[1]. self.vertices[2])
+
+   
+    # Projects the ngon onto the xy-plane, returning an NGon2D.
+    # If the ngon existed on a plane orthogonal to the xy-plane, then all the
+    #    points in the NGon2D will be collinear.
+    def proj_xy(self):
+    # type: (None) -> NGon2D
+
+        proj_points = [proj_xy(vertex) for vertex in self.vertices]
+        return NGon2D(proj_points)
+
+
+    # Projects the ngon onto the xz-plane, returning an NGon2D.
+    # If the ngon existed on a plane orthogonal to the xz-plane, then all the
+    #    points in the NGon2D will be collinear.
+    def proj_xz(self):
+    # type: (None) -> NGon2D
+
+        proj_points = [proj_xz(vertex) for vertex in self.vertices]
+        return NGon2D(proj_points)
+
+
+    # Get a representation which is only composed of Python built-in types. 
+    # Useful for passing to other libraries.
+    def get_builtin_rep(self):
+    # type: (None) -> List[Tuple[float, float, float]] 
+
+        return [(vertex.x, vertex.y, vertex.z) for vertex in self.vertices]
 
 
 
@@ -160,20 +267,21 @@ def float_equals(a, b):
 
 
 
-# Check if three points are collinear.
-def are_collinear(point1, point2, point3):
-# type: (Point3D, Point3D, Point3D) -> bool
+# Check if points are collinear.
+def are_collinear(points):
+# type: (List[Union[Point3D, Point2D]]) -> bool
 
-    vec1x, vec1y, vec1z = point2.x - point1.x, point2.y - point1.x, point2.z - point1.z
-    vec2x, vec2y, vec2z = point3.x - point1.x, point3.y - point1.x, point3.z - point1.z
+    assert(len(points) > 2)
 
-    potential_scale_factor = vec2x / vec1x
+    potential_scale_factors = points[0].compute_scale_factors() 
 
-    if float_equals(vec1y * potential_scale_factor, vec2y) and \
-       float_equals(vec1z * potential_scale_factor, vec2z):
-        return True
-
-    return False
+    for point in points: 
+        scale_factors = point.compute_scale_factors() 
+        for idx in range(len(potential_scale_factors)):
+            if not float_equals(scale_factors[idx], potential_scale_factors[idx]):
+                return False
+            
+    return True 
 
 
 
@@ -183,7 +291,7 @@ def are_collinear(point1, point2, point3):
 def get_plane_coeffs(point1, point2, point3):
 # type: (Point3D, Point3D, Point3D) -> np.ndarray
 
-    if are_collinear(point1, point2, point3):
+    if are_collinear([point1, point2, point3]):
         raise RuntimeError("Trying to find plane coefficients for some points
         which are collinear!")
 
@@ -244,9 +352,74 @@ def points_on_plane_of_ngon(points, ngon):
     ngon_plane_coeffs = ngon.plane_coeffs()
 
     return on_particular_plane(points, ngon_plane_coeffs)
-    
 
 
 
+# Check if all the points lie in the ngon.
+def points_in_ngon_3D(points, ngon):
+# type: (List[Point3D], NGon3D) -> bool
+
+    for point in points:
+        if not point_in_ngon_3D(point, ngon):
+            return False
+
+    return True
 
 
+
+# Check if a point lies inside an ngon. 
+# Assumed that both the point and the ngon live in 3D.
+def point_in_ngon_3D(point, ngon):
+# type: (Point3D, NGon3D) -> bool
+
+    # If the point doesn't lie on the same plane as the ngon, it certainly
+    #    isn't inside of it.
+    if not points_on_plane_of_ngon([point], ngon):
+        return False
+
+    # If it does lie on the same plane as the ngon, we also need to check that
+    #    it lies inside of the ngon.
+
+    # Claim: To reduce this problem to 2D, we can project the points which
+    #    make up the ngon and the point onto any plane which is not orthogonal
+    #    to the plane that the point/ngon lie on. Then we can apply a 2D
+    #    algorithm to check if the new point lies within the new ngon.
+
+    # Project the point and the ngon onto the xy-plane.
+    proj_point = point.proj_xy()
+    proj_ngon = ngon.proj_xy()
+
+    # If all of the points are collinear, then project onto a different plane.
+    if are_collinear(proj_ngon.vertices + [proj_point]):
+        proj_point = point.proj_xz()
+        proj_ngon = ngon.proj_xz()
+
+    return point_in_ngon_2D(proj_point, proj_ngon)
+
+
+
+# Check if a point lies inside an ngon.
+# Assumed that both the point and the ngon live in 2D.
+# This algorithm assumes that the points which compose the ngon are in-order. 
+# If the point lies on one of the edges of the ngon (within float approximation), 
+#    it is deemed to be in the ngon.
+def point_in_ngon_2D(point, ngon):
+# type: (Point2D, NGon2D) -> bool    
+
+    circular_vertices = ngon.vertices + ngon.vertices[0]
+
+    # If the point lies on any edge, it is in the ngon.
+    for idx in range(len(circular_vertices) - 1):
+         
+        y2 = circular_vertices[idx + 1].x2
+        y1 = circular_vertices[idx].x2
+        x2 = circular_vertices[idx + 1].x1
+        x1 = circular_vertices[idx].x1
+        slope = (y2 - y1) / (x2 - x1)
+        intercept = (y2 * x1 - y1 * x2) / (x1 - x2)
+        if float_equals(slope * point.x1 + intercept, point.x2):
+            return True
+        
+    # Otherwise, check if it's in the interior. 
+    ngon = path.Path(ngon.get_builtin_rep, closed=True)
+    return ngon.contains_point(point.get_components(), ngon)

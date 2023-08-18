@@ -55,8 +55,7 @@ class UserDefinedPart(Part):
     def __init__(self, name, part_rep, material_properties):
     # type: (str, geom.SpecRightRectPrism, stress.StressProfile, mat_props.MaterialProperties) -> None
 
-        pass
-
+        raise RuntimeError("Can't handle user defined parts right now...")
 
 
 class AbaqusDefinedPart(Part):

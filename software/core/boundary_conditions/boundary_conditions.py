@@ -69,24 +69,43 @@ def apply_surface_BCs(BCs, step_name, model_name, mdb):
 # Given an ngon, this function finds the face on the assembly that the ngon
 #    belongs to. It then partitions that face so the ngon acts as a standalone
 #    face.
-# The face that the ngon belongs to is determined by checking if the ngon 
-#    belongs to the same plane as the vertices of the face. This does not
-#    guarantee that the ngon lies entirely within the face. We assume that
-#    it does. If this is not the case, an exception is thrown when the
-#    partitioning inevitably fails.
+# The face that the ngon belongs to is determined via a two step process. First,
+#    an attempt is made to find a face that is represented by the same plane as
+#    the ngon. If such a face exists, it may not be the one the ngon actually
+#    lies within. To determine if the ngon lies entirely within the face, a
+#    check is done to see if each vertex which composes the ngon lies within,
+#    or on the boundary of, the face. If all vertices of the ngon lie on or
+#    within the face, then the face is partitioned according to the geometry of
+#    the ngon.
 def partition_assembly_face_from_ngon(ngon, model_name, mdb):
 
     # Get the vertices associated with all the faces on the Assembly.
     vertices = shim.get_vertices_of_faces_on_assembly(model_name, mdb)
 
+    face_ngon_belongs_to = None
+    
     # Find the face that the ngon lives on.
-    for vertices_single_face in vertices:
+    for face_idx, vertices_single_face in enumerate(vertices):
         
-        # TODO: This is an awkward type conversion for posterity...
+        # TODO: This is awkward...
         vertices_single_face = [geom.Point3D(vertex[0], vertex[1], vertex[2]) for vertex in vertices_single_face]
 
-        if geom.points_on_plane_of_ngon(ngon.):
-             
+        # Subtle point: If the points which define the vertices of a face are
+        #    not on a plane (i.e. there is a curved surface), then this will
+        #    always fail. This is intended behavior. No functionality for
+        #    partitioning a curved face is desired.
+        if geom.points_on_plane_of_ngon(vertices_single_face, ngon):
+            if geom.points_in_ngon(ngon.vertices, geom.NGon3D(vertices_single_face)):
+                face_ngon_belongs_to = shim.get_vertices_of_faces_on_assembly(model_name, mdb)[face_idx]
+
+    if face_ngon_belongs_to == None:
+        raise RuntimeError("Could not identify which face the ngon belongs to. \
+                            Can't continue to do partitioning.")
+    
+    # Now partiton the face that the ngon lives on.
+     
+
+
 
 
 

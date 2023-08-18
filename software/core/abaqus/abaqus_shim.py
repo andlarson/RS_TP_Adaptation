@@ -253,7 +253,6 @@ def build_part(name, spec_right_rect_prism, model_name, abq_metadata, mdb):
     corner_2 = (v2.proj_xy().x - centroid.x, v2.proj_xy().y - centroid.y)
 
     # Don't try to check the return value. This returns None even on success...
-    # I think the documentation is out-of-date...
     sketch.rectangle(corner_1, corner_2)
 
     # ----- Part Extrusion -----
