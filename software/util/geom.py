@@ -3,6 +3,7 @@ Utilities for general geometric tasks.
 """
 
 import numpy as np
+import numpy.linalg as linalg
 import matplotlib.Path as path
 import sys
 
@@ -90,6 +91,21 @@ class Point3D:
 
         return (t1, t2)
 
+
+
+class Vec3D:
+
+    def __init__(self, x, y, z):
+    
+        self.np_arr = np.array([x, y, z])
+
+
+    # Get a normalized version of the vector, without modifying internal
+    #    state.
+    def get_norm(self):
+        
+        return linalg.norm(self.np_arr) * self.np_arr
+  
 
 
 # A right rectangular prism is a 3D object which consists of 8 vertices,
@@ -423,3 +439,41 @@ def point_in_ngon_2D(point, ngon):
     # Otherwise, check if it's in the interior. 
     ngon = path.Path(ngon.get_builtin_rep, closed=True)
     return ngon.contains_point(point.get_components(), ngon)
+
+
+
+# Translates the coordinates of a sequence of points in the standard normal 
+#    coordinate system into coordinates relative to a translated and rotated
+#    coordinate system. The new coordinate system is described by a new origin 
+#    location and three orthogonal vectors denoting the positive directions of
+#    the three new axes.
+# This technique works even when the new coordinate system and old coordinate
+#    system do not have the same handedness.
+# The vectors should point in the positive directions of the new axes.
+def change_csys(points, new_origin, new_x, new_y, new_z):
+# type: (List[Point3D], Point3D, Vec3D, Vec3D, Vec3D) -> List[Point3D]
+
+    norm_new_x = new_x.get_norm() 
+    norm_new_y = new_y.get_norm()
+    norm_new_z = new_z.get_norm()
+
+    # Construct the change of basis matrix.
+    change_of_basis = np.concatenate(norm_new_x, norm_new_y, norm_new_z)
+
+    # Invert the change of basis matrix since we have coordinates in the old
+    #    system and want coordinates in the new system.
+    old_to_new = linalg.inv(change_of_basis)
+
+    # Do all the conversions.
+    points_new_coords = []
+    new_origin = np.array(new_origin.get_components())
+    for point in points:
+        translated = np.array(point.get_components()) + (-1) * new_origin
+        points_new_coords.append(linalg.matmul(old_to_new, translated))
+
+    return points_new_coords
+
+    
+
+
+

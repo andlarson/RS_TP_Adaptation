@@ -102,7 +102,8 @@ def partition_assembly_face_from_ngon(ngon, model_name, mdb):
         raise RuntimeError("Could not identify which face the ngon belongs to. \
                             Can't continue to do partitioning.")
     
-    # Now partiton the face that the ngon lives on.
+    # Now partition the face that the ngon lives on.
+     
      
 
 

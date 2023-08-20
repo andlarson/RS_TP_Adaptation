@@ -82,3 +82,6 @@ Also might be possible to speed things up by using my current approach but
 Write a function which checks if a point lies within an ngon. There are multiple
   places in the codebase where we assume that this is the case, but no checks
   are done.
+
+Should the internal representations of the geometric objects depend on external
+  libraries? If so, we can use numpy arrays for everything.
