@@ -26,7 +26,12 @@ Figure out a way to make the naming cleaner. Specifically, we expect some names 
   some of my variable names in simulation.py more concise. The names currently
   make my eyes bleed.
 
-Get the MyPy static analysis up and running.
+Get the MyPy static analysis up and running. Note that, for now, I'm only attempting
+  to do static analysis when Python-native types are involved. There are objects
+  native to Abaqus, numpy, etc. being passed around for which no type checking is
+  done. I think there is hope of getting static analysis running for at least libraries
+  like numpy. It might be worthwhile to build/contribute some basic stub files
+  for Abaqus.
 
 Fix the way that imports are done so that main.py can be invoked from directories
   other than /software/ and without using its full path name.
@@ -85,3 +90,14 @@ Write a function which checks if a point lies within an ngon. There are multiple
 
 Should the internal representations of the geometric objects depend on external
   libraries? If so, we can use numpy arrays for everything.
+
+I've decided that all calls into the Abaqus API should be located in the
+  abaqus_shim.py file. However, many of these functions return Abaqus-native
+  objects, which are passed around in functions outside of abaqus_shim.py. Is
+  this clean? Is the restriction of making Abaqus API calls in abaqus_shim.py
+  really necessary?
+
+Many functions in abaqus_shim.py should work with either a part or an Assembly.
+  In general, having function names with '_in_assembly' is overly specific.
+  Write the function so that it works for both parts and assemblies, and then
+  pass assemblies in.

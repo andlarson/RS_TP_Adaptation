@@ -4,7 +4,7 @@ Utilities for general geometric tasks.
 
 import numpy as np
 import numpy.linalg as linalg
-import matplotlib.Path as path
+import matplotlib.path as path
 import sys
 
 # DEBUG
@@ -32,7 +32,7 @@ class Point2D:
         elif self.x1 != 0 and self.x2 == 0:
             t1 = INF
         else:
-            t1 = self.x1 / self.x2
+            t1 = float(self.x1) / self.x2
 
         return (t1, )
 
@@ -80,14 +80,14 @@ class Point3D:
         elif self.x != 0 and self.z == 0:
             t1 = INF
         else:
-            t1 = self.x / self.z
+            t1 = float(self.x) / self.z
 
         if self.y == 0 and self.z == 0:
             t2 = UNDEF
         elif self.y != 0 and self.z == 0:
             t2 = INF
         else:
-            t2 = self.y / self.z
+            t2 = float(self.y) / self.z
 
         return (t1, t2)
 
@@ -103,9 +103,18 @@ class Vec3D:
     # Get a normalized version of the vector, without modifying internal
     #    state.
     def get_norm(self):
-        
         return linalg.norm(self.np_arr) * self.np_arr
-  
+ 
+    
+    # Get a vector orthogonal to the vector. Note that there are an infinite
+    #    number of vectors orthogonal to a vector. This function returns
+    #    one chosen arbitrarily with unit length.
+    def get_orthonormal(self):
+
+        a = (-self.np_arr[1] - self.np_arr[2]) / self.np_arr[0]
+        new_vec = Vec3D(a, 1, 1)
+        return new_vec.get_norm()
+        
 
 
 # A right rectangular prism is a 3D object which consists of 8 vertices,
@@ -228,7 +237,7 @@ class NGon3D:
     def __init__(self, points):
     # type: (List[Point3D]) -> None
 
-        if not on_single_plane(points):
+        if not on_any_plane(points):
             raise RuntimeError("The points don't describe a valid n-gon!")
 
         # TODO:
@@ -293,8 +302,14 @@ def are_collinear(points):
 
     for point in points: 
         scale_factors = point.compute_scale_factors() 
+
         for idx in range(len(potential_scale_factors)):
-            if not float_equals(scale_factors[idx], potential_scale_factors[idx]):
+            if type(scale_factors[idx]) != type(potential_scale_factors[idx]):
+                return False
+            elif type(scale_factors[idx]) == float:
+                if not float_equals(scale_factors[idx], potential_scale_factors[idx]):
+                    return False
+            elif scale_factors[idx] != potential_scale_factors[idx]:
                 return False
             
     return True 
@@ -308,8 +323,7 @@ def get_plane_coeffs(point1, point2, point3):
 # type: (Point3D, Point3D, Point3D) -> np.ndarray
 
     if are_collinear([point1, point2, point3]):
-        raise RuntimeError("Trying to find plane coefficients for some points
-        which are collinear!")
+        raise RuntimeError("Points are collinear!")
 
     # We cannot know if the plane will pass through the origin (making d = 0)
     #    or not apriori. 
@@ -325,10 +339,10 @@ def get_plane_coeffs(point1, point2, point3):
     coords = np.array([[x1, y1, z1], [x2, y2, z2], [x3, y3, z3]])
     vals = np.array([1, 1, 1])
     try:
-        coeffs = np.concatenate((np.linalg.solve(coords, vals), np.array([1]))
-    except np.linalg.LinAlgError:
+        coeffs = np.concatenate((np.linalg.solve(coords, vals), np.array([1])))
+    except linalg.LinAlgError:
         vals = np.array([0, 0, 0])
-        coeffs = np.concatenate((np.linalg.solve(coords, vals), np.array([0]))
+        coeffs = np.concatenate((np.linalg.solve(coords, vals), np.array([0])))
 
     return coeffs
 
@@ -472,6 +486,25 @@ def change_csys(points, new_origin, new_x, new_y, new_z):
         points_new_coords.append(linalg.matmul(old_to_new, translated))
 
     return points_new_coords
+
+
+
+# Finds a unit norm vector orthogonal to two vectors.
+# The two vectors must already be orthogonal or no other vector exists. 
+def find_third_orthonormal(vec1, vec2):
+# type: (Vec3D, Vec3D) -> Vec3D
+
+    assert(np.dot(vec_1.np_arr, vec2.np_arr) == 0)
+
+    # Setup a system of equations to solve for the new vector.
+    # There are three unknowns and only two equations, so we arbitrarily pick the
+    #    third component of the vector to be 1. 
+    coeff = np.stack((vec_1.np_arr[0:2], vec_2.np_arr[0:2]), axis=0)
+    dep = np.array(vec_1.np_arr[2], vec_2.np_arr[2])
+    sol = linalg.solve(coeff, dep) 
+
+    sol_vec = Vec3D(sol[0], sol[1], 1)
+    return sol_vec.get_norm()
 
     
 

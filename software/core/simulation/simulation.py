@@ -204,6 +204,9 @@ def do_boilerplate_sim_ops(orig_part_name, tool_pass_part_name, post_tool_pass_p
     # Simplify the part geometry using some heuristics.
     shim.add_virtual_topology(post_tool_pass_part)
 
+    # Apply the boundary conditions. 
+    bc.apply_BCs(BCs, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_part)
+
     # Instance the post cut geometry.
     # The instance is independent so that meshing can be done in the Assembly
     #    module.
@@ -215,9 +218,6 @@ def do_boilerplate_sim_ops(orig_part_name, tool_pass_part_name, post_tool_pass_p
     # Add an equilibrium step following the last step on record.
     last_step = abq_metadata.get_last_step(model_name)
     shim.create_equilibrium_step(equil_step_name, last_step, model_name, abq_metadata, mdb)
-
-    # Apply the boundary conditions. 
-    bc.apply_surface_BCs(BCs, equil_step_name, model_name, mdb)
 
 
 

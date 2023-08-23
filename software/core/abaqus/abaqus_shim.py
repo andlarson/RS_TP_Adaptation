@@ -198,6 +198,15 @@ def suppress_feature(name, part):
 
 
 
+# A constrained sketch is defined by its orientation in space (3 x 3 matrix) and
+#    its translation from the origin.
+def build_constrained_sketch(orientation, translation, sketch_name, sheet_size, obj):
+# type: (Any, Any, str, Any) -> Any
+
+    obj.ConstrainedSketch(sketch_name, sheet_size, orientation, translation)
+
+
+
 # TODO: We assume a special right rectangular prism geometry. 
 # TODO: Break this up into modular chunks.
 def build_part(name, spec_right_rect_prism, model_name, abq_metadata, mdb):
@@ -223,9 +232,6 @@ def build_part(name, spec_right_rect_prism, model_name, abq_metadata, mdb):
 
     # The datum plane is parallel to the x-y plane and offset by z_offset in
     #    the z direction.
-    # TODO: The objects returned are feature objects. To create the plane, it's
-    #    necessary retrieve the datum objects themselves. The datum objects
-    #    should probably be recorded as model/part metadata.
     dp1_id = mdb.models[model_name].parts[name].DatumPointByCoordinate((0, 0, z_offset)).id
     dp2_id = mdb.models[model_name].parts[name].DatumPointByCoordinate((1, 0, z_offset)).id
     dp3_id = mdb.models[model_name].parts[name].DatumPointByCoordinate((0, 1, z_offset)).id 
@@ -249,8 +255,8 @@ def build_part(name, spec_right_rect_prism, model_name, abq_metadata, mdb):
         raise RuntimeError("No sketch could be created!")
 
     # Draw the rectangle accounting for the translated origin.
-    corner_1 = (v1.proj_xy().x - centroid.x, v1.proj_xy().y - centroid.y)
-    corner_2 = (v2.proj_xy().x - centroid.x, v2.proj_xy().y - centroid.y)
+    corner_1 = (v1.proj_xy().x1 - centroid.x, v1.proj_xy().x2 - centroid.y)
+    corner_2 = (v2.proj_xy().x1 - centroid.x, v2.proj_xy().x2 - centroid.y)
 
     # Don't try to check the return value. This returns None even on success...
     sketch.rectangle(corner_1, corner_2)
@@ -269,10 +275,35 @@ def build_part(name, spec_right_rect_prism, model_name, abq_metadata, mdb):
 
 
 
+def get_face_centroid(face):
+# type: (Any) -> Tuple[float, float, float]
+
+    x, y, z = face.getCentroid()
+
+    return (x, y, z) 
+
+
+
+def get_face_normal(face):
+# type: (Any) -> Tuple[float, float, float] 
+
+    x, y, z = face.getNormal()
+
+    return (x, y, z)
+
+
+
 def get_part(part_name, model_name, mdb):
 # type: (str, str, Any) -> Any    
     
     return mdb.models[model_name].parts[part_name]
+
+
+
+def get_assembly(model_name, mdb):
+# type: (str, Any) -> Any
+    
+    return mdb.models[model_name].rootAssembly
 
 
 
@@ -283,10 +314,11 @@ def get_faces_of_assembly(model_name, mdb):
 
 
 
-def get_vertices_of_faces_on_assembly(model_name, mdb):
-# type: (str, Any) -> List[List[Tuple[float, float, float]]]
+# Get vertices of a part or an assembly.
+def get_vertices(obj):
+# type: (Any) -> List[List[Tuple[float, float, float]]]
 
-    faces = mdb.models[model_name].rootAssembly.faces
+    faces = obj.Faces
 
     vertices = []
     for face in faces:
@@ -294,7 +326,7 @@ def get_vertices_of_faces_on_assembly(model_name, mdb):
         vertex_ids = face.getVertices()
 
         for vertex_id in vertex_ids:
-            vertices_on_face.append(mdb.models[model_name].rootAssembly.vertices[vertex_id])
+            vertices_on_face.append(obj.vertices[vertex_id])
 
         vertices.append(vertices_on_face)
 
@@ -389,10 +421,10 @@ def get_step_cnt(model_name, mdb):
 
 
 
-def get_BC_cnt(model_name, mdb):
-# type: (str, Any) -> None
+def get_BC_cnt(obj):
+# type: (Any) -> Int 
 
-    return len(mdb.models[model_name].boundaryConditions)
+    return len(obj.boundaryConditions)
 
 
 # Create part instance in the root assembly for the default model.
@@ -551,6 +583,18 @@ def build_region_with_ref_points(ref_point_features, model_name, mdb):
 
 
 
+# Build a region out of a face.
+# Note that this function accepts a Feature object and translates it to a
+#    Face object.
+def build_region_with_face(face_feature, obj):
+# type: (Any, Any) -> Any
+
+    key = face_feature.id
+    face = obj.Faces[key]
+    return regionToolset.Region(faces=(face))
+    
+
+
 def build_region_with_elem_face(face, part):
 # type: (Any) -> Any
 
@@ -682,3 +726,12 @@ def create_displacement_bc(BC_name, step_name, region, fix_u1, fix_u2, fix_u3, f
     prevent_z_rot = SET if fix_ur3 else UNSET
 
     mdb.models[model_name].DisplacementBC(BC_name, step_name, region, u1=fix_x, u2=fix_y, u3=fix_z, ur1=prevent_x_rot, ur2=prevent_y_rot, ur3=prevent_z_rot)
+
+
+
+# Partitions the face of a part with a sketch.
+def partition_face_with_sketch(face, sketch, to_partition):
+# type: (Any, Any, Any) -> Any
+
+    return to_partition.PartitionFaceBySketch(face, sketch)
+
