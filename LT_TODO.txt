@@ -90,6 +90,9 @@ Write a function which checks if a point lies within an ngon. There are multiple
 
 Should the internal representations of the geometric objects depend on external
   libraries? If so, we can use numpy arrays for everything.
+Where it makes sense, I should override operators for my own classes. This is
+  paritcularily evident for geometric user-defined types: I should support
+  directly adding vectors, points, etc.
 
 I've decided that all calls into the Abaqus API should be located in the
   abaqus_shim.py file. However, many of these functions return Abaqus-native
@@ -101,3 +104,4 @@ Many functions in abaqus_shim.py should work with either a part or an Assembly.
   In general, having function names with '_in_assembly' is overly specific.
   Write the function so that it works for both parts and assemblies, and then
   pass assemblies in.
+

@@ -205,7 +205,7 @@ def do_boilerplate_sim_ops(orig_part_name, tool_pass_part_name, post_tool_pass_p
     shim.add_virtual_topology(post_tool_pass_part)
 
     # Apply the boundary conditions. 
-    bc.apply_BCs(BCs, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_part)
+    bc.apply_BCs(BCs, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_part, model_name, mdb)
 
     # Instance the post cut geometry.
     # The instance is independent so that meshing can be done in the Assembly

@@ -4,8 +4,11 @@ import regionToolset             # Unclear why necessary.
 import part                      # Unclear why necessary.
 
 import os
+import numpy as np
 
 import core.abaqus.abaqus_metadata as abq_md
+
+
 from util.debug import *
 
 
@@ -198,12 +201,22 @@ def suppress_feature(name, part):
 
 
 
-# A constrained sketch is defined by its orientation in space (3 x 3 matrix) and
-#    its translation from the origin.
-def build_constrained_sketch(orientation, translation, sketch_name, sheet_size, obj):
-# type: (Any, Any, str, Any) -> Any
+# Constructs a Transform object. This object represents the transformation
+#    necessary to go from sketch coordinates to part coordinates.
+# A Transform object can be associated with either a Part of an Assembly.
+# By default, the sketch is oriented so the edge is on the RIGHT.
+def build_sketch_transform(sketch_plane, origin, edge, obj):
+# type: (Any, Point3D, Any, Any) -> Any
 
-    obj.ConstrainedSketch(sketch_name, sheet_size, orientation, translation)
+    return obj.MakeSketchTransform(sketch_plane, origin=origin.get_components(), sketchOrientation=RIGHT, sketchUpEdge=edge)
+
+
+# A Transform object, as created via the MakeSketchTransform() function, should
+#    be passed in to this function.
+def build_constrained_sketch(transform, sketch_name, sheet_size, model_name, mdb):
+# type: (Any, str, int, str, Any) -> None
+
+    return mdb.models[model_name].ConstrainedSketch(sketch_name, sheet_size, transform=transform)
 
 
 
@@ -275,21 +288,29 @@ def build_part(name, spec_right_rect_prism, model_name, abq_metadata, mdb):
 
 
 
+# Documentation for getCentroid() is slightly incorrect. A tuple of tuple of
+#    floats is returned, instead of a tuple of floats.
 def get_face_centroid(face):
 # type: (Any) -> Tuple[float, float, float]
 
-    x, y, z = face.getCentroid()
-
-    return (x, y, z) 
+    return tuple(face.getCentroid()[0])
 
 
 
 def get_face_normal(face):
 # type: (Any) -> Tuple[float, float, float] 
 
-    x, y, z = face.getNormal()
+    return tuple(face.getNormal())
 
-    return (x, y, z)
+
+
+# Get an Edge object associated with a Face object.
+# The edge is chosen arbitrarily.
+def get_any_edge_on_face(face, part):
+# type: (Any, Any) -> Any
+    
+    edge_ids = face.getEdges()
+    return part.edges[edge_ids[0]]
 
 
 
@@ -307,18 +328,20 @@ def get_assembly(model_name, mdb):
 
 
 
-def get_faces_of_assembly(model_name, mdb):
-# type: (str, Any) -> Any
+def get_faces(part):
+# type: (Any) -> Any
 
-    return mdb.models[model_name].faces
+    return part.faces
 
 
 
-# Get vertices of a part or an assembly.
-def get_vertices(obj):
-# type: (Any) -> List[List[Tuple[float, float, float]]]
+# Get vertices of a part.
+# The documentation for the pointOn member of the Vertex object is incorrect. It
+#    is really a tuple of tuple of floats, not a simple tuple of floats.
+def get_part_vertices(part):
+# type: (Any) -> List[List[Tuple[Tuple[float, float, float]]]]
 
-    faces = obj.Faces
+    faces = part.faces
 
     vertices = []
     for face in faces:
@@ -326,11 +349,31 @@ def get_vertices(obj):
         vertex_ids = face.getVertices()
 
         for vertex_id in vertex_ids:
-            vertices_on_face.append(obj.vertices[vertex_id])
+            vertices_on_face.append(part.vertices[vertex_id].pointOn)
 
         vertices.append(vertices_on_face)
 
     return vertices 
+
+
+
+# Error in documentation of pointOn member.
+def get_edge_vertices(edge, part):
+# type: (Any, Any) -> Tuple[Tuple[float, float, float], Tuple[float, float, float]]
+
+    vertex_ids = edge.getVertices()
+    vertices = [part.vertices[vertex_id].pointOn[0] for vertex_id in vertex_ids]
+    return tuple(vertices)
+   
+
+
+# Error in documentation of pointOn member.
+def get_face_vertices(face, part):
+# type: (Any, Any) -> Tuple[Tuple[float, float, float], ...]
+
+    vertex_ids = face.getVertices()
+    vertices = [part.vertices[vertex_id].pointOn[0] for vertex_id in vertex_ids]
+    return tuple(vertices)
 
 
 
@@ -421,10 +464,10 @@ def get_step_cnt(model_name, mdb):
 
 
 
-def get_BC_cnt(obj):
+def get_BC_cnt(model_name, mdb):
 # type: (Any) -> Int 
 
-    return len(obj.boundaryConditions)
+    return len(mdb.models[model_name].boundaryConditions)
 
 
 # Create part instance in the root assembly for the default model.

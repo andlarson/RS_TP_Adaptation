@@ -18,10 +18,10 @@ INF = "a/0"
 class Point2D:
     
     def __init__(self, x1, x2):
-    # type: (float, float) -> None
+    # type: (Union[float, int], Union[float, int]) -> None
         
-        self.x1 = x1
-        self.x2 = x2 
+        self.x1 = float(x1)
+        self.x2 = float(x2)
 
 
     def compute_scale_factors(self):
@@ -32,7 +32,7 @@ class Point2D:
         elif self.x1 != 0 and self.x2 == 0:
             t1 = INF
         else:
-            t1 = float(self.x1) / self.x2
+            t1 = self.x1 / self.x2
 
         return (t1, )
 
@@ -47,11 +47,11 @@ class Point2D:
 class Point3D:
 
     def __init__(self, x, y, z):
-    # type: (float, float, float) -> None
+    # type: (Union[float, int], Union[float, int], Union[float, int]) -> None
 
-        self.x = x
-        self.y = y
-        self.z = z
+        self.x = float(x)
+        self.y = float(y)
+        self.z = float(z)
 
 
     def proj_xy(self):
@@ -80,14 +80,14 @@ class Point3D:
         elif self.x != 0 and self.z == 0:
             t1 = INF
         else:
-            t1 = float(self.x) / self.z
+            t1 = self.x / self.z
 
         if self.y == 0 and self.z == 0:
             t2 = UNDEF
         elif self.y != 0 and self.z == 0:
             t2 = INF
         else:
-            t2 = float(self.y) / self.z
+            t2 = self.y / self.z
 
         return (t1, t2)
 
@@ -96,24 +96,37 @@ class Point3D:
 class Vec3D:
 
     def __init__(self, x, y, z):
-    
-        self.np_arr = np.array([x, y, z])
+    # type: (Union[float, int], Union[float, int], Union[float, int]) -> None
+
+        if float_equals(x, 0) and float_equals(y, 0) and float_equals(z, 0):
+            raise RuntimeError("Attempt to create vector which is meaningless.")
+
+        self.np_arr = np.array([float(x), float(y), float(z)])
 
 
     # Get a normalized version of the vector, without modifying internal
     #    state.
     def get_norm(self):
-        return linalg.norm(self.np_arr) * self.np_arr
+    # type: (None) -> Vec3D
+
+        res = (1 / linalg.norm(self.np_arr)) * self.np_arr
+        return Vec3D(*res)
  
     
     # Get a vector orthogonal to the vector. Note that there are an infinite
     #    number of vectors orthogonal to a vector. This function returns
     #    one chosen arbitrarily with unit length.
     def get_orthonormal(self):
+    # type: (None) -> Vec3D
 
-        a = (-self.np_arr[1] - self.np_arr[2]) / self.np_arr[0]
-        new_vec = Vec3D(a, 1, 1)
-        return new_vec.get_norm()
+        if self.np_arr[1] == 0 and self.np_arr[2] == 0:
+            other_vec = np.array([0, 1, 0])
+        else:
+            other_vec = np.array([1, 0, 0])
+
+        orth_vec = Vec3D(*np.cross(other_vec, self.np_arr))
+
+        return orth_vec.get_norm()
         
 
 
@@ -165,6 +178,8 @@ class SpecRightRectPrism:
 
    
     def get_smaller_z(self):
+    # type: (None) -> float
+
         return min(self.same_z_g1[0].z, self.same_z_g2[0].z) 
 
 
@@ -235,7 +250,7 @@ class NGon3D:
     #    first point to the second point, another line segment connects the
     #    second point to the third point, etc. 
     def __init__(self, points):
-    # type: (List[Point3D]) -> None
+    # type: (Union[List[Point3D], Tuple[Point3D, ...]]) -> None
 
         if not on_any_plane(points):
             raise RuntimeError("The points don't describe a valid n-gon!")
@@ -250,7 +265,7 @@ class NGon3D:
     def get_plane_coeffs(self):
     # type: (None) -> np.ndarray 
 
-        return get_plane_coeffs(self.vertices[0], self.vertices[1]. self.vertices[2])
+        return get_plane_coeffs(self.vertices[0], self.vertices[1], self.vertices[2])
 
    
     # Projects the ngon onto the xy-plane, returning an NGon2D.
@@ -259,7 +274,7 @@ class NGon3D:
     def proj_xy(self):
     # type: (None) -> NGon2D
 
-        proj_points = [proj_xy(vertex) for vertex in self.vertices]
+        proj_points = [vertex.proj_xy() for vertex in self.vertices]
         return NGon2D(proj_points)
 
 
@@ -379,7 +394,7 @@ def on_particular_plane(points, coeffs):
 def points_on_plane_of_ngon(points, ngon):
 # type: (List[Point3D], NGon3D) -> bool
 
-    ngon_plane_coeffs = ngon.plane_coeffs()
+    ngon_plane_coeffs = ngon.get_plane_coeffs()
 
     return on_particular_plane(points, ngon_plane_coeffs)
 
@@ -436,19 +451,28 @@ def point_in_ngon_3D(point, ngon):
 def point_in_ngon_2D(point, ngon):
 # type: (Point2D, NGon2D) -> bool    
 
-    circular_vertices = ngon.vertices + ngon.vertices[0]
+    circular_vertices = ngon.vertices + ngon.vertices[0:1]
 
     # If the point lies on any edge, it is in the ngon.
-    for idx in range(len(circular_vertices) - 1):
+    for idx in range(len(circular_vertices)):
          
         y2 = circular_vertices[idx + 1].x2
         y1 = circular_vertices[idx].x2
         x2 = circular_vertices[idx + 1].x1
         x1 = circular_vertices[idx].x1
-        slope = (y2 - y1) / (x2 - x1)
-        intercept = (y2 * x1 - y1 * x2) / (x1 - x2)
-        if float_equals(slope * point.x1 + intercept, point.x2):
-            return True
+
+        # If the line connecting the vertices is vertical, do a manual check.
+        # TODO: Some of the floating point comparisons are a bit loose here. 
+        if float_equals(x1 - x2, 0):
+            if float_equals(point.x1, x1) and (min(y1, y2) <= point.x2 <= max(y1, y2)):
+                return True
+        # Otherwise, construct the equation of the line and check if the point
+        #    lies on it.
+        else:
+            slope = (y2 - y1) / (x2 - x1)
+            intercept = (y2 * x1 - y1 * x2) / (x1 - x2)
+            if float_equals(slope * point.x1 + intercept, point.x2):
+                return True
         
     # Otherwise, check if it's in the interior. 
     ngon = path.Path(ngon.get_builtin_rep, closed=True)
@@ -472,7 +496,7 @@ def change_csys(points, new_origin, new_x, new_y, new_z):
     norm_new_z = new_z.get_norm()
 
     # Construct the change of basis matrix.
-    change_of_basis = np.concatenate(norm_new_x, norm_new_y, norm_new_z)
+    change_of_basis = np.stack((norm_new_x.np_arr, norm_new_y.np_arr, norm_new_z.np_arr), axis=0)
 
     # Invert the change of basis matrix since we have coordinates in the old
     #    system and want coordinates in the new system.
@@ -483,7 +507,7 @@ def change_csys(points, new_origin, new_x, new_y, new_z):
     new_origin = np.array(new_origin.get_components())
     for point in points:
         translated = np.array(point.get_components()) + (-1) * new_origin
-        points_new_coords.append(linalg.matmul(old_to_new, translated))
+        points_new_coords.append(Point3D(*np.matmul(old_to_new, translated)))
 
     return points_new_coords
 
@@ -494,16 +518,8 @@ def change_csys(points, new_origin, new_x, new_y, new_z):
 def find_third_orthonormal(vec1, vec2):
 # type: (Vec3D, Vec3D) -> Vec3D
 
-    assert(np.dot(vec_1.np_arr, vec2.np_arr) == 0)
+    sol_vec = Vec3D(*np.cross(vec1.np_arr, vec2.np_arr))
 
-    # Setup a system of equations to solve for the new vector.
-    # There are three unknowns and only two equations, so we arbitrarily pick the
-    #    third component of the vector to be 1. 
-    coeff = np.stack((vec_1.np_arr[0:2], vec_2.np_arr[0:2]), axis=0)
-    dep = np.array(vec_1.np_arr[2], vec_2.np_arr[2])
-    sol = linalg.solve(coeff, dep) 
-
-    sol_vec = Vec3D(sol[0], sol[1], 1)
     return sol_vec.get_norm()
 
     
