@@ -104,13 +104,28 @@ class Vec3D:
         self.np_arr = np.array([float(x), float(y), float(z)])
 
 
+    # Check if the vector has unit norm.
+    def is_unit(self):
+    # type: (None) -> bool
+        
+        if float_equals(self.get_len(), 1):
+            return True
+        return False
+
+
     # Get a normalized version of the vector, without modifying internal
     #    state.
-    def get_norm(self):
+    def normalize(self):
     # type: (None) -> Vec3D
 
         res = (1 / linalg.norm(self.np_arr)) * self.np_arr
         return Vec3D(*res)
+
+
+    def get_len(self):
+    # type: (None) -> float
+
+        return linalg.norm(self.np_arr)
  
     
     # Get a vector orthogonal to the vector. Note that there are an infinite
@@ -480,36 +495,74 @@ def point_in_ngon_2D(point, ngon):
 
 
 
-# Translates the coordinates of a sequence of points in the standard normal 
-#    coordinate system into coordinates relative to a translated and rotated
-#    coordinate system. The new coordinate system is described by a new origin 
-#    location and three orthogonal vectors denoting the positive directions of
-#    the three new axes.
-# This technique works even when the new coordinate system and old coordinate
-#    system do not have the same handedness.
-# The vectors should point in the positive directions of the new axes.
-def change_csys(points, new_origin, new_x, new_y, new_z):
-# type: (List[Point3D], Point3D, Vec3D, Vec3D, Vec3D) -> List[Point3D]
+class CSys3D:
 
-    norm_new_x = new_x.get_norm() 
-    norm_new_y = new_y.get_norm()
-    norm_new_z = new_z.get_norm()
+    # Describe a coordinate system relative to some global coordinate system.
+    # 
+    # Notes:
+    #    It is expected that all coordinate systems are described relative to
+    #       a single global coodinate system.
+    # 
+    # Arguments:
+    #    translation - 1D numpy array with 3 floats. Describes the translation
+    #                     in space of coordinate system.
+    #    basis       - 2D, 3x3 numpy array of floats. Describes the rotation of
+    #                     this coordinate system relative to a global system.
+    #                     All basis vectors must be unit length and be orthogonal
+    #                     to one another.
+    #
+    # Returns:
+    #    None.
+    def __init__(self, translation, basis):
+    # type: (Any, Any) -> None
 
-    # Construct the change of basis matrix.
-    change_of_basis = np.stack((norm_new_x.np_arr, norm_new_y.np_arr, norm_new_z.np_arr), axis=0)
+        # Check the validity of the basis matrix.
+        v1 = Vec3D(*basis[0])
+        v2 = Vec3D(*basis[1])
+        v3 = Vec3D(*basis[2])
+        assert(v1.is_unit())
+        assert(v2.is_unit())
+        assert(v3.is_unit())
+        assert(are_orthogonal(v1, v2))
+        assert(are_orthogonal(v2, v3))
+        assert(are_orthogonal(v1, v3))
 
-    # Invert the change of basis matrix since we have coordinates in the old
-    #    system and want coordinates in the new system.
-    old_to_new = linalg.inv(change_of_basis)
+        self.translation = translation
+        self.basis = basis 
 
-    # Do all the conversions.
-    points_new_coords = []
-    new_origin = np.array(new_origin.get_components())
-    for point in points:
-        translated = np.array(point.get_components()) + (-1) * new_origin
-        points_new_coords.append(Point3D(*np.matmul(old_to_new, translated)))
+    
+    # Map points into the coordinate system described by this object.
+    #
+    # Notes:
+    #    This function does a generic mapping. It has no knowledge about the
+    #       coordinate system that the points already live in.
+    #
+    # Arguments:
+    #    points - List of Point3D objects.
+    # 
+    # Returns:
+    #    List of Point3D objects.
+    def from_global_to_new(self, points):
+    # type: (List[Point3D]) -> List[Point3D]
 
-    return points_new_coords
+        points_new_csys = []
+        for point in points:
+            point = np.array([point.x, point.y, point.z])
+            point_new_csys = np.matmul(self.basis, (point - self.translation))
+            point_new_csys = Point3D(*point_new_csys)
+            points_new_csys.append(point_new_csys)
+
+        return points_new_csys
+
+
+
+# Check if two vectors are orthogonal.
+def are_orthogonal(vec1, vec2):
+# type: (Vec3D, Vec3D) -> bool
+
+    if float_equals(np.dot(vec1.np_arr, vec2.np_arr), 0):
+        return True
+    return False
 
 
 

@@ -7,6 +7,7 @@ import os
 import numpy as np
 
 import core.abaqus.abaqus_metadata as abq_md
+import util.geom as geom
 
 
 from util.debug import *
@@ -201,22 +202,88 @@ def suppress_feature(name, part):
 
 
 
-# Constructs a Transform object. This object represents the transformation
-#    necessary to go from sketch coordinates to part coordinates.
-# A Transform object can be associated with either a Part of an Assembly.
-# By default, the sketch is oriented so the edge is on the RIGHT.
-def build_sketch_transform(sketch_plane, origin, edge, obj):
-# type: (Any, Point3D, Any, Any) -> Any
+# Build a matrix which specifies the location and orientation of a sketch in 
+#    space.
+#
+# Notes:
+#    It appears that when the MakeSketchTransform() method is called and an
+#       Abaqus Face object is passed in, the sketchUpEdge argument is required
+#       even though the documentation says otherwise.
+#    All other optional arguments for MakeSketchTransform() are left unspecified.
+#       These arguments fully specify the spacial orientation of a sketch. In
+#       general, it's not important to specify a particular orientation in space.
+#       Rather, it's important to know what the orientation in space is.
+#    An Abaqus Transform object has a single method called matrix() that returns
+#       the matrix which contains the translation and orientation of the sketch
+#       in space. Extracting this information can be useful to map points in the
+#       global coordinate system into the coordinate system of this sketch.
+#
+# Arguments:
+#    face - Abaqus Face object. 
+#           Locates the sketch in space.
+#    edge - Abaqus Edge object. 
+#           Orients the sketch in space.
+#    obj  - Abaqus Part object or Abaqus Assembly object. 
+#           The object that the transform is associated with.
+#
+# Returns:
+#    Abaqus Transform object.
+def build_sketch_transform_from_face(face, edge, obj):
+# type: (Any, Any, Any) -> Any
 
-    return obj.MakeSketchTransform(sketch_plane, origin=origin.get_components(), sketchOrientation=RIGHT, sketchUpEdge=edge)
+    return obj.MakeSketchTransform(face, sketchUpEdge=edge)
 
 
-# A Transform object, as created via the MakeSketchTransform() function, should
-#    be passed in to this function.
-def build_constrained_sketch(transform, sketch_name, sheet_size, model_name, mdb):
-# type: (Any, str, int, str, Any) -> None
 
-    return mdb.models[model_name].ConstrainedSketch(sketch_name, sheet_size, transform=transform)
+# Uses the undocumented matrix() method of an Abaqus Transform object to extract
+#    the information necessary to orient the coordinate system of the sketch in
+#    terms of the global coordinate system.
+#
+# Notes:
+#    None.
+#
+# Arguments:
+#    transform - Abaqus Transform object. 
+#
+# Returns:
+#    CSys3D object.  
+def extract_global_csys_to_sketch_csys(transform):
+# type: (Any) -> geom.CSys3D 
+
+    rot_and_trans = transform.matrix()
+   
+    x_axis = np.array(rot_and_trans[0:3])
+    y_axis = np.array(rot_and_trans[3:6])
+    z_axis = np.array(rot_and_trans[6:9])
+    trans = np.array(rot_and_trans[9:12])
+
+    basis = np.stack((x_axis, y_axis, z_axis), axis=0)
+
+    return geom.CSys3D(trans, basis)
+
+
+
+# Build and orient a sketch somewhere in the space.
+# 
+# Notes:
+#    The sheetSize argument doesn't matter when the sketch is not being drawn
+#       by hand via a UI.
+#    Sketches are only associated with whole models.
+#
+# Arguments:
+#    transform   - Abaqus Transform object. 
+#                  Specifies the location and orientation of the sketch in space.
+#    sketch_name - String. 
+#                  Name of the new sketch.
+#    model_name  - String.
+#    mdb         - String.
+#
+# Returns:
+#    Abaqus ConstrainedSketch object.
+def build_constrained_sketch(transform, sketch_name, model_name, mdb):
+# type: (Any, str, str, Any) -> None
+
+    return mdb.models[model_name].ConstrainedSketch(sketch_name, sheetSize=1, transform=transform)
 
 
 
@@ -304,13 +371,24 @@ def get_face_normal(face):
 
 
 
-# Get an Edge object associated with a Face object.
+# Get an edge associated with a face. 
+# 
+# Notes:
 # The edge is chosen arbitrarily.
-def get_any_edge_on_face(face, part):
+# 
+# Arguments:
+#    face - Abaqus Face object.
+#    obj  - Abaqus Part object or an Abaqus PartInstance 
+#           Should be the object to which the face belongs. No check if done 
+#              to ensure that the face actually belongs to this object.
+#
+# Returns:
+#    Abaqus Edge object.
+def get_any_edge_on_face(face, obj):
 # type: (Any, Any) -> Any
     
-    edge_ids = face.getEdges()
-    return part.edges[edge_ids[0]]
+    edge_id = face.getEdges()[0]
+    return obj.edges[edge_id]
 
 
 
@@ -328,20 +406,38 @@ def get_assembly(model_name, mdb):
 
 
 
-def get_faces(part):
+# Get the faces associated with any object which has faces.
+# 
+# Notes:
+#    None.
+# 
+# Arguments:
+#    obj - An Abaqus Part object or an Abaqus PartInstance object. 
+#
+# Returns:
+#    An Abaqus FaceArray object containing all the Abaqus Face object.
+def get_faces(obj):
 # type: (Any) -> Any
 
-    return part.faces
+    return obj.faces
 
 
 
-# Get vertices of a part.
+# Get all the vertices associated with an object.
+# 
+# Notes:
 # The documentation for the pointOn member of the Vertex object is incorrect. It
 #    is really a tuple of tuple of floats, not a simple tuple of floats.
-def get_part_vertices(part):
-# type: (Any) -> List[List[Tuple[Tuple[float, float, float]]]]
+# 
+# Arguments:
+#    obj - An Abaqus Part object or an Abaqus PartInstance object.
+#
+# Returns:
+#    A list of lists of Point3D objects. 
+def get_all_vertices(obj):
+# type: (Any) -> List[List[Point3D]]
 
-    faces = part.faces
+    faces = get_faces(obj) 
 
     vertices = []
     for face in faces:
@@ -349,7 +445,8 @@ def get_part_vertices(part):
         vertex_ids = face.getVertices()
 
         for vertex_id in vertex_ids:
-            vertices_on_face.append(part.vertices[vertex_id].pointOn)
+            vertex = geom.Point3D(*obj.vertices[vertex_id].pointOn[0])
+            vertices_on_face.append(vertex)
 
         vertices.append(vertices_on_face)
 
@@ -627,19 +724,44 @@ def build_region_with_ref_points(ref_point_features, model_name, mdb):
 
 
 # Build a region out of a face.
-# Note that this function accepts a Feature object and translates it to a
-#    Face object.
-def build_region_with_face(face_feature, obj):
+#
+# Notes:
+#    None.
+#
+# Arguments:
+#    face_feature - Abaqus Face object 
+#    obj          - Abaqus Part object or Abaqus PartInstance object.
+#                   The face which underlies the feature must be a face on this
+#                      object.
+#
+# Returns:
+#    Abaqus Region object.
+def build_region_with_face(face, obj):
 # type: (Any, Any) -> Any
 
-    key = face_feature.id
-    face = obj.Faces[key]
-    return regionToolset.Region(faces=(face))
+    # Even though the Abaqus Region() constructor says that it takes "A sequence 
+    #    of Face objects", it really takes an Abaqus FaceArray object.
+    # If an Abaqus FaceArray object is not passed, an exception will be issued
+    #    by the function saying that it expected an object of type "GeomSequence".
+    #    I believe that FaceArray, EdgeArray, etc. are all subtypes of
+    #    GeomSequence.
+    # In order to go from a single Abaqus Face object to an Abaqus FaceArray
+    #    object with only a single Abaqus Face object in it, the following
+    #    sequence of steps is necessary.
+    # Also, note that the findAt() method for a FaceArray object always returns 
+    #    an Abaqus FaceArray object, even though the documentation says that 
+    #    if it only finds a single Face object, then a single Face object is
+    #    returned.
+    point_on_face = face.pointOn
+    face_seq = obj.faces.findAt(point_on_face)
+    region = regionToolset.Region(faces=face_seq)
+
+    return region
     
 
 
 def build_region_with_elem_face(face, part):
-# type: (Any) -> Any
+# type: (Any, Any) -> Any
 
     # Find the face number that the face belongs to on the element.
     face_num = face.face
@@ -760,7 +882,8 @@ def add_ref_points(points, model_name, mdb):
 
 
 def create_displacement_bc(BC_name, step_name, region, fix_u1, fix_u2, fix_u3, fix_ur1, fix_ur2, fix_ur3, model_name, mdb):
-    
+# type: (str, str, Any, bool, bool, bool, bool, bool, bool, str, Any) 
+
     fix_x = SET if fix_u1 else UNSET
     fix_y = SET if fix_u2 else UNSET
     fix_z = SET if fix_u3 else UNSET
@@ -768,13 +891,48 @@ def create_displacement_bc(BC_name, step_name, region, fix_u1, fix_u2, fix_u3, f
     prevent_y_rot = SET if fix_ur2 else UNSET
     prevent_z_rot = SET if fix_ur3 else UNSET
 
-    mdb.models[model_name].DisplacementBC(BC_name, step_name, region, u1=fix_x, u2=fix_y, u3=fix_z, ur1=prevent_x_rot, ur2=prevent_y_rot, ur3=prevent_z_rot)
+    mdb.models[model_name].DisplacementBC(name=BC_name, createStepName=step_name, region=region, u1=fix_x, u2=fix_y, u3=fix_z, ur1=prevent_x_rot, ur2=prevent_y_rot, ur3=prevent_z_rot)
 
 
 
-# Partitions the face of a part with a sketch.
-def partition_face_with_sketch(face, sketch, to_partition):
-# type: (Any, Any, Any) -> Any
+# Partitions the face of an object with a sketch.
+# 
+# Notes:
+#    The PartitionFaceBySketch() method claims to take a "sequence of Face
+#       objects". I believe it should instead take an Abaqus FaceArray object. 
+# 
+# Arguments:
+#    face     - Abaqus Face object. 
+#               The face to partition.
+#    edge     - Abaqus Edge object. 
+#               Specifies the orientation of the sketch on the
+#                  face. This edge should have been used to orient the sketch on 
+#                  the face when the sketch was constructed.
+#    sketch   - Abaqus ConstrainedSketch object.
+#
+# Optional Arguments:
+#    assembly - Abaqus Assembly object.
+#    instance - Abaqus PartInstance object.
+#    part     - Abaqus Part object.
+#
+# Optional Arguments Notes:
+#    Either assembly and instance must be specified or part must be specified.
+#
+# Returns:
+#    None. The Abaqus Feature object returned by the PartitionFaceBySketch()
+#       method seems to be useless.
+def partition_face_with_sketch(face, edge, sketch, assembly=None, instance=None, part=None):
+# type: (Any, Any, Any, Optional[Any], Optional[Any], Optional[Any]) -> Any
 
-    return to_partition.PartitionFaceBySketch(face, sketch)
+    point = face.pointOn
+
+    if assembly != None and instance != None:
+        face_array = instance.faces.findAt(point)
+        assembly.PartitionFaceBySketch(face_array, sketch, sketchUpEdge=edge)
+    elif part != None:
+        face_array = part.faces.findAt(point)
+        part.PartitionFaceBySketch(face_array, sketch, sketchUpEdge=edge)
+    else:
+        raise RuntimeError("Invalid combination of arguments passed.")
+
 

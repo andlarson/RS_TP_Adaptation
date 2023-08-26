@@ -28,19 +28,11 @@ if __name__ == "__main__":
     clamp_surface_vertices = [v1, v2, v3, v4]
     clamp_surface1 = geom.NGon3D(clamp_surface_vertices)
 
-    # DEBUG
-    mdb = shim.use_mdb(path_to_cae)
-    model = mdb.models["Model-1"]
-    part = model.parts["Initial_Geometry"]
-    bc.partition_face(clamp_surface1, "test", part, "Model-1", mdb)
-    shim.close_mdb(mdb)
-
-    """
     # Clamp on other side of bar.
     v1 = geom.Point3D(0, 10, 400)
     v2 = geom.Point3D(0, 10, 360)
-    v3 = geom.Point3D(40, 10, 400)
-    v4 = geom.Point3D(40, 10, 360)
+    v3 = geom.Point3D(40, 10, 360)
+    v4 = geom.Point3D(40, 10, 400)
     clamp_surface_vertices = [v1, v2, v3, v4]
     clamp_surface2 = geom.NGon3D(clamp_surface_vertices)
 
@@ -144,4 +136,3 @@ if __name__ == "__main__":
 
     save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass.cae"
     machining_process.sim_potential_tool_passes(tool_pass_plan, save_loc)
-    """

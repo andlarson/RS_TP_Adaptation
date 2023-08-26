@@ -204,13 +204,13 @@ def do_boilerplate_sim_ops(orig_part_name, tool_pass_part_name, post_tool_pass_p
     # Simplify the part geometry using some heuristics.
     shim.add_virtual_topology(post_tool_pass_part)
 
-    # Apply the boundary conditions. 
-    bc.apply_BCs(BCs, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_part, model_name, mdb)
-
     # Instance the post cut geometry.
     # The instance is independent so that meshing can be done in the Assembly
     #    module.
     post_tool_pass_instance = shim.instance_part_into_assembly(post_tool_pass_part_name, post_tool_pass_part, False, model_name, mdb)
+
+    # Apply the boundary conditions. 
+    bc.apply_BCs(BCs, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_instance, model_name, mdb)
 
     # Then mesh the part in the assembly module.
     shim.naive_mesh(post_tool_pass_instance, 30, model_name, mdb)

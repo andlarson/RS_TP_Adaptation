@@ -105,3 +105,36 @@ Many functions in abaqus_shim.py should work with either a part or an Assembly.
   Write the function so that it works for both parts and assemblies, and then
   pass assemblies in.
 
+Use MakeSketchTransform() to build the Transform object, then extract the rotation
+  and translation information from it by using the .matrix() method. In the context
+  of PartitionFace(), we can find the face that the ngon lives on, use some defaults
+  to orient the sketch on that face, construct the Transform object, extract the
+  rotation/translation information from the Transform object, and then use it to
+  transform the points in the global coordinate system into the coordinate system
+  of the sketch.
+
+Take advantage of optional arguments and arbitrary number of function arguments.
+
+Setup Linter.
+
+Abaqus Feature objects are almost completely useless. When an Abaqus Feature object
+  is created (via a call to PartitionFaceBySketch() for example) it's usually the
+  case that some other object is created at the same time (for PartitionFaceBySketch(),
+  at least one new Abaqus Face object is created and added to the appropriate
+  repository of Abaqus Face objects). It's not uncommon to want to retrieve the 
+  Abaqus Face object which was just created. However, it's not possible to do 
+  this with just the Abaqus Feature object which was created alongside the 
+  Abaqus Face object. The Abaqus Feature object has id and name data members,
+  but these can only be used to lookup the Abaqus Feature object itself, not
+  the underlying object.
+A hack can be done where you monitor the sequence of interest (for example, the
+  Abaqus FaceArray object associated with an Abaqus Part object) and if you know
+  only a single new Abaqus object is created when the feature creation
+  happens, you can extract the new Abaqus object by just extracting the
+  last entry in the sequence. This forces you to assume that the new Abaqus object
+  is always added as the last entry, and that only a single Abaqus object is
+  created.
+
+Tuples should be passed as arguments when the function will not need to modify.
+  Passing a list to a function is dangerous because the function may modify the
+  list.
