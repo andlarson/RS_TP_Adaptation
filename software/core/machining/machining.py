@@ -19,7 +19,7 @@ class MachiningProcess:
 
         elif isinstance(init_part, part.AbaqusDefinedPart):
             first_tp_metadata = md.CommittedToolPassMetadata(init_part, init_part.path_to_mdb, boundary_conditions)
-            self.metadata.append(fist_tp_metadata)
+            self.metadata.append(first_tp_metadata)
 
         # The boundary conditions exist for the whole machining process.
         self.boundary_conditions = boundary_conditions 

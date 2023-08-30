@@ -1,18 +1,13 @@
-"""
-Utilities for general geometric tasks.
-"""
+import sys
+import math
 
 import numpy as np
 import numpy.linalg as linalg
 import matplotlib.path as path
-import sys
 
 # DEBUG
 from debug import *
 
-
-UNDEF = "0/0"
-INF = "a/0"
 
 
 class Point2D:
@@ -25,14 +20,17 @@ class Point2D:
 
 
     def compute_scale_factors(self):
-    # type: (None) -> Tuple[Union[str, float]]
+    # type: (None) -> Tuple[float]
 
-        if self.x1 == 0 and self.x2 == 0:
-            t1 = UNDEF
-        elif self.x1 != 0 and self.x2 == 0:
-            t1 = INF
-        else:
+        try:
             t1 = self.x1 / self.x2
+        except ZeroDivisionError:
+            if float_equals(self.x1, 0):
+                t1 = float("nan")
+            elif self.x1 > 0:
+                t1 = float("+inf")
+            else:
+                t1 = float("-inf")
 
         return (t1, )
 
@@ -73,23 +71,65 @@ class Point3D:
 
 
     def compute_scale_factors(self):
-    # type: (None) -> Tuple[Union[float, str], Union[float, str]]
+    # type: (None) -> Tuple[float, float]
 
-        if self.x == 0 and self.z == 0:
-            t1 = UNDEF
-        elif self.x != 0 and self.z == 0:
-            t1 = INF
-        else:
+        try:
             t1 = self.x / self.z
+        except ZeroDivisionError:
+            if float_equals(self.x, 0):
+                t1 = float("nan")
+            elif self.x > 0:
+                t1 = float("+inf")
+            else:
+                t1 = float("-inf")
 
-        if self.y == 0 and self.z == 0:
-            t2 = UNDEF
-        elif self.y != 0 and self.z == 0:
-            t2 = INF
-        else:
+        try:
             t2 = self.y / self.z
+        except ZeroDivisionError:
+            if float_equals(self.y, 0):
+                t2 = float("nan")
+            elif self.y > 0:
+                t2 = float("+inf")
+            else:
+                t2 = float("-inf")
 
         return (t1, t2)
+
+
+
+class Vec2D:
+
+    def __init__(self, x, y):
+    # type: (Union[float, int], Union[float, int]) -> None
+
+        if float_equals(x, 0) and float_equals(y, 0):
+            raise RuntimeError("Attempt to create vector which is meaningless.")
+
+        self.np_arr = np.array([float(x), float(y)])
+
+
+    # Check if the vector has unit norm.
+    def is_unit(self):
+    # type: (None) -> bool
+        
+        if float_equals(self.get_len(), 1):
+            return True
+        return False
+
+
+    # Get a normalized version of the vector, without modifying internal
+    #    state.
+    def normalize(self):
+    # type: (None) -> Vec3D
+
+        res = (1 / linalg.norm(self.np_arr)) * self.np_arr
+        return Vec2D(*res)
+
+
+    def get_len(self):
+    # type: (None) -> float
+
+        return linalg.norm(self.np_arr)
 
 
 
@@ -312,6 +352,49 @@ class NGon3D:
 
 
 
+class Line3D:
+
+    def __init__(self, p1, p2):
+    # type: (Point3D, Point3D) -> None
+
+        self.p1 = p1
+
+        self.line_dir = Vec3D(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z)
+
+
+    def is_on(self, point):
+    # type: (Point3D) -> bool
+
+        x_parameter = robust_float_div(point.x - self.p1.x, self.line_dir.np_arr[0])
+        y_parameter = robust_float_div(point.y - self.p1.y, self.line_dir.np_arr[1])
+        z_parameter = robust_float_div(point.z - self.p1.z, self.line_dir.np_arr[2])
+
+        return (robust_float_equals(x_parameter, y_parameter) and 
+                robust_float_equals(y_parameter, z_parameter))
+
+
+
+
+class Line2D:
+
+    def __init__(self, p1, p2):
+    # type: (Point2D, Point2D) -> None
+
+        self.p1 = p1 
+
+        self.line_dir = Vec2D(p1.x - p2.x, p1.y - p2.y)
+
+
+    def is_on(self, point):
+    # type: (Point2D) -> bool
+
+        x_parameter = robust_float_div(point.x1 - self.p1.x1, self.line_dir.np_arr[0])
+        y_parameter = robust_float_div(point.x2 - self.p1.x2, self.line_dir.np_arr[1])
+
+        return robust_float_equals(x_parameter, y_parameter)
+
+
+
 def float_equals(a, b):
 # type: (float, float) -> bool
 
@@ -322,27 +405,60 @@ def float_equals(a, b):
 
 
 
+def robust_float_div(a, b):
+# type: (float, float) -> float
+
+    try:
+        res = a / b 
+    except ZeroDivisionError:
+        if a == 0:
+            return float("nan")
+        elif a > 0:
+            return float("+inf")
+        else:
+            return float("-inf")
+
+    return res
+
+
+
+def robust_float_equals(a, b):
+# type: (float, float) -> bool
+
+    if math.isnan(a) and math.isnan(b):
+        return True
+    elif math.isnan(a) != math.isnan(b):
+        return False
+    # Bad idea in general for floats. The purpose of this comparison is to check
+    #    for matching infinities.
+    elif a == b:          
+        return True  
+    elif float_equals(a, b):
+        return True
+
+    return False 
+
+
+
 # Check if points are collinear.
 def are_collinear(points):
-# type: (List[Union[Point3D, Point2D]]) -> bool
+# type: (Tuple[Union[Point3D, Point2D], ...]) -> bool
 
     assert(len(points) > 2)
 
-    potential_scale_factors = points[0].compute_scale_factors() 
+    if isinstance(points[0], Point3D):
+        
+        line = Line3D(*points[:2])
 
-    for point in points: 
-        scale_factors = point.compute_scale_factors() 
+    else:
+        
+        line = Line2D(*points[:2])
 
-        for idx in range(len(potential_scale_factors)):
-            if type(scale_factors[idx]) != type(potential_scale_factors[idx]):
-                return False
-            elif type(scale_factors[idx]) == float:
-                if not float_equals(scale_factors[idx], potential_scale_factors[idx]):
-                    return False
-            elif scale_factors[idx] != potential_scale_factors[idx]:
-                return False
-            
-    return True 
+    for point in points:
+        if not line.is_on(point):
+            return False
+
+    return True
 
 
 
@@ -451,6 +567,10 @@ def point_in_ngon_3D(point, ngon):
 
     # If all of the points are collinear, then project onto a different plane.
     if are_collinear(proj_ngon.vertices + [proj_point]):
+
+        # DEBUG
+        dp("collinear")
+
         proj_point = point.proj_xz()
         proj_ngon = ngon.proj_xz()
 
@@ -576,6 +696,5 @@ def find_third_orthonormal(vec1, vec2):
     return sol_vec.get_norm()
 
     
-
 
 

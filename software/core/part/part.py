@@ -1,9 +1,9 @@
+import os.path as path
+
 import util.geom as geom
 import core.stress.stress as stress
 import core.material_properties.material_properties as mat_props 
 import core.abaqus.abaqus_shim as shim
-
-import os.path as path
 
 
 
@@ -35,7 +35,7 @@ class UserDefinedPart(Part):
     
     # TODO:
     def __init__(self, name, part_rep, material_properties):
-    # type: (str, geom.SpecRightRectPrism, stress.StressProfile, mat_props.MaterialProperties) -> None
+    # type: (str, geom.SpecRightRectPrism, mat_props.MaterialProperties) -> None
 
         raise RuntimeError("Can't handle user defined parts right now...")
 

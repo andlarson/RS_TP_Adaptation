@@ -6,7 +6,6 @@ from abaqusConstants import *
 import regionToolset             # Unclear why necessary.   
 import part                      # Unclear why necessary.
 
-import core.metadata.metadata as md
 import util.geom as geom
 from util.debug import *
 
@@ -196,6 +195,8 @@ def get_BC_cnt(model_name, mdb):
 # type: (Any) -> Int 
 
     return len(mdb.models[model_name].boundaryConditions)
+
+
 
 
 
@@ -607,7 +608,7 @@ def instance_part_into_assembly(instance_name, part, dependent, model_name, mdb)
 def cut_instances_in_assembly(name, instance_to_be_cut, cutting_instances, model_name, record, mdb):
 # type: (str, Any, tuple[Any], str, md.CommittedToolPassMetadata, Any) -> Any
 
-    record.abaqus_mdb_metadata.models_metadata[model_name].parts_names.append(name)
+    record.abaqus_mdb_metadata.models_metadata[model_name].part_names.append(name)
 
     # Beware, the argument list ordering in the documentation for PartFrom
     #    BooleanCut() appears to be incorrect.

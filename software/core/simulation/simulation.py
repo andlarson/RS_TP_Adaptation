@@ -4,6 +4,7 @@ import core.abaqus.abaqus_shim as shim
 import core.tool_pass.tool_pass as tp
 import core.boundary_conditions.boundary_conditions as bc
 import core.metadata.metadata as md
+import core.metadata.abaqus_metadata as abq_md
 
 from util.debug import *        
 
@@ -40,7 +41,7 @@ def sim_single_tool_pass(tool_pass, record, mdb):
     # If the MDB contains n (where n > 1) models and the last model to be 
     #    added contains an orphan mesh, then we must be simulating the n-th 
     #    tool pass.
-    last_model_name = record.abq_mdb_metadata.model_names[-1]
+    last_model_name = record.abaqus_mdb_metadata.model_names[-1]
     if shim.check_init_geom(False, mdb):
 
         sim_first_tool_pass(tool_pass, record, mdb)  
@@ -58,8 +59,8 @@ def sim_single_tool_pass(tool_pass, record, mdb):
 def sim_first_tool_pass(tool_pass, record, mdb):
 # type: (tp.ToolPass, md.CommittedToolPassMetadata, Any) -> None
 
-    sim_names = md.SimNames(record)
-    do_boilerplate_sim_ops(sim_names, record, mdb)
+    names = abq_md.SimNames(record)
+    do_boilerplate_sim_ops(tool_pass, names, record, mdb)
 
     # Very important note: This operation effectively imposes the user
     #    subroutine defined stress profile on the part after the material has
@@ -67,9 +68,9 @@ def sim_first_tool_pass(tool_pass, record, mdb):
     #    defined stress profile must achieve equilbrium!
     # Since this modifies the input file directly, this should be the last
     #    thing that happens before the job is submitted and runs.
-    shim.inp_add_stress_subroutine(sim_names.model_name, mdb)
+    shim.inp_add_stress_subroutine(names.model_name, mdb)
 
-    job = shim.create_job(sim_names.post_tool_pass_part_name, sim_names.model_name, record, mdb) 
+    job = shim.create_job(names.post_tool_pass_part_name, names.model_name, record, mdb) 
 
     # Associate the user subroutine with the job.
     shim.add_user_subroutine(job, record.init_part.path_to_stress_subroutine)
@@ -81,7 +82,7 @@ def sim_first_tool_pass(tool_pass, record, mdb):
 def sim_nth_tool_pass(tool_pass, record, mdb):
 # type: (tp.ToolPass, md.CommittedToolPassMetadata, Any) -> Any
 
-    names = md.SimNames(record) 
+    names = abq_md.SimNames(record) 
 
     # Create the new model from the output of the last model.
     new_model = shim.create_model_from_odb(names.last_model_odb_name, names.new_model_name, record, mdb)
@@ -109,22 +110,22 @@ def do_boilerplate_sim_ops(tool_pass, names, record, mdb):
 # type: (tp.ToolPass, SimNames, md.CommittedToolPassMetadata, Any) -> None
 
     # Instance the initial geometry part.
-    initial_geom_part = shim.get_part(names.pre_tool_pass_part_name, names.model_name, mdb)
-    initial_geom_instance = shim.instance_part_into_assembly(names.pre_tool_pass_part_name, initial_geom_part, True, names.model_name, mdb)  
+    initial_geom_part = shim.get_part(names.pre_tool_pass_part_name, names.new_model_name, mdb)
+    initial_geom_instance = shim.instance_part_into_assembly(names.pre_tool_pass_part_name, initial_geom_part, True, names.new_model_name, mdb)  
     
     # Build the next tool pass path as a part.
     tool_pass_geom = tool_pass.geom
-    tool_pass_part = shim.build_part(names.tool_pass_part_name, tool_pass_geom, names.model_name, record, mdb)
+    tool_pass_part = shim.build_part(names.tool_pass_part_name, tool_pass_geom, names.new_model_name, record, mdb)
 
     # Instance the tool pass part.
-    tool_pass_part_instance = shim.instance_part_into_assembly(names.tool_pass_part_name, tool_pass_part, True, names.model_name, mdb)
+    tool_pass_part_instance = shim.instance_part_into_assembly(names.tool_pass_part_name, tool_pass_part, True, names.new_model_name, mdb)
 
     # Create the post tool pass geometry as a part.
     cut_instances = (tool_pass_part_instance, )
-    post_tool_pass_part = shim.cut_instances_in_assembly(names.post_tool_pass_part_name, initial_geom_instance, cut_instances, names.model_name, record, mdb)
+    post_tool_pass_part = shim.cut_instances_in_assembly(names.post_tool_pass_part_name, initial_geom_instance, cut_instances, names.new_model_name, record, mdb)
 
     # Assign a section to the part.
-    shim.assign_only_section_to_part(post_tool_pass_part, names.model_name, mdb)
+    shim.assign_only_section_to_part(post_tool_pass_part, names.new_model_name, mdb)
 
     # Simplify the part geometry using some heuristics.
     shim.add_virtual_topology(post_tool_pass_part)
@@ -132,17 +133,17 @@ def do_boilerplate_sim_ops(tool_pass, names, record, mdb):
     # Instance the post cut geometry.
     # The instance is independent so that meshing can be done in the Assembly
     #    module.
-    post_tool_pass_instance = shim.instance_part_into_assembly(names.post_tool_pass_part_name, post_tool_pass_part, False, names.model_name, mdb)
+    post_tool_pass_instance = shim.instance_part_into_assembly(names.post_tool_pass_part_name, post_tool_pass_part, False, names.new_model_name, mdb)
 
     # Apply the boundary conditions. 
-    bc.apply_BCs(record.BCs, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_instance, names.model_name, mdb)
+    bc.apply_BCs(record.BCs, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_instance, names.new_model_name, mdb)
 
     # Then mesh the part in the assembly module.
-    shim.naive_mesh(post_tool_pass_instance, 30, names.model_name, mdb)
+    shim.naive_mesh(post_tool_pass_instance, 30, names.new_model_name, mdb)
 
     # Add an equilibrium step following the last step on record.
-    last_step_name = record.abaqus_mdb_metadata.models_metadata[names.model_name].step_names[-1]
-    shim.create_equilibrium_step(names.equil_step_name, last_step_name, names.model_name, record, mdb)
+    last_step_name = record.abaqus_mdb_metadata.models_metadata[names.new_model_name].step_names[-1]
+    shim.create_equilibrium_step(names.equil_step_name, last_step_name, names.new_model_name, record, mdb)
 
 
 

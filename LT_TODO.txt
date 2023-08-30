@@ -28,7 +28,10 @@ Get the MyPy static analysis up and running. Note that, for now, I'm only attemp
   native to Abaqus, numpy, etc. being passed around for which no type checking is
   done. I think there is hope of getting static analysis running for at least libraries
   like numpy. It might be worthwhile to build/contribute some basic stub files
-  for Abaqus.
+  for Abaqus. Also, what should be done when a function takes in an  
+  argument of a particular type, but the rest of the file doesn't need access to
+  the file which contains the type? Does the type need to be absolutely referenced
+  in the type line?
 
 Fix the way that imports are done so that main.py can be invoked from directories
   other than /software/ and without using its full path name.

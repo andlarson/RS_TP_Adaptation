@@ -92,8 +92,10 @@ def apply_BCs(BCs, step_name, part_instance, model_name, mdb):
             raise RuntimeError("An attempt was made to add an unsupported type of boundary condition to a region!")
 
         # DEBUG
+        dp("Applied a BC!")
         save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass.cae"
         shim.save_mdb_as(save_loc, mdb)
+
 
 
 # Partitions the face of an object.
@@ -159,6 +161,11 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
         #    faces is the same. This could be formalized in some way.
         if geom.points_on_plane_of_ngon(vertices_single_face, ngon):
             if geom.points_in_ngon_3D(ngon.vertices, geom.NGon3D(vertices_single_face)):
+
+                # DEBUG
+                dp(str([vertex.get_components() for vertex in ngon.vertices]))
+                dp(str([vertex.get_components() for vertex in vertices_single_face]))
+
                 face_ngon_belongs_to = shim.get_faces(obj)[idx]
                 break
 
@@ -206,8 +213,11 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
         sketch.Line(cur_point, next_point)
 
     # DEBUG
+    dp("In the middle of face partitioning!")
+    dp("The face which is going to be partitioned is defined by the vertices: " + str(shim.get_face_vertices(face_ngon_belongs_to, part if part else instance)))
     save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass.cae"
     shim.save_mdb_as(save_loc, mdb)
+
 
     """
     Step 4: Partition the face using the sketch. 
