@@ -6,24 +6,6 @@ import core.abaqus.abaqus_shim as shim
 import os.path as path
 
 
-class PartHistory:
-    
-    def __init__(self):
-    # type: (None) -> None
-
-        # There are really two parallel part geometry histories.
-        # One lives in Abaqus-land, the other lives in user-defined land.
-        # These representations are co-mingled. When accessed, type checking
-        #    must be done.
-        self.part_history = []
-
-
-    def append(self, part):
-    # type: (Part) -> None
-        
-        self.part_history.append(part)
-        
-
 
 class Part:
 
@@ -34,10 +16,10 @@ class Part:
         self.path_to_stress_subroutine = None
         
 
-    # TODO:
     def update_part_with_real_data(self): 
     # type: (None) -> None
-        pass
+       
+        raise RuntimeError("Not yet supported.")
 
 
     # Associate a stress profile, as defined by a particular subroutine file,
@@ -56,6 +38,7 @@ class UserDefinedPart(Part):
     # type: (str, geom.SpecRightRectPrism, stress.StressProfile, mat_props.MaterialProperties) -> None
 
         raise RuntimeError("Can't handle user defined parts right now...")
+
 
 
 class AbaqusDefinedPart(Part):

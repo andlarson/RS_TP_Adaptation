@@ -10,10 +10,6 @@ Resolve the fact that if the initial residual stress field is far from equilibri
   to allowing relaxation and then doing material removal. SEE ASSUMPTION LIST
   FOR THIS!
 
-Make the sim_next_tool_pass() and estimate_stress_via_last_pass() significantly
-  more modular. This probably includes explicitly associating simulation objects
-  with the MachiningProcess object.
-The following is a subproblem related to the previous issue.
 It also feels brittle to intermingle the stress equilibration and the machining
   procedures. That is, material removal is really unrelated to a sometimes
   necessary stress equilibration step. Stress equilibration is sometimes necessary
@@ -25,6 +21,7 @@ Figure out a way to make the naming cleaner. Specifically, we expect some names 
   be present and we always pick some particular names for use. Also, try to make
   some of my variable names in simulation.py more concise. The names currently
   make my eyes bleed.
+    Partially done. Still don't like some of name passing is done in simulation.py. 
 
 Get the MyPy static analysis up and running. Note that, for now, I'm only attempting
   to do static analysis when Python-native types are involved. There are objects
@@ -36,10 +33,9 @@ Get the MyPy static analysis up and running. Note that, for now, I'm only attemp
 Fix the way that imports are done so that main.py can be invoked from directories
   other than /software/ and without using its full path name.
 
-Move on from using naked strings as paths. Use the builtin Python functionality.
-
 Use cleaner technique to deal with opening and closing an mdb. Figure out how to
   deal with exceptional conditions when an MDB is open and needs to be closed.
+  Using a "with" statement might be very useful to do this.
 
 Think about Prof. Dick's claim: We need only a single BC constraining an element
   in order to prvent numerial errors from resulting in non-physical deformations.
@@ -84,14 +80,10 @@ Potential element deletion techniques:
 Also might be possible to speed things up by using my current approach but
   doing things outside of Abaqus.
 
-Write a function which checks if a point lies within an ngon. There are multiple
-  places in the codebase where we assume that this is the case, but no checks
-  are done.
-
 Should the internal representations of the geometric objects depend on external
   libraries? If so, we can use numpy arrays for everything.
 Where it makes sense, I should override operators for my own classes. This is
-  paritcularily evident for geometric user-defined types: I should support
+  particularly evident for geometric user-defined types: I should support
   directly adding vectors, points, etc.
 
 I've decided that all calls into the Abaqus API should be located in the
@@ -99,6 +91,7 @@ I've decided that all calls into the Abaqus API should be located in the
   objects, which are passed around in functions outside of abaqus_shim.py. Is
   this clean? Is the restriction of making Abaqus API calls in abaqus_shim.py
   really necessary?
+    Solution: Eliminate the simple getter functions? 
 
 Many functions in abaqus_shim.py should work with either a part or an Assembly.
   In general, having function names with '_in_assembly' is overly specific.
@@ -138,3 +131,13 @@ A hack can be done where you monitor the sequence of interest (for example, the
 Tuples should be passed as arguments when the function will not need to modify.
   Passing a list to a function is dangerous because the function may modify the
   list.
+
+Follow PEP8 style guidelines in codebase. I think that the most major change will
+  be designating private attributes, functions, classes, and methods with a leading
+  underscore. Also, in general it is recommended to expose attributes without
+  complex accessor/mutator class methods. This idea might be incompatible with the
+  notion of an abaqus shim and other techniques I have used. Note that non-public 
+  class attributes are those that the programmer does not expect third-party users 
+  to access. Therefore, a programmer might name a class attribute to designate it 
+  as private, and then access it elsewhere inside the project. Also, the imports 
+  should be structured accordingly.

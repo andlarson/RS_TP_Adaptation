@@ -1,21 +1,15 @@
+import os
+
+import numpy as np
 from abaqus import *
 from abaqusConstants import * 
 import regionToolset             # Unclear why necessary.   
 import part                      # Unclear why necessary.
 
-import os
-import numpy as np
-
-import core.abaqus.abaqus_metadata as abq_md
+import core.metadata.metadata as md
 import util.geom as geom
-
-
 from util.debug import *
 
-
-"""
-This is the only file which should make calls directly into the Abaqus API.
-"""
 
 
 # There are standard names/prefixes/suffixes which we expect and impose in Abaqus 
@@ -32,6 +26,186 @@ STANDARD_ORPHAN_MESH_FEATURE_NAME = "Orphan mesh-1"
 STANDARD_BC_PREFIX = "Boundary_Condition_"
 
 
+
+
+
+# *****************************************************************************
+#                         Abaqus Information Retrieval
+#       These functions retrieve information/state that Abaqus maintains.
+# *****************************************************************************
+
+
+def find_step_keyword(kwb):
+# type: (Any) -> int
+    
+    for index, string in enumerate(kwb.sieBlocks):
+        if "Step" in string:
+            return index
+
+    raise RuntimeError("Failed to find step keyword!")
+
+
+
+# Returns all the unique element faces which exist in the part. Unique in this 
+#    context means that, even if two elements are next to one another and share
+#    a face, the shared face will only be listed once in the returned sequence
+#    of MeshFace objects.
+def get_unique_element_faces(orphan_mesh_part):
+# type: (Any) -> Any  
+
+    return orphan_mesh_part.elementFaces
+
+
+
+# Get the elements associated with a particular MeshFace object.
+# A MeshFace object corresponds to a face which lives in a mesh.
+def get_mesh_face_elements(mesh_face):
+# type: (Any) -> Any
+    
+    return mesh_face.getElements()
+
+
+
+# Documentation for getCentroid() is slightly incorrect. A tuple of tuple of
+#    floats is returned, instead of a tuple of floats.
+def get_face_centroid(face):
+# type: (Any) -> Tuple[float, float, float]
+
+    return tuple(face.getCentroid()[0])
+
+
+
+def get_face_normal(face):
+# type: (Any) -> Tuple[float, float, float] 
+
+    return tuple(face.getNormal())
+
+
+
+# Get an edge associated with a face. 
+# 
+# Notes:
+# The edge is chosen arbitrarily.
+# 
+# Arguments:
+#    face - Abaqus Face object.
+#    obj  - Abaqus Part object or an Abaqus PartInstance 
+#           Should be the object to which the face belongs. No check if done 
+#              to ensure that the face actually belongs to this object.
+#
+# Returns:
+#    Abaqus Edge object.
+def get_any_edge_on_face(face, obj):
+# type: (Any, Any) -> Any
+    
+    edge_id = face.getEdges()[0]
+    return obj.edges[edge_id]
+
+
+
+def get_part(part_name, model_name, mdb):
+# type: (str, str, Any) -> Any    
+    
+    return mdb.models[model_name].parts[part_name]
+
+
+
+def get_assembly(model_name, mdb):
+# type: (str, Any) -> Any
+    
+    return mdb.models[model_name].rootAssembly
+
+
+
+# Get the faces associated with any object which has faces.
+# 
+# Notes:
+#    None.
+# 
+# Arguments:
+#    obj - An Abaqus Part object or an Abaqus PartInstance object. 
+#
+# Returns:
+#    An Abaqus FaceArray object containing all the Abaqus Face object.
+def get_faces(obj):
+# type: (Any) -> Any
+
+    return obj.faces
+
+
+
+# Get all the vertices associated with an object.
+# 
+# Notes:
+# The documentation for the pointOn member of the Vertex object is incorrect. It
+#    is really a tuple of tuple of floats, not a simple tuple of floats.
+# 
+# Arguments:
+#    obj - An Abaqus Part object or an Abaqus PartInstance object.
+#
+# Returns:
+#    A list of lists of Point3D objects. 
+def get_all_vertices(obj):
+# type: (Any) -> List[List[Point3D]]
+
+    faces = get_faces(obj) 
+
+    vertices = []
+    for face in faces:
+        vertices_on_face = []
+        vertex_ids = face.getVertices()
+
+        for vertex_id in vertex_ids:
+            vertex = geom.Point3D(*obj.vertices[vertex_id].pointOn[0])
+            vertices_on_face.append(vertex)
+
+        vertices.append(vertices_on_face)
+
+    return vertices 
+
+
+
+# Error in documentation of pointOn member.
+def get_edge_vertices(edge, part):
+# type: (Any, Any) -> Tuple[Tuple[float, float, float], Tuple[float, float, float]]
+
+    vertex_ids = edge.getVertices()
+    vertices = [part.vertices[vertex_id].pointOn[0] for vertex_id in vertex_ids]
+    return tuple(vertices)
+   
+
+
+# Error in documentation of pointOn member.
+def get_face_vertices(face, part):
+# type: (Any, Any) -> Tuple[Tuple[float, float, float], ...]
+
+    vertex_ids = face.getVertices()
+    vertices = [part.vertices[vertex_id].pointOn[0] for vertex_id in vertex_ids]
+    return tuple(vertices)
+
+
+
+def get_step_cnt(model_name, mdb):
+# type: (str, Any) -> None
+
+    return len(mdb.models[model_name].steps)
+
+
+
+def get_BC_cnt(model_name, mdb):
+# type: (Any) -> Int 
+
+    return len(mdb.models[model_name].boundaryConditions)
+
+
+
+
+# *****************************************************************************
+#                         Abaqus Object Manipulation 
+#    These functions manipulate the state/information that Abaqus maintains.
+# *****************************************************************************
+
+
 # Create a MDB and open it. 
 # This function does not automatically save the MDB. However, the path used
 #   here is the location of save when a save (not save as) does happen.
@@ -44,7 +218,7 @@ def create_mdb(name, path):
 
 # Assign the only section in the model to the whole part.
 def assign_only_section_to_part(part, model_name, mdb):
-# type: (Any) -> Any
+# type: (Any, str, Any) -> Any
 
     model = mdb.models[model_name]
 
@@ -289,8 +463,8 @@ def build_constrained_sketch(transform, sketch_name, model_name, mdb):
 
 # TODO: We assume a special right rectangular prism geometry. 
 # TODO: Break this up into modular chunks.
-def build_part(name, spec_right_rect_prism, model_name, abq_metadata, mdb):
-# type: (str, SpecRightRectPrism, str, abq_md.ABQMetadata, Any) -> Any
+def build_part(name, spec_right_rect_prism, model_name, record, mdb):
+# type: (str, SpecRightRectPrism, str, md.CommittedToolPassMetadata, Any) -> Any
    
     # ----- Part Creation -----
 
@@ -299,7 +473,7 @@ def build_part(name, spec_right_rect_prism, model_name, abq_metadata, mdb):
 
     # ----- Metadata Updates -----
 
-    abq_metadata.add_part_to_model(model_name, name)
+    record.abaqus_mdb_metadata.models_metadata[model_name].part_names.append(name)
 
     # ----- Sketch Creation -----
 
@@ -355,136 +529,6 @@ def build_part(name, spec_right_rect_prism, model_name, abq_metadata, mdb):
 
 
 
-# Documentation for getCentroid() is slightly incorrect. A tuple of tuple of
-#    floats is returned, instead of a tuple of floats.
-def get_face_centroid(face):
-# type: (Any) -> Tuple[float, float, float]
-
-    return tuple(face.getCentroid()[0])
-
-
-
-def get_face_normal(face):
-# type: (Any) -> Tuple[float, float, float] 
-
-    return tuple(face.getNormal())
-
-
-
-# Get an edge associated with a face. 
-# 
-# Notes:
-# The edge is chosen arbitrarily.
-# 
-# Arguments:
-#    face - Abaqus Face object.
-#    obj  - Abaqus Part object or an Abaqus PartInstance 
-#           Should be the object to which the face belongs. No check if done 
-#              to ensure that the face actually belongs to this object.
-#
-# Returns:
-#    Abaqus Edge object.
-def get_any_edge_on_face(face, obj):
-# type: (Any, Any) -> Any
-    
-    edge_id = face.getEdges()[0]
-    return obj.edges[edge_id]
-
-
-
-def get_part(part_name, model_name, mdb):
-# type: (str, str, Any) -> Any    
-    
-    return mdb.models[model_name].parts[part_name]
-
-
-
-def get_assembly(model_name, mdb):
-# type: (str, Any) -> Any
-    
-    return mdb.models[model_name].rootAssembly
-
-
-
-# Get the faces associated with any object which has faces.
-# 
-# Notes:
-#    None.
-# 
-# Arguments:
-#    obj - An Abaqus Part object or an Abaqus PartInstance object. 
-#
-# Returns:
-#    An Abaqus FaceArray object containing all the Abaqus Face object.
-def get_faces(obj):
-# type: (Any) -> Any
-
-    return obj.faces
-
-
-
-# Get all the vertices associated with an object.
-# 
-# Notes:
-# The documentation for the pointOn member of the Vertex object is incorrect. It
-#    is really a tuple of tuple of floats, not a simple tuple of floats.
-# 
-# Arguments:
-#    obj - An Abaqus Part object or an Abaqus PartInstance object.
-#
-# Returns:
-#    A list of lists of Point3D objects. 
-def get_all_vertices(obj):
-# type: (Any) -> List[List[Point3D]]
-
-    faces = get_faces(obj) 
-
-    vertices = []
-    for face in faces:
-        vertices_on_face = []
-        vertex_ids = face.getVertices()
-
-        for vertex_id in vertex_ids:
-            vertex = geom.Point3D(*obj.vertices[vertex_id].pointOn[0])
-            vertices_on_face.append(vertex)
-
-        vertices.append(vertices_on_face)
-
-    return vertices 
-
-
-
-# Error in documentation of pointOn member.
-def get_edge_vertices(edge, part):
-# type: (Any, Any) -> Tuple[Tuple[float, float, float], Tuple[float, float, float]]
-
-    vertex_ids = edge.getVertices()
-    vertices = [part.vertices[vertex_id].pointOn[0] for vertex_id in vertex_ids]
-    return tuple(vertices)
-   
-
-
-# Error in documentation of pointOn member.
-def get_face_vertices(face, part):
-# type: (Any, Any) -> Tuple[Tuple[float, float, float], ...]
-
-    vertex_ids = face.getVertices()
-    vertices = [part.vertices[vertex_id].pointOn[0] for vertex_id in vertex_ids]
-    return tuple(vertices)
-
-
-
-def find_step_keyword(kwb):
-# type: (Any) -> int
-    
-    for index, string in enumerate(kwb.sieBlocks):
-        if "Step" in string:
-            return index
-
-    raise RuntimeError("Failed to find step keyword!")
-
-
-
 # Modify the input file so that a stress subroutine is included.
 # The stress subroutine must also be associated with the job. This is done
 #    elsewhere.
@@ -508,24 +552,22 @@ def inp_add_stress_subroutine(model_name, mdb):
 # Modify the input file so that the stress state of the part is initialized
 #    and mapped from the result of some other simulation. 
 def inp_map_stress(path_sim_file, model_name, mdb):
-# type: () -> None
+# type: (str, str, Any) -> None
 
-    """
-    There is some subtlety here.
-    It seems like there are two ways to import a stress field which was 
-       generated from a previous simulation as the initial state of a new
-       simulation.
-    We can use the "FILE" parameter in conjunction with the "*Initial Conditions"
-       keyword. This technique does not offer any control over how mapping is
-       done, which concerns me. What happens if the mesh used in the previous
-       simulation and the mesh used for the current simulation are wildly
-       different? A .odb or a .sim file can be used with this technique.
-    Alternatively, we can use the more general "*External Field" keyword in
-       conjunction with the "*Initial Conditions" keyword. This technique offers
-       control over how mapping is done. It is also capable of accounting for
-       translations and rotations of the geometry. A .sim file must be used
-       with this technique.
-    """
+    # There is some subtlety here.
+    # It seems like there are two ways to import a stress field which was 
+    #    generated from a previous simulation as the initial state of a new
+    #    simulation.
+    # We can use the "FILE" parameter in conjunction with the "*Initial Conditions"
+    #    keyword. This technique does not offer any control over how mapping is
+    #    done, which concerns me. What happens if the mesh used in the previous
+    #    simulation and the mesh used for the current simulation are wildly
+    #    different? A .odb or a .sim file can be used with this technique.
+    # Alternatively, we can use the more general "*External Field" keyword in
+    #    conjunction with the "*Initial Conditions" keyword. This technique offers
+    #    control over how mapping is done. It is also capable of accounting for
+    #    translations and rotations of the geometry. A .sim file must be used
+    #    with this technique.
 
     # Synchronize the kwb to the current state of the model.
     # This must happen even if there have been no previous modifications to the
@@ -540,31 +582,15 @@ def inp_map_stress(path_sim_file, model_name, mdb):
     kwb.insert(idx_before_step, "*Initial Conditions, Type=Stress")
     idx_before_external_field = idx_before_step + 1
 
-    """
-    Read Keywords > E > External Field to understand the content of the data
-       line. 
-    The source region is the whole previous model, the target region is the 
-       whole new model, default mapping controls are used, and all stress 
-       components are included from the tensors.
-    """
+    # Read Keywords > E > External Field to understand the content of the data
+    #    line. 
+    # The source region is the whole previous model, the target region is the 
+    #    whole new model, default mapping controls are used, and all stress 
+    #    components are included from the tensors.
     external_field_data_line = " , , , , ,S, , "
     kwb.insert(idx_before_external_field, "*External Field, File=" + path_sim_file + 
                "\n" + external_field_data_line)
 
-
-
-
-def get_step_cnt(model_name, mdb):
-# type: (str, Any) -> None
-
-    return len(mdb.models[model_name].steps)
-
-
-
-def get_BC_cnt(model_name, mdb):
-# type: (Any) -> Int 
-
-    return len(mdb.models[model_name].boundaryConditions)
 
 
 # Create part instance in the root assembly for the default model.
@@ -578,10 +604,10 @@ def instance_part_into_assembly(instance_name, part, dependent, model_name, mdb)
 # Cut a single part instance via multiple other part instances. 
 # The result is a new part in the model.
 # Remember to instance the resulting part!
-def cut_instances_in_assembly(name, instance_to_be_cut, cutting_instances, model_name, abq_metadata, mdb):
-# type: (str, Any, tuple[Any], str, Any, Any) -> Any
+def cut_instances_in_assembly(name, instance_to_be_cut, cutting_instances, model_name, record, mdb):
+# type: (str, Any, tuple[Any], str, md.CommittedToolPassMetadata, Any) -> Any
 
-    abq_metadata.add_part_to_model(model_name, name)
+    record.abaqus_mdb_metadata.models_metadata[model_name].parts_names.append(name)
 
     # Beware, the argument list ordering in the documentation for PartFrom
     #    BooleanCut() appears to be incorrect.
@@ -613,12 +639,12 @@ def naive_mesh(part_instance, size, model_name, mdb):
 
 
 # Create an equilbirium step after another specified step.
-def create_equilibrium_step(name, name_step_to_follow, model_name, abq_metadata, mdb):
-# type: (str, str, str, abq_md.ABQMetadata, Any) -> None
+def create_equilibrium_step(name, name_step_to_follow, model_name, record, mdb):
+# type: (str, str, str, md.CommittedToolPassMetadata, Any) -> None
 
     step = mdb.models[model_name].StaticStep(name, name_step_to_follow)
     
-    abq_metadata.add_step_to_model(model_name, name)
+    record.abaqus_mdb_metadata.models_metadata[model_name].step_names.append(name)
 
     return step 
 
@@ -626,15 +652,15 @@ def create_equilibrium_step(name, name_step_to_follow, model_name, abq_metadata,
 
 # Note that the name of the job matches the name of the various files produced
 #    by the job when it is run (the .odb, .dat, etc. files).
-def create_job(job_name, model_name, abq_metadata, mdb):
-# type: (str, str, Any, Any) -> None 
+def create_job(job_name, model_name, record, mdb):
+# type: (str, str, md.CommittedToolPassMetadata, Any) -> None 
 
     # The "resultsFormat=BOTH" causes Abaqus to generate .odb and .sim files
     #    when the simulation runs. This functionality is currently undocumented
     #    in the Abaqus documentation.
     job = mdb.Job(job_name, model_name, resultsFormat=BOTH)
     
-    abq_metadata.add_job_to_model(model_name, job_name)
+    record.abaqus_mdb_metadata.models_metadata[model_name].job_name = job_name
     
     return job
 
@@ -673,34 +699,14 @@ def print_job_messages(job):
     
 
 
-def create_model_from_odb(odb_path, model_name, abq_metadata, mdb):
-# type: (str, str, abq_md.ABQMetadata, Any) -> None
+def create_model_from_odb(odb_path, model_name, record, mdb):
+# type: (str, str, md.CommittedToolPassMetadata, Any) -> None
 
     model = mdb.ModelFromOdbFile(model_name, odb_path)
 
-    abq_metadata.add_model(model_name)  
+    record.abaqus_mdb_metadata.add_model(model_name)
 
     return model
-
-
-
-# Returns all the unique element faces which exist in the part. Unique in this 
-#    context means that, even if two elements are next to one another and share
-#    a face, the shared face will only be listed once in the returned sequence
-#    of MeshFace objects.
-def get_unique_element_faces(orphan_mesh_part):
-# type: (Any) -> Any  
-
-    return orphan_mesh_part.elementFaces
-
-
-
-# Get the elements associated with a particular MeshFace object.
-# A MeshFace object corresponds to a face which lives in a mesh.
-def get_mesh_face_elements(mesh_face):
-# type: (Any) -> Any
-    
-    return mesh_face.getElements()
 
 
 
