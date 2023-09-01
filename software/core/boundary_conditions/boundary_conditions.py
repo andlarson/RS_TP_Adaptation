@@ -140,8 +140,9 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
     """
     Step 1: Find the face that the ngon belongs to.
     """
-   
-    vertices = shim.get_all_vertices(obj)
+  
+    # Critical to ensure that the vertices are well-ordered on a per-face basis.
+    vertices = shim.get_all_vertices_ordered(obj)
 
     face_ngon_belongs_to = None
 
@@ -210,6 +211,8 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
     # DEBUG
     dp("In the middle of face partitioning!")
     dp("The face which is going to be partitioned is defined by the vertices: " + str(shim.get_face_vertices(face_ngon_belongs_to, part if part else instance)))
+    debug = [v.get_components() for v in ngon.vertices]
+    dp("The vertices of the ngon are: " + str(debug))
     save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass.cae"
     shim.save_mdb_as(save_loc, mdb)
 

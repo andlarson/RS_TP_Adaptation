@@ -164,6 +164,113 @@ def get_all_vertices(obj):
 
 
 
+# Get all the vertices associated with an object. This function ensures that, on
+#    a per-face basis, the vertices are well-ordered. That is, the ordering of
+#    the vertices mirrors the connectivity of the vertices.
+# 
+# Notes:
+# The documentation for the pointOn member of the Vertex object is incorrect. It
+#    is really a tuple of tuple of floats, not a simple tuple of floats.
+# 
+# Arguments:
+#    obj - An Abaqus Part object or an Abaqus PartInstance object.
+#
+# Returns:
+#    A list of lists of Point3D objects. 
+def get_all_vertices_ordered(obj):
+# type: (Any) -> List[List[Point3D]]
+
+    faces = get_faces(obj) 
+
+    vertices = []
+    for face in faces:
+        vertex_ids = face.getVertices()
+        vertices_on_face = [obj.vertices[vertex_id] for vertex_id in vertex_ids]
+        ordered_vertices = order_vertices(vertices_on_face, face, obj) 
+        vertices.append([geom.Point3D(*vertex.pointOn[0]) for vertex in ordered_vertices])
+
+    return vertices 
+
+
+
+# Orders the vertices of a face to reflect the edge connectivity of the face.
+#    In the resulting list of Abaqus Vertex objects, the first vertex is connected
+#    to the second vertex on the face, the second vertex is connected to the
+#    third on the face, etc.
+#
+# Notes:
+#    The list is not circular. 
+#    This function does not care whether the face is convex or non-convex.
+#
+# Arguments:
+#    vertices - List of Abaqus Vertex objects.
+#    face     - Abaqus Face object.
+#               The face on which the vertex lives.
+#    obj      - Abaqus Part or Abaqus PartInstance.
+#               The vertex and face belong to this.
+#
+# Returns:
+#    List of Abaqus Vertex objects.
+def order_vertices(vertices, face, obj):
+
+    first_vertex = vertices[0]
+    prev_vertex = first_vertex 
+    first_neighbors = find_neighbor_vertices(first_vertex, face, obj)
+    current_vertex = first_neighbors[0]
+    last_vertex = first_neighbors[1]
+
+    well_ordered_vertices = []    
+    while current_vertex.index != first_vertex.index:
+        
+        well_ordered_vertices.append(current_vertex)
+
+        current_neighbors = find_neighbor_vertices(current_vertex, face, obj)
+    
+        if current_neighbors[0].index != prev_vertex.index:
+            prev_vertex = current_vertex
+            current_vertex = current_neighbors[0]
+        else:
+            prev_vertex = current_vertex
+            current_vertex = current_neighbors[1]
+   
+    return well_ordered_vertices
+
+
+
+# Find the other vertices that a vertex is connected to on a face.
+#
+# Notes:
+#    None.
+#
+# Arguments:
+#    vertex - Abaqus Vertex object.
+#    face   - Abaqus Face object.
+#             The face on which the vertex lives.
+#    obj    - Abaqus Part or Abaqus PartInstance.
+#             The vertex and face belong to this.
+#
+# Returns:
+#    List of exactly two Abaqus Vertex objects.
+def find_neighbor_vertices(vertex, face, obj):
+# type: (Any, Any, Any) -> List[Any, Any]
+
+    face_edge_ids = face.getEdges()
+    face_edges = [obj.edges[edge_id] for edge_id in face_edge_ids] 
+
+    # Find the edges on the face connected to the vertex of interest.
+    connected_vertices = []
+    for edge in face_edges:
+        if vertex.index == edge.getVertices()[0]:
+            connected_vertices.append(obj.vertices[edge.getVertices()[1]]) 
+        elif vertex.index == edge.getVertices()[1]:
+            connected_vertices.append(obj.vertices[edge.getVertices()[0]]) 
+
+    assert(len(connected_vertices) == 2)
+
+    return connected_vertices
+
+
+
 # Error in documentation of pointOn member.
 def get_edge_vertices(edge, part):
 # type: (Any, Any) -> Tuple[Tuple[float, float, float], Tuple[float, float, float]]

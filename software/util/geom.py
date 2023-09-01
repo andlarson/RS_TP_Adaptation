@@ -350,7 +350,8 @@ class NGon3D:
 
 
 
-class Line3D:
+# An infinite line extends arbitrarily in space. Its length is infinite.
+class Infinite_Line3D:
 
     def __init__(self, p1, p2):
     # type: (Point3D, Point3D) -> None
@@ -402,8 +403,63 @@ class Line3D:
 
 
 
+class Finite_Line3D:
 
-class Line2D:
+    def __init__(self, p1, p2):
+    # type: (Point3D, Point3D) -> None
+
+        # Store a parametric representation of the line.
+        self.p1 = p1
+        self.p2 = p2
+
+        self.line_dir = Vec3D(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z)
+
+
+    def is_on(self, point):
+    # type: (Point3D) -> bool
+
+        # TODO: Cleanup! Once points are represented by numpy arrays, this can
+        #    be tightened up.
+
+        # Try to solve for parameters which put the point on the line. 
+        x_parameter = robust_float_div(point.x - self.p1.x, float(self.line_dir.np_arr[0]))
+        y_parameter = robust_float_div(point.y - self.p1.y, float(self.line_dir.np_arr[1]))
+        z_parameter = robust_float_div(point.z - self.p1.z, float(self.line_dir.np_arr[2]))
+
+        # Zeros can cause problems.
+        # Consider a line defined by: (0, 0, 0) + t * <0, -5, 0>. Say we want
+        #    to check if (0, 5, 0) lies on this line (it obviously does).
+        # Using the equations above, x_parameter = nan, y_parameter = -1, and
+        #    z_parameter = nan.
+        # This implies that checking for parameter equality is insufficient. We
+        #    should instead check if x_parameter, y_parameter, or z_parameter
+        #    gives a valid solution.
+        
+        x1 = self.p1.x + x_parameter * float(self.line_dir.np_arr[0])
+        y1 = self.p1.y + x_parameter * float(self.line_dir.np_arr[1])
+        z1 = self.p1.z + x_parameter * float(self.line_dir.np_arr[2])
+        res1 = Point3D(x1, y1, z1)
+
+        x1 = self.p1.x + y_parameter * float(self.line_dir.np_arr[0])
+        y1 = self.p1.y + y_parameter * float(self.line_dir.np_arr[1])
+        z1 = self.p1.z + y_parameter * float(self.line_dir.np_arr[2])
+        res2 = Point3D(x1, y1, z1)
+
+        x1 = self.p1.x + z_parameter * float(self.line_dir.np_arr[0])
+        y1 = self.p1.y + z_parameter * float(self.line_dir.np_arr[1])
+        z1 = self.p1.z + z_parameter * float(self.line_dir.np_arr[2])
+        res3 = Point3D(x1, y1, z1)
+
+        if (identical_points(point, res1) or identical_points(point, res2) or identical_points(point, res3)) and \
+           point_in_box(point, (self.p1, self.p2)):
+            return True
+
+        return False
+
+
+
+# An infinite line extends arbitrarily in space. Its length is infinite.
+class Infinite_Line2D:
 
     def __init__(self, p1, p2):
     # type: (Point2D, Point2D) -> None
@@ -435,6 +491,66 @@ class Line2D:
             return True
 
         return False
+
+
+
+# A finite line has finite length.
+class Finite_Line2D:
+
+    # The two points define the length of the line.
+    def __init__(self, p1, p2):
+    # type: (Point2D, Point2D) -> None
+
+        self.p1 = p1 
+        self.p2 = p2
+
+        self.line_dir = Vec2D(p1.x1 - p2.x1, p1.x2 - p2.x2)
+
+
+    def is_on(self, point):
+    # type: (Point2D) -> bool
+
+        # TODO: Cleanup! Once points are represented by numpy arrays, this can
+        #    be tightened up.
+
+        x_parameter = robust_float_div(point.x1 - self.p1.x1, float(self.line_dir.np_arr[0]))
+        y_parameter = robust_float_div(point.x2 - self.p1.x2, float(self.line_dir.np_arr[1]))
+
+        # See note in Line3D method.
+        x1 = self.p1.x1 + x_parameter * float(self.line_dir.np_arr[0])
+        x2 = self.p1.x2 + x_parameter * float(self.line_dir.np_arr[1])
+        res1 = Point2D(x1, x2)
+
+        x1 = self.p1.x1 + y_parameter * float(self.line_dir.np_arr[0])
+        x2 = self.p1.x2 + y_parameter * float(self.line_dir.np_arr[1])
+        res2 = Point2D(x1, x2)
+
+        if (identical_points(point, res1) or identical_points(point, res2)) and \
+            point_in_box(point, (self.p1, self.p2)):
+            return True
+
+        return False
+   
+
+
+# Check if a point lies in the box defined by two other points.
+def point_in_box(point, box_points):
+# type: (Union[Point2D, Point3D], Tuple[Union[Point2D, Point3D], Union[Point2D, Point3D]]) -> bool
+
+    if isinstance(point, Point2D):
+        if min(box_points[0].x1, box_points[1].x1) <= point.x1 <= max(box_points[0].x1, box_points[1].x1) and \
+           min(box_points[0].x2, box_points[1].x2) <= point.x2 <= max(box_points[0].x2, box_points[1].x2):
+            return True
+        else:
+            return False
+
+    else:
+        if min(box_points[0].x, box_points[1].x) < point.x < max(box_points[1].x, box_points[0].x) and \
+           min(box_points[0].y, box_points[1].y) < point.y < max(box_points[1].y, box_points[0].y) and \
+           min(box_points[0].z, box_points[1].z) < point.z < max(box_points[1].z, box_points[0].z):
+            return True
+        else:
+            return False
 
 
 
@@ -518,9 +634,9 @@ def are_collinear(points):
     points_for_line = find_non_identical_points(points)
 
     if isinstance(points[0], Point3D):
-        line = Line3D(*points_for_line)
+        line = Infinite_Line3D(*points_for_line)
     else:
-        line = Line2D(*points_for_line)
+        line = Infinite_Line2D(*points_for_line)
 
     for point in points:
         if not line.is_on(point):
@@ -601,7 +717,7 @@ def points_on_plane_of_ngon(points, ngon):
 
 # Check if all the points lie in the ngon.
 def points_in_ngon_3D(points, ngon):
-# type: (List[Point3D], NGon3D) -> bool
+# type: (Tuple[Point3D], NGon3D) -> bool
 
     for point in points:
         if not point_in_ngon_3D(point, ngon):
@@ -658,7 +774,7 @@ def point_in_ngon_2D(point, ngon):
         else:
             next_vertex = ngon.vertices[idx + 1]
         
-        line = Line2D(vertex, next_vertex)
+        line = Finite_Line2D(vertex, next_vertex)
 
         if line.is_on(point):
             return True
@@ -748,7 +864,3 @@ def find_third_orthonormal(vec1, vec2):
     sol_vec = Vec3D(*np.cross(vec1.np_arr, vec2.np_arr))
 
     return sol_vec.get_norm()
-
-    
-
-
