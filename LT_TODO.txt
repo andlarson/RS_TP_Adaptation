@@ -144,3 +144,7 @@ Follow PEP8 style guidelines in codebase. I think that the most major change wil
   to access. Therefore, a programmer might name a class attribute to designate it 
   as private, and then access it elsewhere inside the project. Also, the imports 
   should be structured accordingly.
+
+It's generally a pain to write my own geometric routines. If I decide to write my
+  own, I need testcase suites. If not, I need to figure out how to call C++ code
+  from Python.

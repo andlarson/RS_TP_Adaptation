@@ -13,21 +13,15 @@ from util.debug import *
 if __name__ == "__main__":
 
     """
-    point = geom.Point3D(0, 10, 300)
-    ngon_v1 = geom.Point3D(0, 10, 0)
-    ngon_v2 = geom.Point3D(0, 10, 20)
-    ngon_v3 = geom.Point3D(20, 10, 20)
-    ngon_v4 = geom.Point3D(20, 10, 0)
+    point = geom.Point3D(40, 10, 40)
+    ngon_v1 = geom.Point3D(40, 10, 185)
+    ngon_v2 = geom.Point3D(0, 10, 185)
+    ngon_v3 = geom.Point3D(0, 10, 0)
+    ngon_v4 = geom.Point3D(40, 10, 0)
     ngon = geom.NGon3D([ngon_v1, ngon_v2, ngon_v3, ngon_v4])
     dp(str(geom.point_in_ngon_3D(point, ngon)))
     """
 
-    p1 = geom.Point3D(0, 0, 0)
-    p2 = geom.Point3D(0, 5, 0)
-    p3 = geom.Point3D(0, 10, 0)
-    dp(str(geom.are_collinear([p1, p2, p3])))
-
-    """
     # ----- Specifying the initial geometry -----
    
     path_to_cae = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_initial_geometry.cae" 
@@ -152,4 +146,3 @@ if __name__ == "__main__":
 
     save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass.cae"
     machining_process.sim_potential_tool_passes(tool_pass_plan, save_loc)
-    """

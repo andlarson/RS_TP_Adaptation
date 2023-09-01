@@ -140,14 +140,14 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
     """
     Step 1: Find the face that the ngon belongs to.
     """
-    
+   
     vertices = shim.get_all_vertices(obj)
 
     face_ngon_belongs_to = None
-    
+
     # Find the face that the ngon lives on.
     for idx, vertices_single_face in enumerate(vertices):
-        
+
         # Subtle point: If the points which define the vertices of a face are
         #    not on a plane (i.e. there is a curved surface), then this will
         #    almost always fail. This is intended behavior. No functionality for
@@ -161,11 +161,6 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
         #    faces is the same. This could be formalized in some way.
         if geom.points_on_plane_of_ngon(vertices_single_face, ngon):
             if geom.points_in_ngon_3D(ngon.vertices, geom.NGon3D(vertices_single_face)):
-
-                # DEBUG
-                dp(str([vertex.get_components() for vertex in ngon.vertices]))
-                dp(str([vertex.get_components() for vertex in vertices_single_face]))
-
                 face_ngon_belongs_to = shim.get_faces(obj)[idx]
                 break
 

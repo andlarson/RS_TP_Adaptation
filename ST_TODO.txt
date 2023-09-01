@@ -6,6 +6,8 @@ Short Term TODO.
     1) Map mesh output to geometry.
     2) Map old stress profile to new geometry.
     3) Propagate boundary conditions and account for them if necessary.
+          - In partition_face(), cannot gaurantee that the vertices of the
+               object are ordered correctly.
 
 2) Pause to map out current code structure and do clean up.
 

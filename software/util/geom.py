@@ -1,5 +1,6 @@
 import sys
 import math
+import itertools
 
 import numpy as np
 import numpy.linalg as linalg
@@ -137,9 +138,6 @@ class Vec3D:
 
     def __init__(self, x, y, z):
     # type: (Union[float, int], Union[float, int], Union[float, int]) -> None
-
-        if float_equals(x, 0) and float_equals(y, 0) and float_equals(z, 0):
-            raise RuntimeError("Attempt to create vector which is meaningless.")
 
         self.np_arr = np.array([float(x), float(y), float(z)])
 
@@ -339,7 +337,7 @@ class NGon3D:
     def proj_xz(self):
     # type: (None) -> NGon2D
 
-        proj_points = [proj_xz(vertex) for vertex in self.vertices]
+        proj_points = [vertex.proj_xz() for vertex in self.vertices]
         return NGon2D(proj_points)
 
 
@@ -357,20 +355,50 @@ class Line3D:
     def __init__(self, p1, p2):
     # type: (Point3D, Point3D) -> None
 
+        # Store a parametric representation of the line.
         self.p1 = p1
-
         self.line_dir = Vec3D(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z)
 
 
     def is_on(self, point):
     # type: (Point3D) -> bool
 
-        x_parameter = robust_float_div(point.x - self.p1.x, self.line_dir.np_arr[0])
-        y_parameter = robust_float_div(point.y - self.p1.y, self.line_dir.np_arr[1])
-        z_parameter = robust_float_div(point.z - self.p1.z, self.line_dir.np_arr[2])
+        # TODO: Cleanup! Once points are represented by numpy arrays, this can
+        #    be tightened up.
 
-        return (robust_float_equals(x_parameter, y_parameter) and 
-                robust_float_equals(y_parameter, z_parameter))
+        # Try to solve for parameters which put the point on the line. 
+        x_parameter = robust_float_div(point.x - self.p1.x, float(self.line_dir.np_arr[0]))
+        y_parameter = robust_float_div(point.y - self.p1.y, float(self.line_dir.np_arr[1]))
+        z_parameter = robust_float_div(point.z - self.p1.z, float(self.line_dir.np_arr[2]))
+
+        # Zeros can cause problems.
+        # Consider a line defined by: (0, 0, 0) + t * <0, -5, 0>. Say we want
+        #    to check if (0, 5, 0) lies on this line (it obviously does).
+        # Using the equations above, x_parameter = nan, y_parameter = -1, and
+        #    z_parameter = nan.
+        # This implies that checking for parameter equality is insufficient. We
+        #    should instead check if x_parameter, y_parameter, or z_parameter
+        #    gives a valid solution.
+        
+        x1 = self.p1.x + x_parameter * float(self.line_dir.np_arr[0])
+        y1 = self.p1.y + x_parameter * float(self.line_dir.np_arr[1])
+        z1 = self.p1.z + x_parameter * float(self.line_dir.np_arr[2])
+        res1 = Point3D(x1, y1, z1)
+
+        x1 = self.p1.x + y_parameter * float(self.line_dir.np_arr[0])
+        y1 = self.p1.y + y_parameter * float(self.line_dir.np_arr[1])
+        z1 = self.p1.z + y_parameter * float(self.line_dir.np_arr[2])
+        res2 = Point3D(x1, y1, z1)
+
+        x1 = self.p1.x + z_parameter * float(self.line_dir.np_arr[0])
+        y1 = self.p1.y + z_parameter * float(self.line_dir.np_arr[1])
+        z1 = self.p1.z + z_parameter * float(self.line_dir.np_arr[2])
+        res3 = Point3D(x1, y1, z1)
+
+        if identical_points(point, res1) or identical_points(point, res2) or identical_points(point, res3):
+            return True
+
+        return False
 
 
 
@@ -382,16 +410,31 @@ class Line2D:
 
         self.p1 = p1 
 
-        self.line_dir = Vec2D(p1.x - p2.x, p1.y - p2.y)
+        self.line_dir = Vec2D(p1.x1 - p2.x1, p1.x2 - p2.x2)
 
 
     def is_on(self, point):
     # type: (Point2D) -> bool
 
-        x_parameter = robust_float_div(point.x1 - self.p1.x1, self.line_dir.np_arr[0])
-        y_parameter = robust_float_div(point.x2 - self.p1.x2, self.line_dir.np_arr[1])
+        # TODO: Cleanup! Once points are represented by numpy arrays, this can
+        #    be tightened up.
 
-        return robust_float_equals(x_parameter, y_parameter)
+        x_parameter = robust_float_div(point.x1 - self.p1.x1, float(self.line_dir.np_arr[0]))
+        y_parameter = robust_float_div(point.x2 - self.p1.x2, float(self.line_dir.np_arr[1]))
+
+        # See note in Line3D method.
+        x1 = self.p1.x1 + x_parameter * float(self.line_dir.np_arr[0])
+        x2 = self.p1.x2 + x_parameter * float(self.line_dir.np_arr[1])
+        res1 = Point2D(x1, x2)
+
+        x1 = self.p1.x1 + y_parameter * float(self.line_dir.np_arr[0])
+        x2 = self.p1.x2 + y_parameter * float(self.line_dir.np_arr[1])
+        res2 = Point2D(x1, x2)
+
+        if identical_points(point, res1) or identical_points(point, res2):
+            return True
+
+        return False
 
 
 
@@ -402,6 +445,32 @@ def float_equals(a, b):
         return True
 
     return False
+
+
+
+def identical_points(pt1, pt2):
+# type: (Union[Point3D, Point2D], Union[Point3D, Point2D]) -> bool
+
+    if isinstance(pt1, Point3D):
+        if float_equals(pt1.x, pt2.x) and float_equals(pt1.y, pt2.y) and \
+           float_equals(pt1.z, pt2.z):
+            return True
+    else:
+        if float_equals(pt1.x1, pt2.x1) and float_equals(pt1.x2, pt2.x2):
+            return True
+
+    return False
+
+
+
+def find_non_identical_points(points):
+# type: (Tuple[Union[Point3D, Point2D], ...]) -> Tuple(Union[Point3D, Point2D], Union[Point3D, Point2D])
+
+    for point_pair in itertools.combinations(points, 2):
+        if not identical_points(*point_pair):
+            return point_pair
+
+    raise RuntimeError("Failed to find a pair of non identical points!")
 
 
 
@@ -446,13 +515,12 @@ def are_collinear(points):
 
     assert(len(points) > 2)
 
-    if isinstance(points[0], Point3D):
-        
-        line = Line3D(*points[:2])
+    points_for_line = find_non_identical_points(points)
 
+    if isinstance(points[0], Point3D):
+        line = Line3D(*points_for_line)
     else:
-        
-        line = Line2D(*points[:2])
+        line = Line2D(*points_for_line)
 
     for point in points:
         if not line.is_on(point):
@@ -567,10 +635,6 @@ def point_in_ngon_3D(point, ngon):
 
     # If all of the points are collinear, then project onto a different plane.
     if are_collinear(proj_ngon.vertices + [proj_point]):
-
-        # DEBUG
-        dp("collinear")
-
         proj_point = point.proj_xz()
         proj_ngon = ngon.proj_xz()
 
@@ -581,37 +645,27 @@ def point_in_ngon_3D(point, ngon):
 # Check if a point lies inside an ngon.
 # Assumed that both the point and the ngon live in 2D.
 # This algorithm assumes that the points which compose the ngon are in-order. 
-# If the point lies on one of the edges of the ngon (within float approximation), 
-#    it is deemed to be in the ngon.
+# If the point lies on one of the edges of the ngon, it is deemed to be in the 
+#    ngon.
 def point_in_ngon_2D(point, ngon):
 # type: (Point2D, NGon2D) -> bool    
 
-    circular_vertices = ngon.vertices + ngon.vertices[0:1]
-
-    # If the point lies on any edge, it is in the ngon.
-    for idx in range(len(circular_vertices)):
-         
-        y2 = circular_vertices[idx + 1].x2
-        y1 = circular_vertices[idx].x2
-        x2 = circular_vertices[idx + 1].x1
-        x1 = circular_vertices[idx].x1
-
-        # If the line connecting the vertices is vertical, do a manual check.
-        # TODO: Some of the floating point comparisons are a bit loose here. 
-        if float_equals(x1 - x2, 0):
-            if float_equals(point.x1, x1) and (min(y1, y2) <= point.x2 <= max(y1, y2)):
-                return True
-        # Otherwise, construct the equation of the line and check if the point
-        #    lies on it.
-        else:
-            slope = (y2 - y1) / (x2 - x1)
-            intercept = (y2 * x1 - y1 * x2) / (x1 - x2)
-            if float_equals(slope * point.x1 + intercept, point.x2):
-                return True
+    # If the point lies on an edge, it is in the ngon.
+    for idx, vertex in enumerate(ngon.vertices):
         
+        if idx == len(ngon.vertices) - 1:
+            next_vertex = ngon.vertices[0]
+        else:
+            next_vertex = ngon.vertices[idx + 1]
+        
+        line = Line2D(vertex, next_vertex)
+
+        if line.is_on(point):
+            return True
+    
     # Otherwise, check if it's in the interior. 
-    ngon = path.Path(ngon.get_builtin_rep, closed=True)
-    return ngon.contains_point(point.get_components(), ngon)
+    ngon = path.Path(ngon.get_builtin_rep(), closed=True)
+    return ngon.contains_point(point.get_components())
 
 
 
