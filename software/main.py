@@ -12,16 +12,6 @@ from util.debug import *
 
 if __name__ == "__main__":
 
-    """
-    point = geom.Point3D(40, 10, 40)
-    ngon_v1 = geom.Point3D(40, 10, 185)
-    ngon_v2 = geom.Point3D(0, 10, 185)
-    ngon_v3 = geom.Point3D(0, 10, 0)
-    ngon_v4 = geom.Point3D(40, 10, 0)
-    ngon = geom.NGon3D([ngon_v1, ngon_v2, ngon_v3, ngon_v4])
-    dp(str(geom.point_in_ngon_3D(point, ngon)))
-    """
-
     # ----- Specifying the initial geometry -----
    
     path_to_cae = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_initial_geometry.cae" 
