@@ -119,9 +119,9 @@ class SimNames:
 
             # Extract some names from the last model on record. 
             last_model_name = record.abaqus_mdb_metadata.model_names[-1] 
-            self.pre_tool_pass_part_name = record.abaqus_mdb_metadata.models_metadata[last_model_name].part_names[-1]
-            self.last_model_odb_name = record.abaqus_mdb_metadata.models_metadata[last_model_name].job_name
-
+            # Abaqus makes the new part name all uppercase for whatever reason.
+            self.pre_tool_pass_part_name = record.abaqus_mdb_metadata.models_metadata[last_model_name].part_names[-1].upper()     
+            self.last_model_odb_file_name = record.abaqus_mdb_metadata.models_metadata[last_model_name].job_name + ".odb"
 
 
 

@@ -171,6 +171,10 @@ def get_all_vertices(obj):
 # Notes:
 # The documentation for the pointOn member of the Vertex object is incorrect. It
 #    is really a tuple of tuple of floats, not a simple tuple of floats.
+# Consider the square face defined by the vertices: (0, 0), (1, 0), (0, 1), (1, 1).
+#    The vertices are not well-ordered when the list of vertices is [(0, 0), (1, 0),
+#    (0, 1), (1, 1)] because if you draw a line from (0, 0) to (1, 0), a line from
+#    (1, 0) to (0, 1), and a line from (0, 1) to (1, 1) you don't get a square.
 # 
 # Arguments:
 #    obj - An Abaqus Part object or an Abaqus PartInstance object.
@@ -186,7 +190,9 @@ def get_all_vertices_ordered(obj):
     for face in faces:
         vertex_ids = face.getVertices()
         vertices_on_face = [obj.vertices[vertex_id] for vertex_id in vertex_ids]
+
         ordered_vertices = order_vertices(vertices_on_face, face, obj) 
+
         vertices.append([geom.Point3D(*vertex.pointOn[0]) for vertex in ordered_vertices])
 
     return vertices 
@@ -205,21 +211,21 @@ def get_all_vertices_ordered(obj):
 # Arguments:
 #    vertices - List of Abaqus Vertex objects.
 #    face     - Abaqus Face object.
-#               The face on which the vertex lives.
+#               The face on which the vertices lives.
 #    obj      - Abaqus Part or Abaqus PartInstance.
-#               The vertex and face belong to this.
+#               The vertices and face belong to this.
 #
 # Returns:
 #    List of Abaqus Vertex objects.
 def order_vertices(vertices, face, obj):
+# type: (List[Any], Any, Any) -> List[Any]
 
     first_vertex = vertices[0]
-    prev_vertex = first_vertex 
+    prev_vertex = vertices[0] 
     first_neighbors = find_neighbor_vertices(first_vertex, face, obj)
     current_vertex = first_neighbors[0]
-    last_vertex = first_neighbors[1]
 
-    well_ordered_vertices = []    
+    well_ordered_vertices = [first_vertex]    
     while current_vertex.index != first_vertex.index:
         
         well_ordered_vertices.append(current_vertex)
@@ -558,7 +564,7 @@ def extract_global_csys_to_sketch_csys(transform):
 #    sketch_name - String. 
 #                  Name of the new sketch.
 #    model_name  - String.
-#    mdb         - String.
+#    mdb         - Abaqus MDB object.
 #
 # Returns:
 #    Abaqus ConstrainedSketch object.

@@ -53,6 +53,10 @@ def sim_single_tool_pass(tool_pass, record, mdb):
     else:
         raise RuntimeError("Can't figure out how to do next tool pass...")
 
+    # DEBUG
+    dp("Finished simulating a tool pass!")
+    shim.save_mdb_as("post_tool_pass.cae", mdb)
+
 
 
 # Simulating the very first tool pass in an MDB.
@@ -68,9 +72,9 @@ def sim_first_tool_pass(tool_pass, record, mdb):
     #    defined stress profile must achieve equilbrium!
     # Since this modifies the input file directly, this should be the last
     #    thing that happens before the job is submitted and runs.
-    shim.inp_add_stress_subroutine(names.model_name, mdb)
+    shim.inp_add_stress_subroutine(names.new_model_name, mdb)
 
-    job = shim.create_job(names.post_tool_pass_part_name, names.model_name, record, mdb) 
+    job = shim.create_job(names.post_tool_pass_part_name, names.new_model_name, record, mdb) 
 
     # Associate the user subroutine with the job.
     shim.add_user_subroutine(job, record.init_part.path_to_stress_subroutine)
@@ -85,7 +89,8 @@ def sim_nth_tool_pass(tool_pass, record, mdb):
     names = abq_md.SimNames(record) 
 
     # Create the new model from the output of the last model.
-    new_model = shim.create_model_from_odb(names.last_model_odb_name, names.new_model_name, record, mdb)
+    new_model = shim.create_model_from_odb(names.last_model_odb_file_name, names.new_model_name, record, mdb)
+
     orphan_mesh_to_geometry(names.pre_tool_pass_part_name, names.new_model_name, mdb)
 
     do_boilerplate_sim_ops(tool_pass, names, record, mdb)
