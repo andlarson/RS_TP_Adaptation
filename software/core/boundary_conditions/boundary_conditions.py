@@ -5,7 +5,6 @@ import core.abaqus.abaqus_shim as shim
 from util.debug import *
 
 
-
 # TODO: Build this out if necessary.
 class BCSettings:
 

@@ -4,11 +4,9 @@ import numpy as np
 from abaqus import *
 from abaqusConstants import * 
 import regionToolset             # Unclear why necessary.   
-import part                      # Unclear why necessary.
 
 import util.geom as geom
 from util.debug import *
-
 
 
 # There are standard names/prefixes/suffixes which we expect and impose in Abaqus 
@@ -129,7 +127,6 @@ def get_faces(obj):
 # type: (Any) -> Any
 
     return obj.faces
-
 
 
 # Get all the vertices associated with an object.

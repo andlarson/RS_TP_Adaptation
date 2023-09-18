@@ -12,18 +12,15 @@ import util.geom as geom
 import core.part.part as part
 import core.tool_pass.tool_pass as tp
 import core.boundary_conditions.boundary_conditions as bc
-import core.abaqus.abaqus_shim as shim
 from util.debug import *
 
 
 if __name__ == "__main__":
 
-
     # ----- Specifying the initial geometry -----
    
     path_to_cae = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_initial_geometry.cae" 
     abaqus_part = part.AbaqusDefinedPart("an_example_part", path_to_cae)
-
 
     # ----- Specifying the clamping setup (aka the boundary conditions) -----
 
