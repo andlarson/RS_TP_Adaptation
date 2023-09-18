@@ -296,21 +296,6 @@ class NGon2D:
 
 
 
-class NGonWithHoles2D:
-
-    def __init__(self, points):
-    # type: (List[Point2D]) -> None
-
-        # TODO:
-        # We should really check that an ngon is well defined.
-        # In particular, that none of the points are on the interior of the ngon
-        #    and that there are no redundant points.
-        self.vertices = points
-
-        
-
-
-
 class NGon3D:
 
     # The points must be defined in order. In other words, the ngon will be

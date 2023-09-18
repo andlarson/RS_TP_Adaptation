@@ -42,6 +42,35 @@ def find_step_keyword(kwb):
 
 
 
+# Find the face closest to a group of points.
+# 
+# Notes:
+# This function is a workaround to writing/calling nasty geometric routines. In
+#    particular, it was introduced to avoid writing a routine which checks if
+#    a three dimensional polygon is entirely inside a three dimensional polygon
+#    which may have holes in it.
+# The default search tolerance is used.
+# Throws an exception if no face can be found.
+# 
+# Arguments:
+#    points - List of Point3D objects.
+#    obj   - An Abaqus Part object or Abaqus PartInstance object.
+#
+# Returns:
+#    Abaqus Face object.
+def get_closest_face(points, obj):
+# type: (List[Point3D], Any) -> Any
+
+    points = [p.get_components() for p in points]
+    face_and_point = obj.faces.getClosest(points)
+
+    # Documentation slightly unclear, aasuming that index 0 always works.
+    face = face_and_point[0][0]
+
+    return face
+    
+
+
 # Returns all the unique element faces which exist in the part. Unique in this 
 #    context means that, even if two elements are next to one another and share
 #    a face, the shared face will only be listed once in the returned sequence
@@ -171,29 +200,33 @@ def get_all_vertices(obj):
 #    The vertices are not well-ordered when the list of vertices is [(0, 0), (1, 0),
 #    (0, 1), (1, 1)] because if you draw a line from (0, 0) to (1, 0), a line from
 #    (1, 0) to (0, 1), and a line from (0, 1) to (1, 1) you don't get a square.
+# There can be multiple groups of vertices on a single face. This is relevant
+#    when there are holes within a face. Each group of vertices lives in its own
+#    list. The lists are ordered arbitrarily. It might be the case that a list of
+#    vertices which outlines a hole in a face is the first list of vertices for
+#    that face.
 # 
 # Arguments:
 #    obj - Abaqus Part object or Abaqus PartInstance object.
 #
 # Returns:
-#    A list of lists of Point3D objects. 
+#    A list of lists of lists of vertices. 
 def get_all_vertices_ordered(obj):
-# type: (Any) -> List[List[geom.Point3D]]
-
-    faces = get_faces(obj) 
+# type: (Any) -> List[List[List[geom.Point3D]]]
 
     vertices = []
+
+    faces = get_faces(obj) 
     for face in faces:
+        vertices.append([])
+
         vertex_ids = face.getVertices()
         vertices_on_face = [obj.vertices[vertex_id] for vertex_id in vertex_ids]
 
         ordered_vertices_on_face = order_vertices(vertices_on_face, face, obj) 
 
         for vertex_group in ordered_vertices_on_face:
-            
-            
-
-        vertices.append([geom.Point3D(*vertex.pointOn[0]) for vertex in ordered_vertices])
+            vertices[-1].append([geom.Point3D(*vertex.pointOn[0]) for vertex in vertex_group])
 
     return vertices 
 

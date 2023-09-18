@@ -101,6 +101,8 @@ def apply_BCs(BCs, step_name, part_instance, model_name, mdb):
 #       Abaqus Assembly objects.
 #    Even if the ngon happens to match the geometry of a face which already
 #       exists, this function still returns a new logical face. 
+#    If the polygon defining the partition does not live on a face of the object,
+#       this can be difficult to detect in general and bad things can happen.
 #
 # Arguments:
 #    ngon          - NGon3D object.
@@ -134,7 +136,9 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
     """
     Step 1: Find the face that the ngon belongs to.
     """
-  
+
+    """
+    OLD TECHNIQUE!!!
     # Critical to ensure that the vertices are well-ordered on a per-face basis.
     vertices = shim.get_all_vertices_ordered(obj)
 
@@ -142,6 +146,8 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
 
     # Find the face that the ngon lives on.
     for idx, vertices_single_face in enumerate(vertices):
+
+        flattened_vertices_single_face = [vertex for vertex_group in vertices_single_face for vertex in vertex_group]
 
         # Subtle point: If the points which define the vertices of a face are
         #    not on a plane (i.e. there is a curved surface), then this will
@@ -152,9 +158,7 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
         #    which is identified and used.
         # TODO: Use the getCurvature() method to check that faces with curvature
         #    are not considered.
-        # TODO: It turns out that using idx works because the ordering of
-        #    faces is the same. This could be formalized in some way.
-        if geom.points_on_plane_of_ngon(vertices_single_face, ngon):
+        if geom.points_on_plane_of_ngon(flattened_vertices_single_face, ngon):
             if geom.points_in_ngon_3D(ngon.vertices, geom.NGon3D(vertices_single_face)):
                 face_ngon_belongs_to = shim.get_faces(obj)[idx]
                 break
@@ -162,7 +166,25 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
     if face_ngon_belongs_to == None:
         raise RuntimeError("Could not identify which face the ngon belongs to. \
                             Can't continue to do partitioning.")
-   
+    """
+
+    # Check that the vertices of the ngon do live on the plane DEFINED by some face.
+    # Note that, in general, even if the vertices of the ngon live on a plane 
+    #    DEFINED by some face, it does not necessarily mean that the ngon actually
+    #    lives on that face. That face might have holes in it!
+    on_a_face = False
+    for vertices_single_face in shim.get_all_vertices(obj):
+        if geom.points_on_plane_of_ngon(vertices_single_face, ngon):
+            on_a_face = True
+    
+    if not on_a_face:
+        raise RuntimeError("Trying to create a partition with an ngon that doesn't \
+                           live on any plane defined by the object's faces!")
+
+    # Assume that the face closest to points which make up the ngon is the face
+    #    that the ngon lives on.
+    face_ngon_belongs_to = shim.get_closest_face(ngon.vertices, obj)
+
     # If the face the ngon belongs to has vertices which exactly match the
     #    ngon, we don't want to try to partition the face and create a new face.
     #    This will cause partitioning to fail and Abaqus to give up. 
