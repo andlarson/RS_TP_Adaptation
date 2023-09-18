@@ -15,7 +15,7 @@ class Point2D:
     
     def __init__(self, x1, x2):
     # type: (Union[float, int], Union[float, int]) -> None
-        
+
         self.x1 = float(x1)
         self.x2 = float(x2)
 
@@ -879,6 +879,9 @@ def find_third_orthonormal(vec1, vec2):
     sol_vec = Vec3D(*np.cross(vec1.np_arr, vec2.np_arr))
 
     return sol_vec.get_norm()
+<<<<<<< HEAD
 
 
 
+=======
+>>>>>>> 026cfad (Fixing stuff.)
