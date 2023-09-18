@@ -182,7 +182,7 @@ def get_all_vertices(obj):
 # Returns:
 #    A list of lists of Point3D objects. 
 def get_all_vertices_ordered(obj):
-# type: (Any) -> List[List[Point3D]]
+# type: (Any) -> List[List[geom.Point3D]]
 
     faces = get_faces(obj) 
 
@@ -191,7 +191,11 @@ def get_all_vertices_ordered(obj):
         vertex_ids = face.getVertices()
         vertices_on_face = [obj.vertices[vertex_id] for vertex_id in vertex_ids]
 
-        ordered_vertices = order_vertices(vertices_on_face, face, obj) 
+        ordered_vertices_on_face = order_vertices(vertices_on_face, face, obj) 
+
+        for vertex_group in ordered_vertices_on_face:
+            
+            
 
         vertices.append([geom.Point3D(*vertex.pointOn[0]) for vertex in ordered_vertices])
 
@@ -209,7 +213,7 @@ def get_all_vertices_ordered(obj):
 #    ordered to reflect connectivity. 
 #
 # Notes:
-#    The list is not circular. 
+#    No lists are circular. 
 #    This function does not care whether the face is convex or non-convex.
 #
 # Arguments:
@@ -226,6 +230,7 @@ def order_vertices(vertices, face, obj):
 # type: (List[Any], Any, Any) -> List[List[Any]]
 
     per_group_vertices = []
+    vertices_used = [False] * len(vertices) 
 
     while False in vertices_used:
 
