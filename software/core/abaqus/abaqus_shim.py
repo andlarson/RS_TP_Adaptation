@@ -833,7 +833,6 @@ def add_user_subroutine(job, path_to_subroutine):
     job.setValues(userSubroutine=path_to_subroutine)
 
 
-
 def run_job(job):
 # type: (Any) -> None
 

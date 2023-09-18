@@ -879,9 +879,3 @@ def find_third_orthonormal(vec1, vec2):
     sol_vec = Vec3D(*np.cross(vec1.np_arr, vec2.np_arr))
 
     return sol_vec.get_norm()
-<<<<<<< HEAD
-
-
-
-=======
->>>>>>> 026cfad (Fixing stuff.)
