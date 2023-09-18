@@ -296,6 +296,21 @@ class NGon2D:
 
 
 
+class NGonWithHoles2D:
+
+    def __init__(self, points):
+    # type: (List[Point2D]) -> None
+
+        # TODO:
+        # We should really check that an ngon is well defined.
+        # In particular, that none of the points are on the interior of the ngon
+        #    and that there are no redundant points.
+        self.vertices = points
+
+        
+
+
+
 class NGon3D:
 
     # The points must be defined in order. In other words, the ngon will be
@@ -760,7 +775,6 @@ def point_in_ngon_3D(point, ngon):
 
 # Check if a point lies inside an ngon.
 # Assumed that both the point and the ngon live in 2D.
-# This algorithm assumes that the points which compose the ngon are in-order. 
 # If the point lies on one of the edges of the ngon, it is deemed to be in the 
 #    ngon.
 def point_in_ngon_2D(point, ngon):
@@ -774,6 +788,7 @@ def point_in_ngon_2D(point, ngon):
         else:
             next_vertex = ngon.vertices[idx + 1]
         
+        # WARNING: Relies on ordering according to connectivity. 
         line = Finite_Line2D(vertex, next_vertex)
 
         if line.is_on(point):
@@ -864,3 +879,6 @@ def find_third_orthonormal(vec1, vec2):
     sol_vec = Vec3D(*np.cross(vec1.np_arr, vec2.np_arr))
 
     return sol_vec.get_norm()
+
+
+

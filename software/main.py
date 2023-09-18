@@ -1,6 +1,12 @@
 import sys
 import os
 
+# DEBUG
+# For Abaqus PDB and allows main.py to be run from any directory.
+# Imperfect solution, but good enough for now. Every time this file is imported,
+#    this line runs. This pollutes the sys.path list.
+sys.path.append("/home/andlars/Desktop/RS_TP_Adaptation/software")
+
 import core.machining.machining as mach
 import util.geom as geom
 import core.part.part as part
@@ -11,6 +17,7 @@ from util.debug import *
 
 
 if __name__ == "__main__":
+
 
     # ----- Specifying the initial geometry -----
    

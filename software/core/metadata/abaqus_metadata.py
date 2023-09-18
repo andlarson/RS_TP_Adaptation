@@ -115,7 +115,7 @@ class SimNames:
 
         else:
 
-            self.new_model_name = shim.STANDARD_MODEL_NAME_PREFIX + str(tool_pass_cnt) 
+            self.new_model_name = shim.STANDARD_MODEL_NAME_PREFIX + str(tool_pass_cnt + 1) 
 
             # Extract some names from the last model on record. 
             last_model_name = record.abaqus_mdb_metadata.model_names[-1] 

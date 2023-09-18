@@ -177,7 +177,7 @@ def get_all_vertices(obj):
 #    (1, 0) to (0, 1), and a line from (0, 1) to (1, 1) you don't get a square.
 # 
 # Arguments:
-#    obj - An Abaqus Part object or an Abaqus PartInstance object.
+#    obj - Abaqus Part object or Abaqus PartInstance object.
 #
 # Returns:
 #    A list of lists of Point3D objects. 
@@ -203,6 +203,10 @@ def get_all_vertices_ordered(obj):
 #    In the resulting list of Abaqus Vertex objects, the first vertex is connected
 #    to the second vertex on the face, the second vertex is connected to the
 #    third on the face, etc.
+# A face could contain holes in it. In this case, this function groups the vertices
+#    into per-boundary groups. Then, all the points which are connected on the
+#    face are in the same group. Within a particular group, the vertices are
+#    ordered to reflect connectivity. 
 #
 # Notes:
 #    The list is not circular. 
@@ -216,20 +220,60 @@ def get_all_vertices_ordered(obj):
 #               The vertices and face belong to this.
 #
 # Returns:
-#    List of Abaqus Vertex objects.
+#    List of lists of Abaqus Vertex objects. The order of per-boundary lists is
+#       arbitrary.
 def order_vertices(vertices, face, obj):
-# type: (List[Any], Any, Any) -> List[Any]
+# type: (List[Any], Any, Any) -> List[List[Any]]
 
-    first_vertex = vertices[0]
-    prev_vertex = vertices[0] 
+    per_group_vertices = []
+
+    while False in vertices_used:
+
+        for i, vertex in enumerate(vertices):
+            
+            if vertices_used[i] == False:
+              
+                # Starting from an unvisited vertex, find all the other connected 
+                #    vertices on the face.
+                vertex_group = traverse_connected_vertices_on_face(vertices[i], face, obj)
+                per_group_vertices.append(vertex_group)
+
+                # Mark all the visited vertices as visited.
+                for j, vertex in enumerate(vertices):
+                    if vertex in vertex_group:
+                        vertices_used[j] = True
+
+    return per_group_vertices 
+
+
+
+# Traverses a group of vertices via connections between the vertices, starting
+#    from any vertex on a face.
+#
+# Notes:
+#    None.
+# 
+# Arguments:
+#    vertex - Abaqus Vertex object.
+#    face   - Abaqus Face object.
+#             The face on which the vertex lives.
+#    obj    - Abaqus Part or Abaqus PartInstance.
+#
+# Returns:
+#    List of Abaqus Vertex objects.
+def traverse_connected_vertices_on_face(vertex, face, obj):
+# type: (Any, Any, Any) -> List[Any]
+
+    first_vertex = vertex
+    prev_vertex = first_vertex 
     first_neighbors = find_neighbor_vertices(first_vertex, face, obj)
     current_vertex = first_neighbors[0]
-
+    
     well_ordered_vertices = [first_vertex]    
     while current_vertex.index != first_vertex.index:
         
         well_ordered_vertices.append(current_vertex)
-
+    
         current_neighbors = find_neighbor_vertices(current_vertex, face, obj)
     
         if current_neighbors[0].index != prev_vertex.index:
@@ -238,7 +282,7 @@ def order_vertices(vertices, face, obj):
         else:
             prev_vertex = current_vertex
             current_vertex = current_neighbors[1]
-   
+
     return well_ordered_vertices
 
 
@@ -308,8 +352,6 @@ def get_BC_cnt(model_name, mdb):
 # type: (Any) -> Int 
 
     return len(mdb.models[model_name].boundaryConditions)
-
-
 
 
 

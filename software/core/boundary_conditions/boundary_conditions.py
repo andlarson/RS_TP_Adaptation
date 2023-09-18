@@ -1,7 +1,7 @@
-import util.geom as geom
-import core.abaqus.abaqus_shim as shim
 import numpy as np
 
+import util.geom as geom
+import core.abaqus.abaqus_shim as shim
 from util.debug import *
 
 
@@ -164,6 +164,24 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
         raise RuntimeError("Could not identify which face the ngon belongs to. \
                             Can't continue to do partitioning.")
    
+    # If the face the ngon belongs to has vertices which exactly match the
+    #    ngon, we don't want to try to partition the face and create a new face.
+    #    This will cause partitioning to fail and Abaqus to give up. 
+    # TODO: The ngon could have redundant vertices, but such a partitioning will
+    #    actually succeed because new vertices will be added to the face.
+    # TODO: Assuming that the vertices which make up the Abaqus Face object are
+    #    not redundant.
+    face_vertices = shim.get_face_vertices(face_ngon_belongs_to, obj)
+    ngon_vertices = ngon.get_builtin_rep()
+    ngon_face_share_vertices = True 
+    if len(face_vertices) == len(ngon_vertices):
+        for face_vertex in face_vertices:
+            if face_vertex not in ngon_vertices:
+                ngon_face_share_vertices = False
+
+    # If they do share vertices, no partitioning needs to be done at all.
+    if ngon_face_share_vertices:
+        return face_ngon_belongs_to
 
     """
     Step 2: Construct and orient a sketch which lives on that face.
@@ -203,8 +221,6 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
         #    success. Documentation is wrong!
         sketch.Line(cur_point, next_point)
 
-    # DEBUG
-    shim.save_mdb_as("right_before_face_partitioning.cae", mdb)
 
     """
     Step 4: Partition the face using the sketch. 

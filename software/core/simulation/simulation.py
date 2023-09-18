@@ -42,6 +42,7 @@ def sim_single_tool_pass(tool_pass, record, mdb):
     #    added contains an orphan mesh, then we must be simulating the n-th 
     #    tool pass.
     last_model_name = record.abaqus_mdb_metadata.model_names[-1]
+
     if shim.check_init_geom(False, mdb):
 
         sim_first_tool_pass(tool_pass, record, mdb)  
@@ -52,10 +53,6 @@ def sim_single_tool_pass(tool_pass, record, mdb):
 
     else:
         raise RuntimeError("Can't figure out how to do next tool pass...")
-
-    # DEBUG
-    dp("Finished simulating a tool pass!")
-    shim.save_mdb_as("post_tool_pass.cae", mdb)
 
 
 
