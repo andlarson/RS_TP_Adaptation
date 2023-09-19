@@ -11,6 +11,67 @@ from debug import *
 
 
 
+class CSys3D:
+
+    # Describe a coordinate system relative to some global coordinate system.
+    # 
+    # Notes:
+    #    It is expected that all coordinate systems are described relative to
+    #       a single global coodinate system.
+    # 
+    # Arguments:
+    #    translation - 1D numpy array with 3 floats. Describes the translation
+    #                     in space of coordinate system.
+    #    basis       - 2D, 3x3 numpy array of floats. Describes the rotation of
+    #                     this coordinate system relative to a global system.
+    #                     All basis vectors must be unit length and be orthogonal
+    #                     to one another.
+    #
+    # Returns:
+    #    None.
+    def __init__(self, translation, basis):
+    # type: (Any, Any) -> None
+
+        # Check the validity of the basis matrix.
+        v1 = Vec3D(*basis[0])
+        v2 = Vec3D(*basis[1])
+        v3 = Vec3D(*basis[2])
+        assert(v1.is_unit())
+        assert(v2.is_unit())
+        assert(v3.is_unit())
+        assert(are_orthogonal(v1, v2))
+        assert(are_orthogonal(v2, v3))
+        assert(are_orthogonal(v1, v3))
+
+        self.translation = translation
+        self.basis = basis 
+
+    
+    # Map points into the coordinate system described by this object.
+    #
+    # Notes:
+    #    This function does a generic mapping. It has no knowledge about the
+    #       coordinate system that the points already live in.
+    #
+    # Arguments:
+    #    points - List of Point3D objects.
+    # 
+    # Returns:
+    #    List of Point3D objects.
+    def from_global_to_new(self, points):
+    # type: (List[Point3D]) -> List[Point3D]
+
+        points_new_csys = []
+        for point in points:
+            point = np.array([point.x, point.y, point.z])
+            point_new_csys = np.matmul(self.basis, (point - self.translation))
+            point_new_csys = Point3D(*point_new_csys)
+            points_new_csys.append(point_new_csys)
+
+        return points_new_csys
+
+
+
 class Point2D:
     
     def __init__(self, x1, x2):
@@ -510,9 +571,6 @@ class Finite_Line2D:
     def is_on(self, point):
     # type: (Point2D) -> bool
 
-        # TODO: Cleanup! Once points are represented by numpy arrays, this can
-        #    be tightened up.
-
         x_parameter = robust_float_div(point.x1 - self.p1.x1, float(self.line_dir.np_arr[0]))
         y_parameter = robust_float_div(point.x2 - self.p1.x2, float(self.line_dir.np_arr[1]))
 
@@ -533,7 +591,21 @@ class Finite_Line2D:
    
 
 
-# Check if a point lies in the box defined by two other points.
+# Check if a point lies in a box defined by two other points. 
+# 
+# Notes:
+#    There are a number of degenerate cases. The point could lie exactly on the
+#       other two points. Two points in three dimensions might only define a 
+#       plane. Two points in two dimensions might only define a line. If the point
+#       lies or in the geometric structure (point, line, plane, box) defined by the
+#       two points, this function returns True by convention. 
+# 
+# Arguments:
+#    point      - Point2D object or Point3D object. 
+#    box_points - Two element tuple of Point2D or Point3D objects.
+# 
+# Returns:
+#    Bool.
 def point_in_box(point, box_points):
 # type: (Union[Point2D, Point3D], Tuple[Union[Point2D, Point3D], Union[Point2D, Point3D]]) -> bool
 
@@ -545,15 +617,26 @@ def point_in_box(point, box_points):
             return False
 
     else:
-        if min(box_points[0].x, box_points[1].x) < point.x < max(box_points[1].x, box_points[0].x) and \
-           min(box_points[0].y, box_points[1].y) < point.y < max(box_points[1].y, box_points[0].y) and \
-           min(box_points[0].z, box_points[1].z) < point.z < max(box_points[1].z, box_points[0].z):
+        if min(box_points[0].x, box_points[1].x) <= point.x <= max(box_points[1].x, box_points[0].x) and \
+           min(box_points[0].y, box_points[1].y) <= point.y <= max(box_points[1].y, box_points[0].y) and \
+           min(box_points[0].z, box_points[1].z) <= point.z <= max(box_points[1].z, box_points[0].z):
             return True
         else:
             return False
 
 
 
+# Check if two floats are equal using some fixed epsilon.
+# 
+# Notes:
+#    None.
+# 
+# Arguments:
+#    a - Float.
+#    b - Float.
+#
+# Returns:
+#    Bool. 
 def float_equals(a, b):
 # type: (float, float) -> bool
 
@@ -706,13 +789,51 @@ def on_particular_plane(points, coeffs):
 
 
 # Check if a set of points all lie on the same plane as an ngon. 
-def points_on_plane_of_ngon(points, ngon):
+def on_plane_of_ngon(points, ngon):
 # type: (List[Point3D], NGon3D) -> bool
 
     ngon_plane_coeffs = ngon.get_plane_coeffs()
 
     return on_particular_plane(points, ngon_plane_coeffs)
 
+
+
+# Check if two vectors are orthogonal.
+def are_orthogonal(vec1, vec2):
+# type: (Vec3D, Vec3D) -> bool
+
+    if float_equals(np.dot(vec1.np_arr, vec2.np_arr), 0):
+        return True
+    return False
+
+
+
+# Find the centroid of a group of points.
+#
+# Notes:
+#    None.
+#
+# Arguments:
+#    points - Tuple of Point3D objects.
+#
+# Returns:
+#    Point3D object.
+def find_centroid(points):
+# type: (Tuple[Point3D, ...]) -> Point3D
+
+    sums = [0, 0, 0]
+    for point in points:
+        sums[0] += point.x
+        sums[1] += point.y
+        sums[2] += point.z
+    cnt = len(points)
+    return Point3D(sums[0]/cnt, sums[1]/cnt, sums[2]/cnt)
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#                                  Deprecated!
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 # Check if all the points lie in the ngon.
@@ -734,7 +855,7 @@ def point_in_ngon_3D(point, ngon):
 
     # If the point doesn't lie on the same plane as the ngon, it certainly
     #    isn't inside of it.
-    if not points_on_plane_of_ngon([point], ngon):
+    if not on_plane_of_ngon([point], ngon):
         return False
 
     # If it does lie on the same plane as the ngon, we also need to check that
@@ -782,85 +903,3 @@ def point_in_ngon_2D(point, ngon):
     # Otherwise, check if it's in the interior. 
     ngon = path.Path(ngon.get_builtin_rep(), closed=True)
     return ngon.contains_point(point.get_components())
-
-
-
-class CSys3D:
-
-    # Describe a coordinate system relative to some global coordinate system.
-    # 
-    # Notes:
-    #    It is expected that all coordinate systems are described relative to
-    #       a single global coodinate system.
-    # 
-    # Arguments:
-    #    translation - 1D numpy array with 3 floats. Describes the translation
-    #                     in space of coordinate system.
-    #    basis       - 2D, 3x3 numpy array of floats. Describes the rotation of
-    #                     this coordinate system relative to a global system.
-    #                     All basis vectors must be unit length and be orthogonal
-    #                     to one another.
-    #
-    # Returns:
-    #    None.
-    def __init__(self, translation, basis):
-    # type: (Any, Any) -> None
-
-        # Check the validity of the basis matrix.
-        v1 = Vec3D(*basis[0])
-        v2 = Vec3D(*basis[1])
-        v3 = Vec3D(*basis[2])
-        assert(v1.is_unit())
-        assert(v2.is_unit())
-        assert(v3.is_unit())
-        assert(are_orthogonal(v1, v2))
-        assert(are_orthogonal(v2, v3))
-        assert(are_orthogonal(v1, v3))
-
-        self.translation = translation
-        self.basis = basis 
-
-    
-    # Map points into the coordinate system described by this object.
-    #
-    # Notes:
-    #    This function does a generic mapping. It has no knowledge about the
-    #       coordinate system that the points already live in.
-    #
-    # Arguments:
-    #    points - List of Point3D objects.
-    # 
-    # Returns:
-    #    List of Point3D objects.
-    def from_global_to_new(self, points):
-    # type: (List[Point3D]) -> List[Point3D]
-
-        points_new_csys = []
-        for point in points:
-            point = np.array([point.x, point.y, point.z])
-            point_new_csys = np.matmul(self.basis, (point - self.translation))
-            point_new_csys = Point3D(*point_new_csys)
-            points_new_csys.append(point_new_csys)
-
-        return points_new_csys
-
-
-
-# Check if two vectors are orthogonal.
-def are_orthogonal(vec1, vec2):
-# type: (Vec3D, Vec3D) -> bool
-
-    if float_equals(np.dot(vec1.np_arr, vec2.np_arr), 0):
-        return True
-    return False
-
-
-
-# Finds a unit norm vector orthogonal to two vectors.
-# The two vectors must already be orthogonal or no other vector exists. 
-def find_third_orthonormal(vec1, vec2):
-# type: (Vec3D, Vec3D) -> Vec3D
-
-    sol_vec = Vec3D(*np.cross(vec1.np_arr, vec2.np_arr))
-
-    return sol_vec.get_norm()

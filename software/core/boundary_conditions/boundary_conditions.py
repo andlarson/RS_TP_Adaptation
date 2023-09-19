@@ -124,12 +124,9 @@ def apply_BCs(BCs, step_name, part_instance, model_name, mdb):
 def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=None):
 # type: (geom.NGon3D, str, str, Any, Optional[Any], Optional[Any]) -> Any
 
-    if part == None and instance == None:
-        raise RuntimeError("Missing required argument!")
-    elif part != None:
-        obj = part
-    else:
-        obj = instance
+    if (part == None and instance == None) or (part != None and instance != None):
+        raise RuntimeError("Bad arguments passed in!")
+    obj = part if part else instance
 
     assembly = mdb.models[model_name].rootAssembly
 
@@ -158,7 +155,7 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
         #    which is identified and used.
         # TODO: Use the getCurvature() method to check that faces with curvature
         #    are not considered.
-        if geom.points_on_plane_of_ngon(flattened_vertices_single_face, ngon):
+        if geom.on_plane_of_ngon(flattened_vertices_single_face, ngon):
             if geom.points_in_ngon_3D(ngon.vertices, geom.NGon3D(vertices_single_face)):
                 face_ngon_belongs_to = shim.get_faces(obj)[idx]
                 break
@@ -171,10 +168,11 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
     # Check that the vertices of the ngon do live on the plane DEFINED by some face.
     # Note that, in general, even if the vertices of the ngon live on a plane 
     #    DEFINED by some face, it does not necessarily mean that the ngon actually
-    #    lives on that face. That face might have holes in it!
+    #    lives on that face. That face might have holes in it! That face could be
+    #    curved!
     on_a_face = False
     for vertices_single_face in shim.get_all_vertices(obj):
-        if geom.points_on_plane_of_ngon(vertices_single_face, ngon):
+        if geom.on_plane_of_ngon(vertices_single_face, ngon):
             on_a_face = True
     
     if not on_a_face:
@@ -199,6 +197,8 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
         for face_vertex in face_vertices:
             if face_vertex not in ngon_vertices:
                 ngon_face_share_vertices = False
+    else:
+        ngon_face_share_vertices = False
 
     # If they do share vertices, no partitioning needs to be done at all.
     if ngon_face_share_vertices:

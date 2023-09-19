@@ -42,15 +42,15 @@ def find_step_keyword(kwb):
 
 
 
-# Find the face closest to a group of points.
+# Find the face closest to the centroid of a group of points.
 # 
 # Notes:
-# This function is a workaround to writing/calling nasty geometric routines. In
-#    particular, it was introduced to avoid writing a routine which checks if
-#    a three dimensional polygon is entirely inside a three dimensional polygon
-#    which may have holes in it.
-# The default search tolerance is used.
-# Throws an exception if no face can be found.
+#    This function is a workaround to writing/calling nasty geometric routines. In
+#       particular, it was introduced to avoid writing a routine which checks if
+#       a three dimensional polygon is entirely inside a three dimensional polygon
+#       which may have holes in it.
+#    The default search tolerance is used.
+#    Throws an exception if no face can be found. 
 # 
 # Arguments:
 #    points - List of Point3D objects.
@@ -61,10 +61,9 @@ def find_step_keyword(kwb):
 def get_closest_face(points, obj):
 # type: (List[Point3D], Any) -> Any
 
-    points = [p.get_components() for p in points]
-    face_and_point = obj.faces.getClosest(points)
+    centroid = geom.find_centroid(points)
+    face_and_point = obj.faces.getClosest([centroid.get_components()])
 
-    # Documentation slightly unclear, aasuming that index 0 always works.
     face = face_and_point[0][0]
 
     return face
