@@ -322,14 +322,14 @@ class NGon2D:
     #    constructed under the assumption that a line segment connects the
     #    first point to the second point, another line segment connects the
     #    second point to the third point, etc. 
-    def __init__(self, points):
+    def __init__(self, vertices):
     # type: (List[Point2D]) -> None
 
         # TODO:
         # We should really check that an ngon is well defined.
         # In particular, that none of the points are on the interior of the ngon
         #    and that there are no redundant points.
-        self.vertices = points
+        self.vertices = vertices 
 
 
     # Get a representation which is only composed of Python built-in types. 
@@ -337,7 +337,7 @@ class NGon2D:
     def get_builtin_rep(self):
     # type: (None) -> List[Tuple[float, float]] 
 
-        return [(vertex.x1, vertex.x2) for vertex in self.vertices]
+        return [(vertex.rep[0], vertex.rep[1]) for vertex in self.vertices]
 
 
 
@@ -347,17 +347,17 @@ class NGon3D:
     #    constructed under the assumption that a line segment connects the
     #    first point to the second point, another line segment connects the
     #    second point to the third point, etc. 
-    def __init__(self, points):
+    def __init__(self, vertices):
     # type: (List[Point3D]) -> None
 
-        if not on_any_plane(points):
+        if not on_any_plane(vertices):
             raise RuntimeError("The points don't describe a valid n-gon!")
 
         # TODO:
         # We should really check that an ngon is well defined.
         # In particular, that none of the points are on the interior of the ngon
         #    and that there are no redundant points.
-        self.vertices = points
+        self.vertices = vertices
 
 
     def get_plane_coeffs(self):
@@ -389,14 +389,14 @@ class NGon3D:
     # Get a representation which is only composed of Python built-in types. 
     # Useful for passing to other libraries.
     def get_builtin_rep(self):
-    # type: (None) -> List[Tuple[float, float, float]] 
+    # type: (None) -> List[Tuple[np.float, np.float, np.float]] 
 
-        return [(vertex.x, vertex.y, vertex.z) for vertex in self.vertices]
+        return [(vertex.rep[0], vertex.rep[1], vertex.rep[2]) for vertex in self.vertices]
 
 
 
 # An infinite line extends arbitrarily in space. Its length is infinite.
-class Infinite_Line3D:
+class InfiniteLine3D:
 
     def __init__(self, p1, p2):
     # type: (Point3D, Point3D) -> None
@@ -409,102 +409,12 @@ class Infinite_Line3D:
     def is_on(self, point):
     # type: (Point3D) -> bool
 
-        # TODO: Cleanup! Once points are represented by numpy arrays, this can
-        #    be tightened up.
-
-        # Try to solve for parameters which put the point on the line. 
-        x_parameter = robust_float_div(point.x - self.p1.x, float(self.line_dir.np_arr[0]))
-        y_parameter = robust_float_div(point.y - self.p1.y, float(self.line_dir.np_arr[1]))
-        z_parameter = robust_float_div(point.z - self.p1.z, float(self.line_dir.np_arr[2]))
-
-        # Zeros can cause problems.
-        # Consider a line defined by: (0, 0, 0) + t * <0, -5, 0>. Say we want
-        #    to check if (0, 5, 0) lies on this line (it obviously does).
-        # Using the equations above, x_parameter = nan, y_parameter = -1, and
-        #    z_parameter = nan.
-        # This implies that checking for parameter equality is insufficient. We
-        #    should instead check if x_parameter, y_parameter, or z_parameter
-        #    gives a valid solution.
-        
-        x1 = self.p1.x + x_parameter * float(self.line_dir.np_arr[0])
-        y1 = self.p1.y + x_parameter * float(self.line_dir.np_arr[1])
-        z1 = self.p1.z + x_parameter * float(self.line_dir.np_arr[2])
-        res1 = Point3D(x1, y1, z1)
-
-        x1 = self.p1.x + y_parameter * float(self.line_dir.np_arr[0])
-        y1 = self.p1.y + y_parameter * float(self.line_dir.np_arr[1])
-        z1 = self.p1.z + y_parameter * float(self.line_dir.np_arr[2])
-        res2 = Point3D(x1, y1, z1)
-
-        x1 = self.p1.x + z_parameter * float(self.line_dir.np_arr[0])
-        y1 = self.p1.y + z_parameter * float(self.line_dir.np_arr[1])
-        z1 = self.p1.z + z_parameter * float(self.line_dir.np_arr[2])
-        res3 = Point3D(x1, y1, z1)
-
-        if identical_points(point, res1) or identical_points(point, res2) or identical_points(point, res3):
-            return True
-
-        return False
-
-
-
-class Finite_Line3D:
-
-    def __init__(self, p1, p2):
-    # type: (Point3D, Point3D) -> None
-
-        # Store a parametric representation of the line.
-        self.p1 = p1
-        self.p2 = p2
-
-        self.line_dir = Vec3D(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z)
-
-
-    def is_on(self, point):
-    # type: (Point3D) -> bool
-
-        # TODO: Cleanup! Once points are represented by numpy arrays, this can
-        #    be tightened up.
-
-        # Try to solve for parameters which put the point on the line. 
-        x_parameter = robust_float_div(point.x - self.p1.x, float(self.line_dir.np_arr[0]))
-        y_parameter = robust_float_div(point.y - self.p1.y, float(self.line_dir.np_arr[1]))
-        z_parameter = robust_float_div(point.z - self.p1.z, float(self.line_dir.np_arr[2]))
-
-        # Zeros can cause problems.
-        # Consider a line defined by: (0, 0, 0) + t * <0, -5, 0>. Say we want
-        #    to check if (0, 5, 0) lies on this line (it obviously does).
-        # Using the equations above, x_parameter = nan, y_parameter = -1, and
-        #    z_parameter = nan.
-        # This implies that checking for parameter equality is insufficient. We
-        #    should instead check if x_parameter, y_parameter, or z_parameter
-        #    gives a valid solution.
-        
-        x1 = self.p1.x + x_parameter * float(self.line_dir.np_arr[0])
-        y1 = self.p1.y + x_parameter * float(self.line_dir.np_arr[1])
-        z1 = self.p1.z + x_parameter * float(self.line_dir.np_arr[2])
-        res1 = Point3D(x1, y1, z1)
-
-        x1 = self.p1.x + y_parameter * float(self.line_dir.np_arr[0])
-        y1 = self.p1.y + y_parameter * float(self.line_dir.np_arr[1])
-        z1 = self.p1.z + y_parameter * float(self.line_dir.np_arr[2])
-        res2 = Point3D(x1, y1, z1)
-
-        x1 = self.p1.x + z_parameter * float(self.line_dir.np_arr[0])
-        y1 = self.p1.y + z_parameter * float(self.line_dir.np_arr[1])
-        z1 = self.p1.z + z_parameter * float(self.line_dir.np_arr[2])
-        res3 = Point3D(x1, y1, z1)
-
-        if (identical_points(point, res1) or identical_points(point, res2) or identical_points(point, res3)) and \
-           point_in_box(point, (self.p1, self.p2)):
-            return True
-
-        return False
+        return point_on_inf_line(point, (self.p1, self.line_dir))
 
 
 
 # An infinite line extends arbitrarily in space. Its length is infinite.
-class Infinite_Line2D:
+class InfiniteLine2D:
 
     def __init__(self, p1, p2):
     # type: (Point2D, Point2D) -> None
@@ -517,30 +427,14 @@ class Infinite_Line2D:
     def is_on(self, point):
     # type: (Point2D) -> bool
 
-        # TODO: Cleanup! Once points are represented by numpy arrays, this can
-        #    be tightened up.
-
-        x_parameter = robust_float_div(point.x1 - self.p1.x1, float(self.line_dir.np_arr[0]))
-        y_parameter = robust_float_div(point.x2 - self.p1.x2, float(self.line_dir.np_arr[1]))
-
-        # See note in Line3D method.
-        x1 = self.p1.x1 + x_parameter * float(self.line_dir.np_arr[0])
-        x2 = self.p1.x2 + x_parameter * float(self.line_dir.np_arr[1])
-        res1 = Point2D(x1, x2)
-
-        x1 = self.p1.x1 + y_parameter * float(self.line_dir.np_arr[0])
-        x2 = self.p1.x2 + y_parameter * float(self.line_dir.np_arr[1])
-        res2 = Point2D(x1, x2)
-
-        if identical_points(point, res1) or identical_points(point, res2):
+        if point_on_inf_line(point, (self.p1, self.line_dir)):
             return True
-
         return False
 
 
 
 # A finite line has finite length.
-class Finite_Line2D:
+class FiniteLine2D:
 
     # The two points define the length of the line.
     def __init__(self, p1, p2):
@@ -555,24 +449,82 @@ class Finite_Line2D:
     def is_on(self, point):
     # type: (Point2D) -> bool
 
-        x_parameter = robust_float_div(point.x1 - self.p1.x1, float(self.line_dir.np_arr[0]))
-        y_parameter = robust_float_div(point.x2 - self.p1.x2, float(self.line_dir.np_arr[1]))
+        if point_on_inf_line(point, (self.p1, self.line_dir)) and point_in_box(point, (self.p1, self.p2)):
+            return True
+        return False
 
-        # See note in Line3D method.
-        x1 = self.p1.x1 + x_parameter * float(self.line_dir.np_arr[0])
-        x2 = self.p1.x2 + x_parameter * float(self.line_dir.np_arr[1])
-        res1 = Point2D(x1, x2)
 
-        x1 = self.p1.x1 + y_parameter * float(self.line_dir.np_arr[0])
-        x2 = self.p1.x2 + y_parameter * float(self.line_dir.np_arr[1])
-        res2 = Point2D(x1, x2)
 
-        if (identical_points(point, res1) or identical_points(point, res2)) and \
-            point_in_box(point, (self.p1, self.p2)):
+# Check if a point is on a line which has infinite length.
+# 
+# Notes:
+#    None.
+# 
+# Arguments:
+#    point          - Point3D or Point2D.
+#    parametric_rep - Tuple containing Point3D and Vec3D or tuple containing Point2D
+#                        and Vec2D.
+#                     The parametric representation of the line.
+#
+# Returns:
+#    Boolean.
+def point_on_inf_line(point, parametric_rep):
+# type: (Union[Point3D, Point2D], Union[Tuple(Point3D, Vec3D), Tuple(Point2D, Vec2D)]) -> bool
+
+    if isinstance(point, Point3D) and isinstance(parametric_rep[0], Point3D) and isinstance(parametric_rep[1], Vec3D):
+
+        p1, line_dir = parametric_rep
+
+        # Try to solve for parameters which put the point on the line. 
+        diff = point.rep - p1.rep
+        x_parameter = robust_float_div(diff[0], line_dir.rep[0])
+        y_parameter = robust_float_div(diff[1], line_dir.rep[1])
+        z_parameter = robust_float_div(diff[2], line_dir.rep[2])
+
+        # Zeros can cause problems.
+        # Consider a line defined by: (0, 0, 0) + t * <0, -5, 0>. Say we want
+        #    to check if (0, 5, 0) lies on this line (it obviously does).
+        # Using the equations above, x_parameter = nan, y_parameter = -1, and
+        #    z_parameter = nan.
+        # This implies that checking for parameter equality is insufficient. We
+        #    should instead check if x_parameter, y_parameter, or z_parameter
+        #    gives a valid solution.
+    
+        p = p1.rep + x_parameter * line_dir.rep
+        res1 = Point3D(p)
+
+        p = p1.rep + y_parameter * line_dir.rep
+        res2 = Point3D(p)
+
+        p = p1.rep + z_parameter * line_dir.rep
+        res3 = Point3D(p)
+
+        if identical_points(point, res1) or identical_points(point, res2) or identical_points(point, res3):
             return True
 
         return False
-   
+
+    elif isinstance(point, Point2D) and isinstance(parametric_rep[0], Point2D) and isinstance(parametric_rep[1], Vec2D):
+
+        p1, line_dir = parametric_rep
+
+        y_parameter = robust_float_div(diff[1], line_dir.rep[1])
+
+        # Identical technique to above.
+        p = p1.rep + x_parameter * line_dir.rep
+        res1 = Point2D(p)
+
+        p = p1.rep + y_parameter * line_dir.rep
+        res2 = Point2D(p)
+
+        if (identical_points(point, res1) or identical_points(point, res2)):
+            return True
+
+        return False
+
+    else:
+        raise RuntimeError("Bad passed arguments!")
+
 
 
 # Check if a point lies in a box defined by two other points. 
@@ -594,16 +546,16 @@ def point_in_box(point, box_points):
 # type: (Union[Point2D, Point3D], Tuple[Union[Point2D, Point3D], Union[Point2D, Point3D]]) -> bool
 
     if isinstance(point, Point2D):
-        if min(box_points[0].x1, box_points[1].x1) <= point.x1 <= max(box_points[0].x1, box_points[1].x1) and \
-           min(box_points[0].x2, box_points[1].x2) <= point.x2 <= max(box_points[0].x2, box_points[1].x2):
+        if min(box_points[0].rep[0], box_points[1].rep[0]) <= point.rep[0] <= max(box_points[0].rep[0], box_points[1].rep[0]) and \
+           min(box_points[0].rep[1], box_points[1].rep[1]) <= point.rep[1] <= max(box_points[0].rep[1], box_points[1].rep[1]):
             return True
         else:
             return False
 
     else:
-        if min(box_points[0].x, box_points[1].x) <= point.x <= max(box_points[1].x, box_points[0].x) and \
-           min(box_points[0].y, box_points[1].y) <= point.y <= max(box_points[1].y, box_points[0].y) and \
-           min(box_points[0].z, box_points[1].z) <= point.z <= max(box_points[1].z, box_points[0].z):
+        if min(box_points[0].rep[0], box_points[1].rep[0]) <= point.rep[0] <= max(box_points[1].rep[0], box_points[0].rep[0]) and \
+           min(box_points[0].rep[1], box_points[1].rep[1]) <= point.rep[1] <= max(box_points[1].rep[1], box_points[0].rep[1]) and \
+           min(box_points[0].rep[2], box_points[1].rep[2]) <= point.rep[2] <= max(box_points[1].rep[2], box_points[0].rep[2]):
             return True
         else:
             return False
@@ -631,6 +583,17 @@ def float_equals(a, b):
 
 
 
+# Check if two points are identical. 
+# 
+# Notes:
+#    Not checking for being truly identical, only to float precision.
+# 
+# Arguments:
+#    pt1 - Point3D or Point2D.
+#    pt2 - Point3D or Point2D.
+#
+# Returns:
+#    Bool. 
 def identical_points(pt1, pt2):
 # type: (Union[Point3D, Point2D], Union[Point3D, Point2D]) -> bool
 
@@ -646,6 +609,16 @@ def identical_points(pt1, pt2):
 
 
 
+# In a sequence of points, find some pair of points which are not identical. 
+# 
+# Notes:
+#    Not checking for being truly identical, only to float precision.
+# 
+# Arguments:
+#    points - A tuple of Point3D or Point2D objects. 
+#
+# Returns:
+#    Bool. 
 def find_non_identical_points(points):
 # type: (Tuple[Union[Point3D, Point2D], ...]) -> Tuple(Union[Point3D, Point2D], Union[Point3D, Point2D])
 
@@ -674,23 +647,6 @@ def robust_float_div(a, b):
 
 
 
-def robust_float_equals(a, b):
-# type: (float, float) -> bool
-
-    if math.isnan(a) and math.isnan(b):
-        return True
-    elif math.isnan(a) != math.isnan(b):
-        return False
-    # Bad idea in general for floats. The purpose of this comparison is to check
-    #    for matching infinities.
-    elif a == b:          
-        return True  
-    elif float_equals(a, b):
-        return True
-
-    return False 
-
-
 
 # Check if points are collinear.
 def are_collinear(points):
@@ -701,9 +657,9 @@ def are_collinear(points):
     points_for_line = find_non_identical_points(points)
 
     if isinstance(points[0], Point3D):
-        line = Infinite_Line3D(*points_for_line)
+        line = InfiniteLine3D(*points_for_line)
     else:
-        line = Infinite_Line2D(*points_for_line)
+        line = InfiniteLine2D(*points_for_line)
 
     for point in points:
         if not line.is_on(point):
@@ -714,7 +670,7 @@ def are_collinear(points):
 
 
 # Given some points, find the coefficients a, b, c, and d so that all the points
-#    lie on the plane described by ax + by + cz + d = 0. If the points are
+#    lie on the plane described by ax + by + cz = d. If the points are
 #    collinear, an exception is thrown.
 def get_plane_coeffs(point1, point2, point3):
 # type: (Point3D, Point3D, Point3D) -> np.ndarray
@@ -729,11 +685,7 @@ def get_plane_coeffs(point1, point2, point3):
     #    to solve the system of equations accordingly. If there is no solution,
     #    we know that the plane must go through the origin. Thus, the system
     #    of equations is modified accordingly and resolved.
-    x1, y1, z1 = point1.x, point1.y, point1.z
-    x2, y2, z2 = point2.x, point2.y, point2.z
-    x3, y3, z3 = point3.x, point3.y, point3.z
-
-    coords = np.array([[x1, y1, z1], [x2, y2, z2], [x3, y3, z3]])
+    coords = np.stack([point1.rep, point2.rep, point3.rep], axis=0)
     vals = np.array([1, 1, 1])
     try:
         coeffs = np.concatenate((np.linalg.solve(coords, vals), np.array([1])))
@@ -750,6 +702,8 @@ def get_plane_coeffs(point1, point2, point3):
 def on_any_plane(points):
 # type: (List[Point3D]) -> bool
 
+    assert(len(points) >= 3)
+
     # Find the coefficients of the plane which passes through the points.
     coeffs = get_plane_coeffs(points[0], points[1], points[2])
 
@@ -762,10 +716,10 @@ def on_any_plane(points):
 # The coefficent order should be a, b, c, d where the equation of the plane is
 #    ax + by + cz = d.
 def on_particular_plane(points, coeffs):
-# type: (List[Point3D], Seq[Float]) -> bool
+# type: (List[Point3D], np.array) -> bool
 
     for point in points:
-        if not float_equals(coeffs[0] * point.x + coeffs[1] * point.y + coeffs[2] * point.z, coeffs[3]):
+        if not float_equals(np.dot(coeffs[0:3], point), coeffs[3]):
             return False
 
     return True
@@ -786,7 +740,7 @@ def on_plane_of_ngon(points, ngon):
 def are_orthogonal(vec1, vec2):
 # type: (Vec3D, Vec3D) -> bool
 
-    if float_equals(np.dot(vec1.np_arr, vec2.np_arr), 0):
+    if float_equals(np.dot(vec1.rep, vec2.rep), 0):
         return True
     return False
 
@@ -803,15 +757,13 @@ def are_orthogonal(vec1, vec2):
 # Returns:
 #    Point3D object.
 def find_centroid(points):
-# type: (Tuple[Point3D, ...]) -> Point3D
+# type: (Tuple[Point3D, ...]) -> Point3D 
 
-    sums = [0, 0, 0]
+    rep = np.array([0, 0, 0])
     for point in points:
-        sums[0] += point.x
-        sums[1] += point.y
-        sums[2] += point.z
+        rep += point.rep
     cnt = len(points)
-    return Point3D(sums[0]/cnt, sums[1]/cnt, sums[2]/cnt)
+    return Point3D(rep / cnt)
 
 
 
@@ -879,7 +831,7 @@ def point_in_ngon_2D(point, ngon):
             next_vertex = ngon.vertices[idx + 1]
         
         # WARNING: Relies on ordering according to connectivity. 
-        line = Finite_Line2D(vertex, next_vertex)
+        line = FiniteLine2D(vertex, next_vertex)
 
         if line.is_on(point):
             return True
