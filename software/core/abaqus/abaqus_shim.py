@@ -62,7 +62,7 @@ def get_closest_face(points, obj):
 # type: (List[Point3D], Any) -> Any
 
     centroid = geom.find_centroid(points)
-    face_and_point = obj.faces.getClosest([centroid.get_components()])
+    face_and_point = obj.faces.getClosest([centroid.components()])
 
     face = face_and_point[0][0]
 

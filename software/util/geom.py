@@ -10,6 +10,23 @@ import matplotlib.path as path
 from debug import *
 
 
+class Basis:
+
+    # By definition, a basis consists of three vectors which must have unit length
+    #    and be orthogonal to one another.
+    def __init__(self, v1, v2, v3):
+    # type: (Vec3D, Vec3D, Vec3D) -> None
+
+        assert(v1.is_unit())
+        assert(v2.is_unit())
+        assert(v3.is_unit())
+        assert(are_orthogonal(v1, v2))
+        assert(are_orthogonal(v2, v3))
+        assert(are_orthogonal(v1, v3))
+
+        self.rep = np.stack([v1, v2, v3], axis=0) 
+
+
 
 class CSys3D:
 
@@ -20,28 +37,14 @@ class CSys3D:
     #       a single global coodinate system.
     # 
     # Arguments:
-    #    translation - 1D numpy array with 3 floats. Describes the translation
-    #                     in space of coordinate system.
-    #    basis       - 2D, 3x3 numpy array of floats. Describes the rotation of
-    #                     this coordinate system relative to a global system.
-    #                     All basis vectors must be unit length and be orthogonal
-    #                     to one another.
+    #    translation - Vec3D. 
+    #                  Describes the translation in space of coordinate system.
+    #    basis       - Basis. 
     #
     # Returns:
     #    None.
     def __init__(self, translation, basis):
-    # type: (Any, Any) -> None
-
-        # Check the validity of the basis matrix.
-        v1 = Vec3D(*basis[0])
-        v2 = Vec3D(*basis[1])
-        v3 = Vec3D(*basis[2])
-        assert(v1.is_unit())
-        assert(v2.is_unit())
-        assert(v3.is_unit())
-        assert(are_orthogonal(v1, v2))
-        assert(are_orthogonal(v2, v3))
-        assert(are_orthogonal(v1, v3))
+    # type: (Vec3D, Basis) -> None
 
         self.translation = translation
         self.basis = basis 
@@ -58,137 +61,110 @@ class CSys3D:
     # 
     # Returns:
     #    List of Point3D objects.
-    def from_global_to_new(self, points):
+    def map_into_csys(self, points):
     # type: (List[Point3D]) -> List[Point3D]
 
-        points_new_csys = []
-        for point in points:
-            point = np.array([point.x, point.y, point.z])
-            point_new_csys = np.matmul(self.basis, (point - self.translation))
-            point_new_csys = Point3D(*point_new_csys)
-            points_new_csys.append(point_new_csys)
-
-        return points_new_csys
+        return [Point3D(np.matmul(self.basis.rep, (point.rep - self.translation.rep))) for point in points]
 
 
 
 class Point2D:
     
     def __init__(self, x1, x2):
-    # type: (Union[float, int], Union[float, int]) -> None
+    # type: (numbers.Real, numbers.Real) -> None
 
-        self.x1 = float(x1)
-        self.x2 = float(x2)
-
-
-    def compute_scale_factors(self):
-    # type: (None) -> Tuple[float]
-
-        try:
-            t1 = self.x1 / self.x2
-        except ZeroDivisionError:
-            if float_equals(self.x1, 0):
-                t1 = float("nan")
-            elif self.x1 > 0:
-                t1 = float("+inf")
-            else:
-                t1 = float("-inf")
-
-        return (t1, )
+        self.rep = np.array([x1, x2], dtype=float)
 
 
-    def get_components(self):
-    # type: (None) -> Tuple[float, float]
+    def __init__(self, arr):
+    # type: (np.ndarray) -> None
 
-        return (self.x1, self.x2)
+        assert(isinstance(arr, np.ndarray))
+        assert(arr.size == 2)
+        assert(arr.dtype == np.float)
+
+        self.rep = arr
+
+
+    def components(self):
+    # type: (None) -> Tuple[np.float, np.float]
+
+        return (self.rep[0], self.rep[1])
 
 
 
 class Point3D:
 
     def __init__(self, x, y, z):
-    # type: (Union[float, int], Union[float, int], Union[float, int]) -> None
+    # type: (numbers.Real, numbers.Real, numbers.Real) -> None
 
-        self.x = float(x)
-        self.y = float(y)
-        self.z = float(z)
+        self.rep = np.array([x, y, z], dtype=float) 
+
+
+    def __init__(self, arr):
+    # type: (np.ndarray) -> None
+
+        assert(isinstance(arr, np.ndarray))
+        assert(arr.size == 3)
+        assert(arr.dtype == np.float)
+
+        self.rep = arr
 
 
     def proj_xy(self):
-    # type: (None) -> Tuple[float, float]
-        
-        return Point2D(self.x, self.y) 
+    # type: (None) -> Point2D
+
+        return Point2D(self.rep[0:2]) 
 
 
     def proj_xz(self):
-    # type: (None) -> Tuple[float]
+    # type: (None) -> Point2D 
 
-        return Point2D(self.x, self.z)
-
-
-    def get_components(self):
-    # type: (None) -> Tuple[float, float, float]
-
-        return (self.x, self.y, self.z)
+        return Point2D(self.rep[0], self.rep[2])
 
 
-    def compute_scale_factors(self):
-    # type: (None) -> Tuple[float, float]
+    def components(self):
+    # type: (None) -> Tuple[np.float, np.float, np.float]
 
-        try:
-            t1 = self.x / self.z
-        except ZeroDivisionError:
-            if float_equals(self.x, 0):
-                t1 = float("nan")
-            elif self.x > 0:
-                t1 = float("+inf")
-            else:
-                t1 = float("-inf")
+        return (self.rep[0], self.rep[1], self.rep[2])
 
-        try:
-            t2 = self.y / self.z
-        except ZeroDivisionError:
-            if float_equals(self.y, 0):
-                t2 = float("nan")
-            elif self.y > 0:
-                t2 = float("+inf")
-            else:
-                t2 = float("-inf")
-
-        return (t1, t2)
 
 
 
 class Vec2D:
 
     def __init__(self, x, y):
-    # type: (Union[float, int], Union[float, int]) -> None
+    # type: (numbers.Real, numbers.Real) -> None
 
-        if float_equals(x, 0) and float_equals(y, 0):
-            raise RuntimeError("Attempt to create vector which is meaningless.")
-
-        self.np_arr = np.array([float(x), float(y)])
+        self.rep = np.array([x, y], dtype=float)
 
 
-    # Check if the vector has unit norm.
+    def __init__(self, arr):
+    # type: (np.ndarray) -> None
+
+        assert(isinstance(arr, np.ndarray))
+        assert(arr.size == 2)
+        assert(arr.dtype == float)
+
+        self.rep = arr
+
+
     def is_unit(self):
     # type: (None) -> bool
-        
-        if float_equals(self.get_len(), 1):
+
+        if float_equals(self.len(), 1):
             return True
         return False
 
 
-    # Get a normalized version of the vector, without modifying internal
-    #    state.
     def normalize(self):
     # type: (None) -> Vec3D
 
         res = (1 / linalg.norm(self.np_arr)) * self.np_arr
-        return Vec2D(*res)
+        return Vec2D(res)
 
 
-    def get_len(self):
+    def len(self):
     # type: (None) -> float
 
         return linalg.norm(self.np_arr)
@@ -198,16 +174,26 @@ class Vec2D:
 class Vec3D:
 
     def __init__(self, x, y, z):
-    # type: (Union[float, int], Union[float, int], Union[float, int]) -> None
+    # type: (numbers.Real, numbers.Real, numbers.Real) -> None
 
-        self.np_arr = np.array([float(x), float(y), float(z)])
+        self.rep = np.array([x, y, z], dtype=float)
+
+
+    def __init__(self, arr):
+    # type: (np.ndarray) -> None
+
+        assert(isinstance(arr, np.ndarray))
+        assert(arr.size == 3)
+        assert(arr.dtype == float)
+
+        self.rep = arr
 
 
     # Check if the vector has unit norm.
     def is_unit(self):
     # type: (None) -> bool
         
-        if float_equals(self.get_len(), 1):
+        if float_equals(self.len(), 1):
             return True
         return False
 
@@ -217,14 +203,14 @@ class Vec3D:
     def normalize(self):
     # type: (None) -> Vec3D
 
-        res = (1 / linalg.norm(self.np_arr)) * self.np_arr
-        return Vec3D(*res)
+        res = (1 / linalg.norm(self.rep)) * self.rep
+        return Vec3D(res)
 
 
-    def get_len(self):
+    def len(self):
     # type: (None) -> float
 
-        return linalg.norm(self.np_arr)
+        return linalg.norm(self.rep)
  
     
     # Get a vector orthogonal to the vector. Note that there are an infinite
@@ -233,12 +219,12 @@ class Vec3D:
     def get_orthonormal(self):
     # type: (None) -> Vec3D
 
-        if self.np_arr[1] == 0 and self.np_arr[2] == 0:
+        if self.rep[1] == 0 and self.arr[2] == 0:
             other_vec = np.array([0, 1, 0])
         else:
             other_vec = np.array([1, 0, 0])
 
-        orth_vec = Vec3D(*np.cross(other_vec, self.np_arr))
+        orth_vec = Vec3D(np.cross(other_vec, self.rep))
 
         return orth_vec.get_norm()
         
@@ -248,8 +234,6 @@ class Vec3D:
 #   all right angles, and opposite faces have equal area.
 # This is not only a right rectangular prism, but also a right rectangular
 #   prism which edges which are parallel to the standard x, y, and z axes.
-# TODO: Generalize so that edges need not be parallel to the standard x, y, and
-#    z axes.
 class SpecRightRectPrism:
    
     def __init__(self, v1, v2, v3, v4, v5, v6, v7, v8):
@@ -266,21 +250,21 @@ class SpecRightRectPrism:
         self.same_z_g1 = [v1]
         self.same_z_g2 = []
         for v in v_list[1:]:
-            if v.x == self.same_x_g1[0].x:
+            if v.rep[0] == self.same_x_g1[0].rep[0]:
                 self.same_x_g1.append(v)
             else:
                 self.same_x_g2.append(v)
 
-            if v.y == self.same_y_g1[0].y:
+            if v.rep[1] == self.same_y_g1[0].rep[1]:
                 self.same_y_g1.append(v)
             else:
                 self.same_y_g2.append(v)
 
-            if v.z == self.same_z_g1[0].z:
+            if v.rep[2] == self.same_z_g1[0].rep[2]:
                 self.same_z_g1.append(v)
             else:
                 self.same_z_g2.append(v)
-        
+
         assert(len(self.same_x_g1) == 4)
         assert(len(self.same_x_g2) == 4)
         assert(len(self.same_y_g1) == 4)
@@ -302,9 +286,9 @@ class SpecRightRectPrism:
     def get_dims(self):
     # type: (None) -> Tuple(float, float, float)
        
-        x_length = abs(self.same_x_g1[0].x - self.same_x_g2[0].x)
-        y_width = abs(self.same_y_g1[0].y - self.same_y_g2[0].y)
-        z_height = abs(self.same_z_g1[0].z - self.same_z_g2[0].z)
+        x_length = abs(self.same_x_g1[0].rep[0] - self.same_x_g2[0].rep[0])
+        y_width = abs(self.same_y_g1[0].rep[1] - self.same_y_g2[0].rep[1])
+        z_height = abs(self.same_z_g1[0].rep[2] - self.same_z_g2[0].rep[2])
 
         return (x_length, y_width, z_height)
 
@@ -317,16 +301,16 @@ class SpecRightRectPrism:
         v1 = self.vertices[0]
 
         for v in self.vertices[1:]:
-            if (v1.z == v.z) and (v1.x != v.x) and (v1.y != v.y):
+            if (v1.rep[2] == v.rep[2]) and (v1.rep[0] != v.rep[0]) and (v1.rep[1] != v.rep[1]):
                 return v1, v
 
 
     def get_centroid(self):
     # type: (None) -> Point3D
         
-        avg_x = (self.same_x_g1[0].x + self.same_x_g2[0].x)/2
-        avg_y = (self.same_y_g1[0].y + self.same_y_g2[0].y)/2
-        avg_z = (self.same_z_g1[0].z + self.same_z_g2[0].z)/2
+        avg_x = (self.same_x_g1[0].rep[0] + self.same_x_g2[0].rep[0]) / 2
+        avg_y = (self.same_y_g1[0].rep[1] + self.same_y_g2[0].rep[1]) / 2
+        avg_z = (self.same_z_g1[0].rep[2] + self.same_z_g2[0].rep[2]) / 2
 
         return Point3D(avg_x, avg_y, avg_z) 
 
@@ -364,7 +348,7 @@ class NGon3D:
     #    first point to the second point, another line segment connects the
     #    second point to the third point, etc. 
     def __init__(self, points):
-    # type: (Union[List[Point3D], Tuple[Point3D, ...]]) -> None
+    # type: (List[Point3D]) -> None
 
         if not on_any_plane(points):
             raise RuntimeError("The points don't describe a valid n-gon!")
@@ -419,7 +403,7 @@ class Infinite_Line3D:
 
         # Store a parametric representation of the line.
         self.p1 = p1
-        self.line_dir = Vec3D(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z)
+        self.line_dir = Vec3D(p1.rep - p2.rep)
 
 
     def is_on(self, point):
@@ -651,11 +635,11 @@ def identical_points(pt1, pt2):
 # type: (Union[Point3D, Point2D], Union[Point3D, Point2D]) -> bool
 
     if isinstance(pt1, Point3D):
-        if float_equals(pt1.x, pt2.x) and float_equals(pt1.y, pt2.y) and \
-           float_equals(pt1.z, pt2.z):
+        if float_equals(pt1.rep[0], pt2.rep[0]) and float_equals(pt1.rep[1], pt2.rep[1]) and \
+           float_equals(pt1.rep[2], pt2.rep[2]):
             return True
     else:
-        if float_equals(pt1.x1, pt2.x1) and float_equals(pt1.x2, pt2.x2):
+        if float_equals(pt1.rep[0], pt2.rep[0]) and float_equals(pt1.rep[1], pt2.rep[1]):
             return True
 
     return False
@@ -902,4 +886,4 @@ def point_in_ngon_2D(point, ngon):
     
     # Otherwise, check if it's in the interior. 
     ngon = path.Path(ngon.get_builtin_rep(), closed=True)
-    return ngon.contains_point(point.get_components())
+    return ngon.contains_point(point.components())

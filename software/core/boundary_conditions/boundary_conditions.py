@@ -222,7 +222,7 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
     csys = shim.extract_global_csys_to_sketch_csys(transform)
 
     # Map the points into the coordinate system of the sketch. 
-    points = csys.from_global_to_new(ngon.vertices)
+    points = csys.map_into_csys(ngon.vertices)
 
     # In the coordinate system of the sketch, it better be the case that the 
     #    component of each point normal to the face is zero. 
@@ -235,8 +235,8 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
     # Now use the points to construct the ngon on the sketch.
     points_circular = points + points[0:1]
     for idx in range(len(points_circular) - 1):
-        cur_point = points_circular[idx].proj_xy().get_components()
-        next_point = points_circular[idx + 1].proj_xy().get_components()
+        cur_point = points_circular[idx].proj_xy().components()
+        next_point = points_circular[idx + 1].proj_xy().components()
         
         # The Line() method of an Abaqus Sketch object returns None even on
         #    success. Documentation is wrong!
@@ -263,7 +263,7 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
     for idx, vertices_single_face in enumerate(vertices):
        
         # TODO: Awkward conversion necessary...
-        vertices_single_face = [v.get_components() for v in vertices_single_face]
+        vertices_single_face = [v.components() for v in vertices_single_face]
 
         # TODO: It turns out that using idx works because the ordering of
         #    faces is the same. This could be formalized in some way.
@@ -271,7 +271,7 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
 
             all_match = True
             for vertex in ngon.vertices:
-                if vertex.get_components() not in vertices_single_face:
+                if vertex.components() not in vertices_single_face:
                     all_match = False
 
             if all_match:
