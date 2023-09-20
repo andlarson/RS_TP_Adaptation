@@ -1,9 +1,7 @@
-import os
-
-import numpy as np
 from abaqus import *
 from abaqusConstants import * 
 import regionToolset 
+import numpy as np
 
 import util.geom as geom
 from util.debug import *
@@ -179,7 +177,7 @@ def get_all_vertices(obj):
         vertex_ids = face.getVertices()
 
         for vertex_id in vertex_ids:
-            vertex = geom.Point3D(*obj.vertices[vertex_id].pointOn[0])
+            vertex = geom.Point3D(np.array(obj.vertices[vertex_id].pointOn[0]))
             vertices_on_face.append(vertex)
 
         vertices.append(vertices_on_face)
@@ -225,7 +223,7 @@ def get_all_vertices_ordered(obj):
         ordered_vertices_on_face = get_face_ordered_vertices(vertices_on_face, face, obj) 
 
         for vertex_group in ordered_vertices_on_face:
-            vertices[-1].append([geom.Point3D(*vertex.pointOn[0]) for vertex in vertex_group])
+            vertices[-1].append([geom.Point3D(np.array(vertex.pointOn[0])) for vertex in vertex_group])
 
     return vertices 
 
@@ -403,7 +401,7 @@ def get_BC_cnt(model_name, mdb):
 #    Boolean. 
 def check_face_ngon_match(ngon, face, obj):
 
-    face_vertices = shim.get_face_vertices(face, obj)
+    face_vertices = get_face_vertices(face, obj)
     ngon_vertices = ngon.get_builtin_rep()
     ngon_face_share_vertices = True 
     if len(face_vertices) == len(ngon_vertices):
@@ -435,7 +433,7 @@ def get_matching_face(ngon, obj):
     new_face = None
     for face in get_faces(obj):
 
-        vertices_single_face = get_face_vertices(face)
+        vertices_single_face = get_face_vertices(face, obj)
        
         if len(vertices_single_face) == len(ngon.vertices):
 
@@ -678,10 +676,10 @@ def extract_global_csys_to_sketch_csys(transform):
 
     rot_and_trans = transform.matrix()
    
-    x_axis = geom.Vec3D(*rot_and_trans[0:3])
-    y_axis = geom.Vec3D(*rot_and_trans[3:6])
-    z_axis = geom.Vec3D(*rot_and_trans[6:9])
-    trans = geom.Vec3D(*rot_and_trans[9:12])
+    x_axis = geom.Vec3D(np.array(rot_and_trans[0:3]))
+    y_axis = geom.Vec3D(np.array(rot_and_trans[3:6]))
+    z_axis = geom.Vec3D(np.array(rot_and_trans[6:9]))
+    trans = geom.Vec3D(np.array(rot_and_trans[9:12]))
 
     basis = geom.Basis3D(x_axis, y_axis, z_axis) 
 
@@ -1268,7 +1266,7 @@ def find_face_ngon_lives_on(ngon, obj):
     #    lives on that face. That face might have holes in it! That face could be
     #    curved!
     on_a_face = False
-    for vertices_single_face in shim.get_all_vertices(obj):
+    for vertices_single_face in get_all_vertices(obj):
         if geom.on_plane_of_ngon(vertices_single_face, ngon):
             on_a_face = True
     
@@ -1278,7 +1276,7 @@ def find_face_ngon_lives_on(ngon, obj):
 
     # Assume that the face closest to points which make up the ngon is the face
     #    that the ngon lives on.
-    face_ngon_belongs_to = shim.get_closest_face(ngon.vertices, obj)
+    face_ngon_belongs_to = get_closest_face(ngon.vertices, obj)
 
     return face_ngon_belongs_to
 

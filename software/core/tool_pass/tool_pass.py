@@ -1,8 +1,5 @@
 
 import util.geom as geom
-import core.abaqus.abaqus_metadata as abq_md
-import core.part.part as part
-import core.abaqus.abaqus_shim as shim
 
 
 

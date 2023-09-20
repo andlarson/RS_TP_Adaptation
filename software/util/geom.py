@@ -1,5 +1,3 @@
-import sys
-import math
 import itertools
 
 import numpy as np
@@ -24,7 +22,7 @@ class Basis3D:
         assert(are_orthogonal(v2, v3))
         assert(are_orthogonal(v1, v3))
 
-        self.rep = np.stack([v1, v2, v3], axis=0) 
+        self.rep = np.stack([v1.rep, v2.rep, v3.rep], axis=0) 
 
 
 
@@ -70,19 +68,13 @@ class CSys3D:
 
 class Point2D:
     
-    def __init__(self, x1, x2):
-    # type: (numbers.Real, numbers.Real) -> None
-
-        self.rep = np.array([x1, x2], dtype=float)
-
-
     def __init__(self, arr):
     # type: (np.ndarray) -> None
 
         assert(isinstance(arr, np.ndarray))
         assert(arr.size == 2)
-        assert(arr.dtype == np.float)
-
+        
+        arr = np.array(arr, dtype=float)
         self.rep = arr
 
 
@@ -95,19 +87,13 @@ class Point2D:
 
 class Point3D:
 
-    def __init__(self, x, y, z):
-    # type: (numbers.Real, numbers.Real, numbers.Real) -> None
-
-        self.rep = np.array([x, y, z], dtype=float) 
-
-
     def __init__(self, arr):
     # type: (np.ndarray) -> None
 
         assert(isinstance(arr, np.ndarray))
         assert(arr.size == 3)
-        assert(arr.dtype == np.float)
-
+        
+        arr = np.array(arr, dtype=float)
         self.rep = arr
 
 
@@ -120,7 +106,7 @@ class Point3D:
     def proj_xz(self):
     # type: (None) -> Point2D 
 
-        return Point2D(self.rep[0], self.rep[2])
+        return Point2D(np.array([self.rep[0], self.rep[2]]))
 
 
     def components(self):
@@ -133,20 +119,15 @@ class Point3D:
 
 class Vec2D:
 
-    def __init__(self, x, y):
-    # type: (numbers.Real, numbers.Real) -> None
-
-        self.rep = np.array([x, y], dtype=float)
-
-
     def __init__(self, arr):
     # type: (np.ndarray) -> None
 
         assert(isinstance(arr, np.ndarray))
         assert(arr.size == 2)
-        assert(arr.dtype == float)
-
+        
+        arr = np.array(arr, dtype=float)
         self.rep = arr
+
 
 
     def is_unit(self):
@@ -173,19 +154,13 @@ class Vec2D:
 
 class Vec3D:
 
-    def __init__(self, x, y, z):
-    # type: (numbers.Real, numbers.Real, numbers.Real) -> None
-
-        self.rep = np.array([x, y, z], dtype=float)
-
-
     def __init__(self, arr):
-    # type: (np.ndarray) -> None
+    # type: (np.ndarrar) -> None
 
         assert(isinstance(arr, np.ndarray))
         assert(arr.size == 3)
-        assert(arr.dtype == float)
-
+        
+        arr = np.array(arr, dtype=float)
         self.rep = arr
 
 
@@ -312,7 +287,7 @@ class SpecRightRectPrism:
         avg_y = (self.same_y_g1[0].rep[1] + self.same_y_g2[0].rep[1]) / 2
         avg_z = (self.same_z_g1[0].rep[2] + self.same_z_g2[0].rep[2]) / 2
 
-        return Point3D(avg_x, avg_y, avg_z) 
+        return Point3D(np.array([avg_x, avg_y, avg_z])) 
 
 
 
@@ -421,7 +396,7 @@ class InfiniteLine2D:
 
         self.p1 = p1 
 
-        self.line_dir = Vec2D(p1.x1 - p2.x1, p1.x2 - p2.x2)
+        self.line_dir = Vec2D(np.array([p1.rep[0] - p2.rep[0], p1.rep[1] - p2.rep[1]]))
 
 
     def is_on(self, point):
@@ -443,7 +418,7 @@ class FiniteLine2D:
         self.p1 = p1 
         self.p2 = p2
 
-        self.line_dir = Vec2D(p1.x1 - p2.x1, p1.x2 - p2.x2)
+        self.line_dir = Vec2D(np.array([p1.rep[0] - p2.rep[0], p1.rep[1] - p2.rep[1]]))
 
 
     def is_on(self, point):
@@ -472,58 +447,38 @@ def point_on_inf_line(point, parametric_rep):
 # type: (Union[Point3D, Point2D], Union[Tuple(Point3D, Vec3D), Tuple(Point2D, Vec2D)]) -> bool
 
     if isinstance(point, Point3D) and isinstance(parametric_rep[0], Point3D) and isinstance(parametric_rep[1], Vec3D):
-
-        p1, line_dir = parametric_rep
-
-        # Try to solve for parameters which put the point on the line. 
-        diff = point.rep - p1.rep
-        x_parameter = robust_float_div(diff[0], line_dir.rep[0])
-        y_parameter = robust_float_div(diff[1], line_dir.rep[1])
-        z_parameter = robust_float_div(diff[2], line_dir.rep[2])
-
-        # Zeros can cause problems.
-        # Consider a line defined by: (0, 0, 0) + t * <0, -5, 0>. Say we want
-        #    to check if (0, 5, 0) lies on this line (it obviously does).
-        # Using the equations above, x_parameter = nan, y_parameter = -1, and
-        #    z_parameter = nan.
-        # This implies that checking for parameter equality is insufficient. We
-        #    should instead check if x_parameter, y_parameter, or z_parameter
-        #    gives a valid solution.
-    
-        p = p1.rep + x_parameter * line_dir.rep
-        res1 = Point3D(p)
-
-        p = p1.rep + y_parameter * line_dir.rep
-        res2 = Point3D(p)
-
-        p = p1.rep + z_parameter * line_dir.rep
-        res3 = Point3D(p)
-
-        if identical_points(point, res1) or identical_points(point, res2) or identical_points(point, res3):
-            return True
-
-        return False
-
+        dims = 3
     elif isinstance(point, Point2D) and isinstance(parametric_rep[0], Point2D) and isinstance(parametric_rep[1], Vec2D):
-
-        p1, line_dir = parametric_rep
-
-        y_parameter = robust_float_div(diff[1], line_dir.rep[1])
-
-        # Identical technique to above.
-        p = p1.rep + x_parameter * line_dir.rep
-        res1 = Point2D(p)
-
-        p = p1.rep + y_parameter * line_dir.rep
-        res2 = Point2D(p)
-
-        if (identical_points(point, res1) or identical_points(point, res2)):
-            return True
-
-        return False
-
+        dims = 2
     else:
         raise RuntimeError("Bad passed arguments!")
+
+    p1, line_dir = parametric_rep
+
+    # Try to solve for parameters which put the point on the line. 
+    diff = point.rep - p1.rep
+    params = []
+    for i in range(dims):
+        params.append(robust_float_div(diff[i], line_dir.rep[i]))
+
+    # Zeros can cause problems.
+    # Consider a line defined by: (0, 0, 0) + t * <0, -5, 0>. Say we want
+    #    to check if (0, 5, 0) lies on this line (it obviously does).
+    # Using the equations above, the parameters could be nan, -1, and nan.
+    # This implies that checking for parameter equality is insufficient. We
+    #    should instead check if any of the parameters gives a valid solution.
+
+    degenerate_cases = (float("+inf"), float("-inf"), float("nan"))
+
+    for param in params:
+        if param not in degenerate_cases:
+            p = p1.rep + param * line_dir.rep
+            res = Point3D(p)
+
+            if identical_points(point, res):
+                return True
+
+    return False
 
 
 
@@ -631,7 +586,11 @@ def find_non_identical_points(points):
 
 
 def robust_float_div(a, b):
-# type: (float, float) -> float
+# type: (numbers.Real, numbers.Real) -> float
+
+    # Convert to Python's float.
+    a = float(a)
+    b = float(b)
 
     try:
         res = a / b 
@@ -719,7 +678,7 @@ def on_particular_plane(points, coeffs):
 # type: (List[Point3D], np.array) -> bool
 
     for point in points:
-        if not float_equals(np.dot(coeffs[0:3], point), coeffs[3]):
+        if not float_equals(np.dot(coeffs[0:3], point.rep), coeffs[3]):
             return False
 
     return True
@@ -759,7 +718,7 @@ def are_orthogonal(vec1, vec2):
 def find_centroid(points):
 # type: (Tuple[Point3D, ...]) -> Point3D 
 
-    rep = np.array([0, 0, 0])
+    rep = np.array([0, 0, 0], dtype=float)
     for point in points:
         rep += point.rep
     cnt = len(points)

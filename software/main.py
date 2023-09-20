@@ -1,11 +1,12 @@
 import sys
-import os
 
 # DEBUG
 # For Abaqus PDB and allows main.py to be run from any directory.
 # Imperfect solution, but good enough for now. Every time this file is imported,
 #    this line runs. This pollutes the sys.path list.
 sys.path.append("/home/andlars/Desktop/RS_TP_Adaptation/software")
+
+import numpy as np
 
 import core.machining.machining as mach
 import util.geom as geom
@@ -25,26 +26,26 @@ if __name__ == "__main__":
     # ----- Specifying the clamping setup (aka the boundary conditions) -----
 
     # Clamp on one side of bar.
-    v1 = geom.Point3D(0, 10, 0)
-    v2 = geom.Point3D(40, 10, 0)
-    v3 = geom.Point3D(40, 10, 40)
-    v4 = geom.Point3D(0, 10, 40)
+    v1 = geom.Point3D(np.array([0, 10, 0]))
+    v2 = geom.Point3D(np.array([40, 10, 0]))
+    v3 = geom.Point3D(np.array([40, 10, 40]))
+    v4 = geom.Point3D(np.array([0, 10, 40]))
     clamp_surface_vertices = [v1, v2, v3, v4]
     clamp_surface1 = geom.NGon3D(clamp_surface_vertices)
 
     # Clamp on other side of bar.
-    v1 = geom.Point3D(0, 10, 400)
-    v2 = geom.Point3D(0, 10, 360)
-    v3 = geom.Point3D(40, 10, 360)
-    v4 = geom.Point3D(40, 10, 400)
+    v1 = geom.Point3D(np.array([0, 10, 400]))
+    v2 = geom.Point3D(np.array([0, 10, 360]))
+    v3 = geom.Point3D(np.array([40, 10, 360]))
+    v4 = geom.Point3D(np.array([40, 10, 400]))
     clamp_surface_vertices = [v1, v2, v3, v4]
     clamp_surface2 = geom.NGon3D(clamp_surface_vertices)
 
     # Approximate how clamps restrict part movement. 
     BC_settings = bc.DisplacementBCSettings(True, True, True, True, True, True)
 
-    BC1 = bc.BC(clamp_surface1, BC_settings)
-    BC2 = bc.BC(clamp_surface2, BC_settings)
+    BC1 = bc.SurfaceBC(clamp_surface1, BC_settings)
+    BC2 = bc.SurfaceBC(clamp_surface2, BC_settings)
 
     BCs = [BC1, BC2]
 
@@ -68,14 +69,14 @@ if __name__ == "__main__":
     # ----- Specifying the first tool pass -----
 
     # Tool Pass #1
-    v1 = geom.Point3D(40, 9, 215)
-    v2 = geom.Point3D(40, 20, 215)
-    v3 = geom.Point3D(40, 9, 185)
-    v4 = geom.Point3D(40, 20, 185)
-    v5 = geom.Point3D(0, 9, 215)
-    v6 = geom.Point3D(0, 20, 215)
-    v7 = geom.Point3D(0, 9, 185)
-    v8 = geom.Point3D(0, 20, 185)
+    v1 = geom.Point3D(np.array([40, 9, 215]))
+    v2 = geom.Point3D(np.array([40, 20, 215]))
+    v3 = geom.Point3D(np.array([40, 9, 185]))
+    v4 = geom.Point3D(np.array([40, 20, 185]))
+    v5 = geom.Point3D(np.array([0, 9, 215]))
+    v6 = geom.Point3D(np.array([0, 20, 215]))
+    v7 = geom.Point3D(np.array([0, 9, 185]))
+    v8 = geom.Point3D(np.array([0, 20, 185]))
 
     tp1_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
 
@@ -84,14 +85,14 @@ if __name__ == "__main__":
 
     # ----- Specifying the second tool pass -----
 
-    v1 = geom.Point3D(40, 5, 40)
-    v2 = geom.Point3D(40, 5, 80)
-    v3 = geom.Point3D(40, 30, 40)
-    v4 = geom.Point3D(40, 30, 80)
-    v5 = geom.Point3D(0, 5, 40)
-    v6 = geom.Point3D(0, 5, 80)
-    v7 = geom.Point3D(0, 30, 40)
-    v8 = geom.Point3D(0, 30, 80)
+    v1 = geom.Point3D(np.array([40, 5, 40]))
+    v2 = geom.Point3D(np.array([40, 5, 80]))
+    v3 = geom.Point3D(np.array([40, 30, 40]))
+    v4 = geom.Point3D(np.array([40, 30, 80]))
+    v5 = geom.Point3D(np.array([0, 5, 40]))
+    v6 = geom.Point3D(np.array([0, 5, 80]))
+    v7 = geom.Point3D(np.array([0, 30, 40]))
+    v8 = geom.Point3D(np.array([0, 30, 80]))
 
     tp2_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
 
@@ -100,14 +101,14 @@ if __name__ == "__main__":
 
     # ----- Specifying the third tool pass -----
 
-    v1 = geom.Point3D(20, 5, 50)
-    v2 = geom.Point3D(30, 5, 50)
-    v3 = geom.Point3D(20, 20, 50)
-    v4 = geom.Point3D(30, 20, 50)
-    v5 = geom.Point3D(20, 5, 150)
-    v6 = geom.Point3D(30, 5, 150)
-    v7 = geom.Point3D(20, 20, 150)
-    v8 = geom.Point3D(30, 30, 150)
+    v1 = geom.Point3D(np.array([20, 5, 50]))
+    v2 = geom.Point3D(np.array([30, 5, 50]))
+    v3 = geom.Point3D(np.array([20, 20, 50]))
+    v4 = geom.Point3D(np.array([30, 20, 50]))
+    v5 = geom.Point3D(np.array([20, 5, 150]))
+    v6 = geom.Point3D(np.array([30, 5, 150]))
+    v7 = geom.Point3D(np.array([20, 20, 150]))
+    v8 = geom.Point3D(np.array([30, 30, 150]))
 
     tp3_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
 
@@ -116,14 +117,14 @@ if __name__ == "__main__":
 
     # ----- Specifying the fourth tool pass -----
 
-    v1 = geom.Point3D(10, 3, 300)
-    v2 = geom.Point3D(30, 3, 300)
-    v3 = geom.Point3D(10, 3, 350)
-    v4 = geom.Point3D(30, 3, 350)
-    v5 = geom.Point3D(10, 30, 300)
-    v6 = geom.Point3D(30, 30, 300)
-    v7 = geom.Point3D(10, 30, 350)
-    v8 = geom.Point3D(30, 30, 350)
+    v1 = geom.Point3D(np.array([10, 3, 300]))
+    v2 = geom.Point3D(np.array([30, 3, 300]))
+    v3 = geom.Point3D(np.array([10, 3, 350]))
+    v4 = geom.Point3D(np.array([30, 3, 350]))
+    v5 = geom.Point3D(np.array([10, 30, 300]))
+    v6 = geom.Point3D(np.array([30, 30, 300]))
+    v7 = geom.Point3D(np.array([10, 30, 350]))
+    v8 = geom.Point3D(np.array([30, 30, 350]))
 
     tp4_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
 
