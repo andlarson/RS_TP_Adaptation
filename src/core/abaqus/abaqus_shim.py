@@ -22,7 +22,6 @@ STANDARD_BC_PREFIX = "Boundary_Condition_"
 
 
 
-
 # *****************************************************************************
 #                         Abaqus Information Retrieval
 #       These functions retrieve information/state that Abaqus maintains.
