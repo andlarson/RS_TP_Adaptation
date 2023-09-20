@@ -3,7 +3,7 @@ import os
 import numpy as np
 from abaqus import *
 from abaqusConstants import * 
-import regionToolset             # Unclear why necessary.   
+import regionToolset 
 
 import util.geom as geom
 from util.debug import *
@@ -31,7 +31,7 @@ STANDARD_BC_PREFIX = "Boundary_Condition_"
 # *****************************************************************************
 
 
-def find_step_keyword(kwb):
+def get_step_keyword(kwb):
 # type: (Any) -> int
     
     for index, string in enumerate(kwb.sieBlocks):
@@ -59,7 +59,7 @@ def find_step_keyword(kwb):
 # Returns:
 #    Abaqus Face object.
 def get_closest_face(points, obj):
-# type: (List[Point3D], Any) -> Any
+# type: (List[geom.Point3D], Any) -> Any
 
     centroid = geom.find_centroid(points)
     face_and_point = obj.faces.getClosest([centroid.components()])
@@ -169,7 +169,7 @@ def get_faces(obj):
 # Returns:
 #    A list of lists of Point3D objects. 
 def get_all_vertices(obj):
-# type: (Any) -> List[List[Point3D]]
+# type: (Any) -> List[List[geom.Point3D]]
 
     faces = get_faces(obj) 
 
@@ -222,7 +222,7 @@ def get_all_vertices_ordered(obj):
         vertex_ids = face.getVertices()
         vertices_on_face = [obj.vertices[vertex_id] for vertex_id in vertex_ids]
 
-        ordered_vertices_on_face = order_vertices(vertices_on_face, face, obj) 
+        ordered_vertices_on_face = get_face_ordered_vertices(vertices_on_face, face, obj) 
 
         for vertex_group in ordered_vertices_on_face:
             vertices[-1].append([geom.Point3D(*vertex.pointOn[0]) for vertex in vertex_group])
@@ -254,7 +254,7 @@ def get_all_vertices_ordered(obj):
 # Returns:
 #    List of lists of Abaqus Vertex objects. The order of per-boundary lists is
 #       arbitrary.
-def order_vertices(vertices, face, obj):
+def get_face_ordered_vertices(vertices, face, obj):
 # type: (List[Any], Any, Any) -> List[List[Any]]
 
     per_group_vertices = []
@@ -299,7 +299,7 @@ def traverse_connected_vertices_on_face(vertex, face, obj):
 
     first_vertex = vertex
     prev_vertex = first_vertex 
-    first_neighbors = find_neighbor_vertices(first_vertex, face, obj)
+    first_neighbors = get_neighbor_vertices(first_vertex, face, obj)
     current_vertex = first_neighbors[0]
     
     well_ordered_vertices = [first_vertex]    
@@ -307,7 +307,7 @@ def traverse_connected_vertices_on_face(vertex, face, obj):
         
         well_ordered_vertices.append(current_vertex)
     
-        current_neighbors = find_neighbor_vertices(current_vertex, face, obj)
+        current_neighbors = get_neighbor_vertices(current_vertex, face, obj)
     
         if current_neighbors[0].index != prev_vertex.index:
             prev_vertex = current_vertex
@@ -334,7 +334,7 @@ def traverse_connected_vertices_on_face(vertex, face, obj):
 #
 # Returns:
 #    List of exactly two Abaqus Vertex objects.
-def find_neighbor_vertices(vertex, face, obj):
+def get_neighbor_vertices(vertex, face, obj):
 # type: (Any, Any, Any) -> List[Any, Any]
 
     face_edge_ids = face.getEdges()
@@ -382,9 +382,73 @@ def get_step_cnt(model_name, mdb):
 
 
 def get_BC_cnt(model_name, mdb):
-# type: (Any) -> Int 
+# type: (Any, Any) -> Int 
 
     return len(mdb.models[model_name].boundaryConditions)
+
+
+
+# Check if the face and the ngon have matching vertices. 
+# 
+# Notes:
+#    In general, I don't think that this means that they exactly match. The face
+#       could be curved but have vertices which nicely match the ngon.
+#
+# Arguments:
+#    ngon - NGon3D object.
+#    face - Abaqus Face object.
+#    obj  - Abaqus Part or Abaqus PartInstance object.
+#
+# Returns:
+#    Boolean. 
+def check_face_ngon_match(ngon, face, obj):
+
+    face_vertices = shim.get_face_vertices(face, obj)
+    ngon_vertices = ngon.get_builtin_rep()
+    ngon_face_share_vertices = True 
+    if len(face_vertices) == len(ngon_vertices):
+        for face_vertex in face_vertices:
+            if face_vertex not in ngon_vertices:
+                ngon_face_share_vertices = False
+    else:
+        ngon_face_share_vertices = False
+
+    return ngon_face_share_vertices
+
+
+
+# Try to find a face on an object with vertices which exactly match those of some
+#    ngon. 
+# 
+# Notes:
+#    If no matching face is found, this function returns None. 
+#
+# Arguments:
+#    ngon - NGon3D object.
+#    obj - Abaqus Part or Abaqus PartInstance object.
+#
+# Returns:
+#    Abaqus Face object or None. 
+def get_matching_face(ngon, obj):
+# type: (geom.NGon3D, Any) -> Any
+    
+    new_face = None
+    for face in get_faces(obj):
+
+        vertices_single_face = get_face_vertices(face)
+       
+        if len(vertices_single_face) == len(ngon.vertices):
+
+            all_match = True
+            for vertex in ngon.vertices:
+                if vertex.components() not in vertices_single_face:
+                    all_match = False
+
+            if all_match:
+                new_face = face 
+                break
+    
+    return new_face
 
 
 
@@ -598,12 +662,11 @@ def build_sketch_transform_from_face(face, edge, obj):
 
 
 
-# Uses the undocumented matrix() method of an Abaqus Transform object to extract
-#    the information necessary to orient the coordinate system of the sketch in
-#    terms of the global coordinate system.
+# Extract the necessary information from the an Abaqus Transform object to
+#    orient the coordinate system of the sketch in the global coordinate system.
 #
 # Notes:
-#    None.
+#    The .matrix() method of the Abaqus Transform object is undocumented. 
 #
 # Arguments:
 #    transform - Abaqus Transform object. 
@@ -615,18 +678,18 @@ def extract_global_csys_to_sketch_csys(transform):
 
     rot_and_trans = transform.matrix()
    
-    x_axis = np.array(rot_and_trans[0:3])
-    y_axis = np.array(rot_and_trans[3:6])
-    z_axis = np.array(rot_and_trans[6:9])
-    trans = np.array(rot_and_trans[9:12])
+    x_axis = geom.Vec3D(*rot_and_trans[0:3])
+    y_axis = geom.Vec3D(*rot_and_trans[3:6])
+    z_axis = geom.Vec3D(*rot_and_trans[6:9])
+    trans = geom.Vec3D(*rot_and_trans[9:12])
 
-    basis = np.stack((x_axis, y_axis, z_axis), axis=0)
+    basis = geom.Basis3D(x_axis, y_axis, z_axis) 
 
     return geom.CSys3D(trans, basis)
 
 
 
-# Build and orient a sketch somewhere in the space.
+# Build and orient a sketch somewhere in space.
 # 
 # Notes:
 #    The sheetSize argument doesn't matter when the sketch is not being drawn
@@ -646,25 +709,33 @@ def extract_global_csys_to_sketch_csys(transform):
 def build_constrained_sketch(transform, sketch_name, model_name, mdb):
 # type: (Any, str, str, Any) -> None
 
-    return mdb.models[model_name].ConstrainedSketch(sketch_name, sheetSize=1, transform=transform)
+    sketch = mdb.models[model_name].ConstrainedSketch(sketch_name, sheetSize=1, transform=transform)
+
+    if sketch == None:
+        raise RuntimeError("Failed to build sketch!!")
+
+    return sketch
 
 
 
-# TODO: We assume a special right rectangular prism geometry. 
-# TODO: Break this up into modular chunks.
-def build_part(name, spec_right_rect_prism, model_name, record, mdb):
-# type: (str, SpecRightRectPrism, str, md.CommittedToolPassMetadata, Any) -> Any
-   
-    # ----- Part Creation -----
-
-    # Create the part in the model. 
-    part = mdb.models[model_name].Part(name=name, dimensionality=THREE_D, type=DEFORMABLE_BODY)
-
-    # ----- Metadata Updates -----
-
-    record.abaqus_mdb_metadata.models_metadata[model_name].part_names.append(name)
-
-    # ----- Sketch Creation -----
+# Take the first step towards building a part which is a special right rectangular
+#    prism: put and orient a sketch somewhere in space and draw on it. 
+# 
+# Notes:
+#    None.
+#
+# Arguments:
+#    part_name             - String.
+#                            Name of the part. Also used to name the sketch which is created.
+#    spec_right_rect_prism - SpecRightRectangularPrism.
+#                            The geometry of the part to create. 
+#    model_name            - String.
+#    mdb                   - Abaqus MDB object.
+#
+# Returns:
+#    Abaqus ConstrainedSketch object.
+def sketch_spec_right_rect_prism(part_name, spec_right_rect_prism, model_name, mdb):
+# type: (str, geom.SpecRightRectPrism, str, Any) -> Any
 
     # The part may be floating in space away from the origin.
     # This necessitates re-centering the sketch origin.
@@ -675,36 +746,47 @@ def build_part(name, spec_right_rect_prism, model_name, record, mdb):
 
     # The datum plane is parallel to the x-y plane and offset by z_offset in
     #    the z direction.
-    dp1_id = mdb.models[model_name].parts[name].DatumPointByCoordinate((0, 0, z_offset)).id
-    dp2_id = mdb.models[model_name].parts[name].DatumPointByCoordinate((1, 0, z_offset)).id
-    dp3_id = mdb.models[model_name].parts[name].DatumPointByCoordinate((0, 1, z_offset)).id 
-    dp1 = mdb.models[model_name].parts[name].datums[dp1_id]
-    dp2 = mdb.models[model_name].parts[name].datums[dp2_id]
-    dp3 = mdb.models[model_name].parts[name].datums[dp3_id]
+    dp1_id = mdb.models[model_name].parts[part_name].DatumPointByCoordinate((0, 0, z_offset)).id
+    dp2_id = mdb.models[model_name].parts[part_name].DatumPointByCoordinate((1, 0, z_offset)).id
+    dp3_id = mdb.models[model_name].parts[part_name].DatumPointByCoordinate((0, 1, z_offset)).id 
+    dp1 = mdb.models[model_name].parts[part_name].datums[dp1_id]
+    dp2 = mdb.models[model_name].parts[part_name].datums[dp2_id]
+    dp3 = mdb.models[model_name].parts[part_name].datums[dp3_id]
 
     # Create the plane and retrieve the datum object associated with it.
-    sketch_plane_id = mdb.models[model_name].parts[name].DatumPlaneByThreePoints(dp1, dp2, dp3).id
-    sketch_plane = mdb.models[model_name].parts[name].datums[sketch_plane_id]
+    sketch_plane_id = mdb.models[model_name].parts[part_name].DatumPlaneByThreePoints(dp1, dp2, dp3).id
+    sketch_plane = mdb.models[model_name].parts[part_name].datums[sketch_plane_id]
 
     # Create a transform object associated with the part.
-    t = mdb.models[model_name].parts[name].MakeSketchTransform(sketchPlane=sketch_plane, 
-                                                               origin=(centroid.x, centroid.y, z_offset))
+    t = mdb.models[model_name].parts[part_name].MakeSketchTransform(sketchPlane=sketch_plane, 
+                                                                    origin=(centroid.rep[0], centroid.rep[1], z_offset))
 
     # Create the sketch using the transform object.
-    v1, v2 = spec_right_rect_prism.get_rect_corners() 
-    largest_coord = max(v1.x, v1.y, v2.x, v2.y)
-    sketch = mdb.models[model_name].ConstrainedSketch(name=name, sheetSize=(2 * largest_coord), transform=t)
-    if sketch == None:
-        raise RuntimeError("No sketch could be created!")
+    sketch = build_constrained_sketch(t, part_name, model_name, mdb)
 
     # Draw the rectangle accounting for the translated origin.
-    corner_1 = (v1.proj_xy().x1 - centroid.x, v1.proj_xy().x2 - centroid.y)
-    corner_2 = (v2.proj_xy().x1 - centroid.x, v2.proj_xy().x2 - centroid.y)
+    v1, v2 = spec_right_rect_prism.get_rect_corners() 
+    corner_1 = (v1.proj_xy().rep[0] - centroid.rep[0], v1.proj_xy().rep[1] - centroid.rep[1])
+    corner_2 = (v2.proj_xy().rep[0] - centroid.rep[0], v2.proj_xy().rep[1] - centroid.rep[1])
 
     # Don't try to check the return value. This returns None even on success...
     sketch.rectangle(corner_1, corner_2)
 
-    # ----- Part Extrusion -----
+    return sketch
+
+
+
+def build_part(name, spec_right_rect_prism, model_name, record, mdb):
+# type: (str, geom.SpecRightRectPrism, str, md.CommittedToolPassMetadata, Any) -> Any
+   
+    # Create the part in the model. 
+    part = mdb.models[model_name].Part(name=name, dimensionality=THREE_D, type=DEFORMABLE_BODY)
+
+    # Update metadata for bookkeeping. 
+    record.abaqus_mdb_metadata.models_metadata[model_name].part_names.append(name)
+
+    # Construct the sketch and draw on it.
+    sketch = sketch_spec_right_rect_prism(name, spec_right_rect_prism, model_name, mdb)
 
     # Extrude the sketch.
     # Note that BaseSolidExtrude() adds a feature to the Part and returns the
@@ -732,7 +814,7 @@ def inp_add_stress_subroutine(model_name, mdb):
 
     # The initial condition keyword is placed right before the first step in
     #    the input file.
-    idx_step = find_step_keyword(kwb)
+    idx_step = get_step_keyword(kwb)
     idx_before_step = idx_step - 1
     kwb.insert(idx_before_step, "*Initial Conditions, Type=Stress, User")
 
@@ -766,7 +848,7 @@ def inp_map_stress(path_sim_file, model_name, mdb):
     
     # The initial condition keyword is placed right before the first step in
     #    the input file.
-    idx_step = find_step_keyword(kwb)
+    idx_step = get_step_keyword(kwb)
     idx_before_step = idx_step - 1
     kwb.insert(idx_before_step, "*Initial Conditions, Type=Stress")
     idx_before_external_field = idx_before_step + 1
@@ -827,7 +909,7 @@ def naive_mesh(part_instance, size, model_name, mdb):
 
 
 
-# Create an equilbirium step after another specified step.
+# Create an equilibrium step after another specified step.
 def create_equilibrium_step(name, name_step_to_follow, model_name, record, mdb):
 # type: (str, str, str, md.CommittedToolPassMetadata, Any) -> None
 
@@ -860,6 +942,7 @@ def add_user_subroutine(job, path_to_subroutine):
 
     assert(job.userSubroutine == "")
     job.setValues(userSubroutine=path_to_subroutine)
+
 
 
 def run_job(job):
@@ -1075,15 +1158,15 @@ def add_ref_points(points, model_name, mdb):
 
 
 
-def create_displacement_bc(BC_name, step_name, region, fix_u1, fix_u2, fix_u3, fix_ur1, fix_ur2, fix_ur3, model_name, mdb):
-# type: (str, str, Any, bool, bool, bool, bool, bool, bool, str, Any) 
+def create_displacement_bc(BC_name, step_name, region, settings, model_name, mdb):
+# type: (str, str, Any, BC.BCSettings, str, Any)  -> None
 
-    fix_x = SET if fix_u1 else UNSET
-    fix_y = SET if fix_u2 else UNSET
-    fix_z = SET if fix_u3 else UNSET
-    prevent_x_rot = SET if fix_ur1 else UNSET
-    prevent_y_rot = SET if fix_ur2 else UNSET
-    prevent_z_rot = SET if fix_ur3 else UNSET
+    fix_x = SET if settings.fix_x else UNSET
+    fix_y = SET if settings.fix_y else UNSET
+    fix_z = SET if settings.fix_z else UNSET
+    prevent_x_rot = SET if settings.prevent_x_rot else UNSET
+    prevent_y_rot = SET if settings.prevent_y_rot else UNSET
+    prevent_z_rot = SET if settings.prevent_z_rot else UNSET
 
     mdb.models[model_name].DisplacementBC(name=BC_name, createStepName=step_name, region=region, u1=fix_x, u2=fix_y, u3=fix_z, ur1=prevent_x_rot, ur2=prevent_y_rot, ur3=prevent_z_rot)
 
@@ -1130,3 +1213,190 @@ def partition_face_with_sketch(face, edge, sketch, assembly=None, instance=None,
         raise RuntimeError("Invalid combination of arguments passed.")
 
 
+
+# Find the face of the object that an ngon lives on.
+# 
+# Notes:
+#    If the ngon does not exactly live on the face of an object, this function
+#       may not be able to detect that this is the case. In this case, this function
+#       may return some arbitrary face! This function does its best to avoid
+#       such a scenario by doing checks when possible.
+#
+# Arguments:
+#    ngon - NGon3D object.
+#    obj  - Abaqus Part object or Abaqus PartInstance object.
+#
+# Returns:
+#    Abaqus Face object.
+def find_face_ngon_lives_on(ngon, obj):
+# type: (geom.NGon3D, Any) -> Any
+
+    """
+    DEPRECATED TECHNIQUE!!!
+    # Critical to ensure that the vertices are well-ordered on a per-face basis.
+    vertices = shim.get_all_vertices_ordered(obj)
+
+    face_ngon_belongs_to = None
+
+    # Find the face that the ngon lives on.
+    for idx, vertices_single_face in enumerate(vertices):
+
+        flattened_vertices_single_face = [vertex for vertex_group in vertices_single_face for vertex in vertex_group]
+
+        # Subtle point: If the points which define the vertices of a face are
+        #    not on a plane (i.e. there is a curved surface), then this will
+        #    almost always fail. This is intended behavior. No functionality for
+        #    partitioning a curved face is desired.
+        # TODO: Account for situation where the ngon lives inside two nested
+        #    faces. Right now, the first face that the ngon lives in is the one
+        #    which is identified and used.
+        # TODO: Use the getCurvature() method to check that faces with curvature
+        #    are not considered.
+        if geom.on_plane_of_ngon(flattened_vertices_single_face, ngon):
+            if geom.points_in_ngon_3D(ngon.vertices, geom.NGon3D(vertices_single_face)):
+                face_ngon_belongs_to = shim.get_faces(obj)[idx]
+                break
+
+    if face_ngon_belongs_to == None:
+        raise RuntimeError("Could not identify which face the ngon belongs to. \
+                            Can't continue to do partitioning.")
+    """
+
+    # Check that the vertices of the ngon do live on the plane DEFINED by some face.
+    # Note that, in general, even if the vertices of the ngon live on a plane 
+    #    DEFINED by some face, it does not necessarily mean that the ngon actually
+    #    lives on that face. That face might have holes in it! That face could be
+    #    curved!
+    on_a_face = False
+    for vertices_single_face in shim.get_all_vertices(obj):
+        if geom.on_plane_of_ngon(vertices_single_face, ngon):
+            on_a_face = True
+    
+    if not on_a_face:
+        raise RuntimeError("Trying to create a partition with an ngon that doesn't \
+                           live on any plane defined by the object's faces!")
+
+    # Assume that the face closest to points which make up the ngon is the face
+    #    that the ngon lives on.
+    face_ngon_belongs_to = shim.get_closest_face(ngon.vertices, obj)
+
+    return face_ngon_belongs_to
+
+
+
+# Sketch the points which make up an ngon on a sketch which has some orientation
+#    in space. 
+# 
+# Notes:
+#    None. 
+#
+# Arguments:
+#    ngon      - NGon3D object.
+#    transform - Abaqus Transform object.
+#    sketch    - Abaqus ConstrainedSketch object.
+#
+# Returns:
+#    Abaqus ConstrainedSketch object. 
+def sketch_ngon(ngon, transform, sketch):
+# type: (geom.NGon3D, Any, Any) -> Any
+
+    # Extract the coordinate system of the sketch. 
+    csys = extract_global_csys_to_sketch_csys(transform)
+
+    # Map the points into the coordinate system of the sketch. 
+    points = csys.map_into_csys(ngon.vertices)
+
+    # In the coordinate system of the sketch, it better be the case that the 
+    #    component of each point normal to the face is zero. 
+    for point in points:
+        if not geom.float_equals(point.rep[2], 0):
+            raise RuntimeError("After mapping the points into the coordinate" + 
+                               " system of the sketch, a point had a nonzero" +
+                               " component in the axis normal to the sketch!")
+
+    # Now use the points to construct the ngon on the sketch.
+    points_circular = points + points[0:1]
+    for idx in range(len(points_circular) - 1):
+        cur_point = points_circular[idx].proj_xy().components()
+        next_point = points_circular[idx + 1].proj_xy().components()
+        
+        # The Line() method of an Abaqus Sketch object returns None even on
+        #    success. Documentation is wrong!
+        sketch.Line(cur_point, next_point)
+
+    return sketch
+
+
+
+# Partitions the face of an object.
+# 
+# Notes:
+#    Uses distinct part and instance arguments to avoid type checking Abaqus
+#       object types. It's important to know the type of what is being partitioned
+#       because the PartitionFaceBySketch() method is valid for Abaqus Part and
+#       Abaqus Assembly objects.
+#    If the polygon defining the partition does not live on a face of the object,
+#       this may not be detected in general and bad things can happen.
+#    If the ngon exactly matches a face which already exists, no new face is created.
+#       The existing face is returned.
+#
+# Arguments:
+#    ngon          - NGon3D object.
+#                    Lies in global coordinate system and should be on a face of the
+#                       the object which will be partitioned.
+#    new_face_name - String.
+#    model_name    - String.
+#    mdb           - Abaqus MDB object.
+#
+# Optional Arguments:
+#    part          - Abaqus Part object.
+#    instance      - Abaqus PartInstance object.
+# 
+# Optional Arguments Notes:
+#    Either part or instance must be specified.
+#
+# Returns:
+#    Abaqus Face object.
+def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=None):
+# type: (geom.NGon3D, str, str, Any, Optional[Any], Optional[Any]) -> Any
+
+    # TODO: UGLY, just do type checking with Abaqus object types...
+    if (part is None and instance is None) or (part is not None and instance is not None):
+        raise RuntimeError("Bad arguments passed in!")
+    obj = part if part else instance
+
+    face_ngon_belongs_to = find_face_ngon_lives_on(ngon, obj)
+
+    # If the face the ngon belongs to has vertices which exactly match the
+    #    ngon, we don't want to try to partition the face and create a new face.
+    #    This will cause partitioning to fail and Abaqus to give up. 
+    # TODO: The ngon could have redundant vertices, but such a partitioning will
+    #    actually succeed because new vertices will be added to the face.
+    # TODO: Assuming that the vertices which make up the Abaqus Face object are
+    #    not redundant.
+    # If they do share vertices, no partitioning needs to be done at all.
+    if check_face_ngon_match(ngon, face_ngon_belongs_to, obj):
+        return face_ngon_belongs_to 
+
+    # Construct and orient a sketch which lives on that face.
+    edge = get_any_edge_on_face(face_ngon_belongs_to, obj)
+    assembly = mdb.models[model_name].rootAssembly
+    transform = build_sketch_transform_from_face(face_ngon_belongs_to, edge, assembly)
+    sketch = build_constrained_sketch(transform, new_face_name, model_name, mdb)
+
+    # Sketch the ngon.
+    sketch = sketch_ngon(ngon, transform, sketch)
+
+    # Do the partitioning by using the sketch.
+    if part is not None: 
+        partition_face_with_sketch(face_ngon_belongs_to, edge, sketch, part=part)
+    else:
+        partition_face_with_sketch(face_ngon_belongs_to, edge, sketch, assembly=assembly, instance=instance)
+
+    # Find the face which was just created via partitioning.
+    new_face = get_matching_face(ngon, obj)
+
+    if new_face is None:
+        raise RuntimeError("Failed to find the face which was just created!")
+
+    return new_face

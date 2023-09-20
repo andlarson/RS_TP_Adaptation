@@ -10,7 +10,7 @@ import matplotlib.path as path
 from debug import *
 
 
-class Basis:
+class Basis3D:
 
     # By definition, a basis consists of three vectors which must have unit length
     #    and be orthogonal to one another.
@@ -44,7 +44,7 @@ class CSys3D:
     # Returns:
     #    None.
     def __init__(self, translation, basis):
-    # type: (Vec3D, Basis) -> None
+    # type: (Vec3D, Basis3D) -> None
 
         self.translation = translation
         self.basis = basis 
@@ -278,7 +278,7 @@ class SpecRightRectPrism:
     def get_smaller_z(self):
     # type: (None) -> float
 
-        return min(self.same_z_g1[0].z, self.same_z_g2[0].z) 
+        return min(self.same_z_g1[0].rep[2], self.same_z_g2[0].rep[2]) 
 
 
     # Get the length in the x-direction, the width in the y-direction, and the
