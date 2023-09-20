@@ -1,5 +1,3 @@
-
-
 Short Term TODO.
 
 1) Add more exotic tool path geometries.

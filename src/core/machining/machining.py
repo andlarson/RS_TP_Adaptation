@@ -1,5 +1,4 @@
 import core.part.part as part
-import core.abaqus.abaqus_shim as shim
 import core.simulation.simulation as sim
 import core.boundary_conditions.boundary_conditions as bc
 import core.metadata.metadata as md 
@@ -21,7 +20,7 @@ class MachiningProcess:
             first_tp_metadata = md.CommittedToolPassMetadata(init_part, init_part.path_to_mdb, boundary_conditions)
             self.metadata.append(first_tp_metadata)
 
-        # The boundary conditions exist for the whole machining process.
+        # The boundary conditions are assumed to exist for the whole machining process.
         self.boundary_conditions = boundary_conditions 
 
 
@@ -45,8 +44,3 @@ class MachiningProcess:
     # type: (None) -> None
         
         raise RuntimeError("Not yet supported.")
-
-
-
-
-

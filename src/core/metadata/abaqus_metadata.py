@@ -1,65 +1,49 @@
+"""
+This module contains code which can be used to keep track of and supplement the
+   state saved in Abaqus.
+"""
+
 import core.abaqus.abaqus_shim as shim
 
 
 
-class AbaqusModelMetadata:
-
-    # Construct data structure based on a default model.
-    #
-    # Notes:
-    #    Assumes the model is in its default, unmodified state. 
-    #
-    # Arguments:
-    #    None. 
-    # 
-    # Returns:
-    #    None.
-    def __init__(self):
-    # type: (None) -> None
-        
-        # For all of the following lists, order matters. In particular, the
-        #    ordering of these lists mirror the ordering in the Abaqus Model.
-        self.step_names = [shim.STANDARD_INITIAL_STEP_NAME]
-        self.part_names = [shim.STANDARD_INIT_GEOM_PART_NAME]
-        self.job_name = None      # Assume 1-to-1 mapping of model to job.
-
-
-
-"""
-Provides information which supplements the state saved in Abaqus.
-Each object of this type is associated with a single MDB.
-This external metadata is necessary because Abaqus' functionality doesn't
-   suit our needs.
-For example, when adding a step to a model in an MDB, the Abaqus API requires 
-   the name of the step which should precede the new step. However,
-   Abaqus only maintains a dictionary of the steps in each model. There is
-   no notion of order in a dictionary, so it's necessary to maintain the 
-   chronological ordering externally.
-We also care about the order of models in an MDB. For example, we might want
-   to simulate 5 consecutive tool passes. Each tool pass will require its
-   own model, and each model is based on the results of the previous model.
-   Therefore we require some notion of model ordering.
-
-After a metadata object is created, it is updated via the same functions
-   which update the underlying MDB (i.e. the Abaqus shim functions). This
-   ensures that we don't need to remember to keep the metadata in sync with
-   the underlying MDB.
-
-Also, this metadata only includes additional information which is necessary.
-   Its only purpose is to supplement the state that Abaqus maintains, not
-   replace or duplicate it. For example, it's unnecessary to track the parts
-   associated with a particular model since we don't care about ordering,
-   etc.
-"""
+# Provides information which supplements the state saved in Abaqus.
+# Each object of this type is associated with a single MDB.
+# This external metadata is necessary because Abaqus' functionality doesn't
+#    suit our needs.
+# 
+# For example, when adding a step to a model in an MDB, the Abaqus API requires 
+#    the name of the step which should precede the new step. However,
+#    Abaqus only maintains a dictionary of the steps in each model. There is
+#    no notion of order in a dictionary, so it's necessary to maintain the 
+#    chronological ordering externally.
+# 
+# We also care about the order of models in an MDB. For example, we might want
+#    to simulate 5 consecutive tool passes. Each tool pass will require its
+#    own model, and each model is based on the results of the previous model.
+#    Therefore we require some notion of model ordering.
+# 
+# After a metadata object is created, it is updated via the same functions
+#    which update the underlying MDB (i.e. the Abaqus shim functions). This
+#    ensures that we don't need to remember to keep the metadata in sync with
+#    the underlying MDB.
+# 
+# Also, this metadata only includes additional information which is necessary.
+#    Its only purpose is to supplement the state that Abaqus maintains, not
+#    replace or duplicate it. For example, it's unnecessary to track the parts
+#    associated with a particular model since we don't care about ordering,
+#    etc.
 class AbaqusMdbMetadata:
 
     # Construct data structure based on a default MDB.
     #
     # Notes:
-    #    Assumes the MDB is in its default, unmodified state. 
+    #    Sets up metadata under assumption that mdb is in its default initial
+    #       state. 
     #
     # Arguments:
-    #    path - String. Path to the MDB. 
+    #    path - String. 
+    #           Path to the MDB. 
     # 
     # Returns:
     #    None.
@@ -92,36 +76,26 @@ class AbaqusMdbMetadata:
         self.model_names.append(name)
         self.models_metadata[name] = AbaqusModelMetadata()
 
+
+
+# Provides per-model metadata to supplement the state saved in Abaqus.
+class AbaqusModelMetadata:
+
+    # Construct data structure based on a default model.
+    #
+    # Notes:
+    #    Assumes the model is in its default, unmodified state. 
+    #
+    # Arguments:
+    #    None. 
+    # 
+    # Returns:
+    #    None.
+    def __init__(self):
+    # type: (None) -> None
         
-
-# When creating a new simulation, some names need to be established.
-# Note that some names are chosen, and others are looked up. Which names are
-#    chosen versus looked up depends on the content of the MDB. 
-class SimNames:
-
-    def __init__(self, record):
-    # type: (md.CommittedToolPassMetadata) -> None
-
-        tool_pass_cnt = len(record.simulated_tool_passes)
-        self.tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX + str(tool_pass_cnt)
-        self.post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(tool_pass_cnt)
-        step_cnt = 1
-        self.equil_step_name = shim.STANDARD_EQUIL_STEP_PREFIX + str(step_cnt + 1)
-        
-        if tool_pass_cnt == 0:
-
-            self.new_model_name = shim.STANDARD_MODEL_NAME
-            self.pre_tool_pass_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
-
-        else:
-
-            self.new_model_name = shim.STANDARD_MODEL_NAME_PREFIX + str(tool_pass_cnt + 1) 
-
-            # Extract some names from the last model on record. 
-            last_model_name = record.abaqus_mdb_metadata.model_names[-1] 
-            # Abaqus makes the new part name all uppercase for whatever reason.
-            self.pre_tool_pass_part_name = record.abaqus_mdb_metadata.models_metadata[last_model_name].part_names[-1].upper()     
-            self.last_model_odb_file_name = record.abaqus_mdb_metadata.models_metadata[last_model_name].job_name + ".odb"
-
-
-
+        # For all of the following lists, order matters. In particular, the
+        #    ordering of these lists mirror the ordering in the Abaqus Model.
+        self.step_names = [shim.STANDARD_INITIAL_STEP_NAME]
+        self.part_names = [shim.STANDARD_INIT_GEOM_PART_NAME]
+        self.job_name = None      # Assume 1-to-1 mapping of model to job.

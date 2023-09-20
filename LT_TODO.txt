@@ -1,4 +1,3 @@
-
 Long Term TODO.
 
 
@@ -110,3 +109,9 @@ Adding/Modifying Features TODO:
     Allow more exotic kinds of cutting geometries.
 
     Write routine which increases mesh density near the cut.
+
+    Add vertex-based boundary conditions.
+
+    Make the partition_face() function more robust. In particular, the find_face_ngon_lives_on()
+       assumes that the user doesn't make some mistake and specify an ngon that
+       doesn't actually live on any face!

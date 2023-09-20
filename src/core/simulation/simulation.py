@@ -60,7 +60,7 @@ def sim_single_tool_pass(tool_pass, record, mdb):
 def sim_first_tool_pass(tool_pass, record, mdb):
 # type: (tp.ToolPass, md.CommittedToolPassMetadata, Any) -> None
 
-    names = abq_md.SimNames(record)
+    names = md.SimNames(record)
     do_boilerplate_sim_ops(tool_pass, names, record, mdb)
 
     # Very important note: This operation effectively imposes the user
@@ -83,7 +83,7 @@ def sim_first_tool_pass(tool_pass, record, mdb):
 def sim_nth_tool_pass(tool_pass, record, mdb):
 # type: (tp.ToolPass, md.CommittedToolPassMetadata, Any) -> Any
 
-    names = abq_md.SimNames(record) 
+    names = md.SimNames(record) 
 
     # Create the new model from the output of the last model.
     new_model = shim.create_model_from_odb(names.last_model_odb_file_name, names.new_model_name, record, mdb)
@@ -149,14 +149,12 @@ def do_boilerplate_sim_ops(tool_pass, names, record, mdb):
 
 
 
-"""
-This function adds geometric features to an orphan mesh. The result of a
-   simulation is an orphan mesh (i.e. just a bunch of vertices and elements
-   connecting the vertices together). An orphan mesh by itself is not very
-   useful. For example, to do boolean operations between parts, the parts
-   need to have geometries associated with them. This function adds geoemtric
-   features to a part, giving it a geometry.
-"""
+# This function adds geometric features to an orphan mesh. The result of a
+#    simulation is an orphan mesh (i.e. just a bunch of vertices and elements
+#    connecting the vertices together). An orphan mesh by itself is not very
+#    useful. For example, to do boolean operations between parts, the parts
+#    need to have geometries associated with them. This function adds geoemtric
+#    features to a part, giving it a geometry.
 def orphan_mesh_to_geometry(part_name, model_name, mdb):
 # type: (str, str, Any) -> None 
 
