@@ -26,6 +26,7 @@
 *.pyc
 
 # And the record / replay files.
+*.rpy.*
 *.rpy
 *.rec
 
