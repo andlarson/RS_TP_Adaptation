@@ -39,6 +39,7 @@ Code Organization / Structure TODO:
       some of my variable names in simulation.py more concise. The names currently
       make my eyes bleed.
         Partially done. Still don't like some of name passing is done in simulation.py. 
+    Actually, just clean up how all the metadata is structured. Draw a picture!
 
     Get the MyPy static analysis up and running. Note that, for now, I'm only attempting
       to do static analysis when Python-native types are involved. There are objects
@@ -115,3 +116,5 @@ Adding/Modifying Features TODO:
     Make the partition_face() function more robust. In particular, the find_face_ngon_lives_on()
        assumes that the user doesn't make some mistake and specify an ngon that
        doesn't actually live on any face!
+
+    Support user-defined parts. These part geometries will come from in-machine scans.

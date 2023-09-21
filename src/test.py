@@ -13,15 +13,16 @@ import util.geom as geom
 import core.part.part as part
 import core.tool_pass.tool_pass as tp
 import core.boundary_conditions.boundary_conditions as bc
-from util.debug import *
 
 
 if __name__ == "__main__":
 
+
     # ----- Specifying the initial geometry -----
-   
-    path_to_cae = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_initial_geometry.cae" 
+
+    path_to_cae = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/test_initial_geometry_cae/test_initial_geometry.cae" 
     abaqus_part = part.AbaqusDefinedPart("an_example_part", path_to_cae)
+
 
     # ----- Specifying the clamping setup (aka the boundary conditions) -----
 
@@ -57,7 +58,7 @@ if __name__ == "__main__":
     #    done using the part, the user subroutine is automatically invoked to
     #    imbue the stress profile. The user subroutine is inherently invoked at
     #    simulation runtime, so only setup can be done defore that.
-    path_to_subroutine = "/home/andlars/Desktop/RS_TP_Adaptation/software/core/user_subroutines/def_stress-std.o"
+    path_to_subroutine = "/home/andlars/Desktop/RS_TP_Adaptation/src/core/user_subroutines/def_stress-std.o"
     abaqus_part.add_stress_profile(path_to_subroutine)
 
 
@@ -139,5 +140,4 @@ if __name__ == "__main__":
 
     # ----- Simulate the potential tool passes ----- 
 
-    save_loc = "/home/andlars/Desktop/RS_TP_Adaptation/software/script_testing/test_initial_geometry/test_post_tool_pass.cae"
-    machining_process.sim_potential_tool_passes(tool_pass_plan, save_loc)
+    machining_process.sim_potential_tool_passes(tool_pass_plan, "some_potential_tool_passes")

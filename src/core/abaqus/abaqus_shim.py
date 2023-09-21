@@ -7,8 +7,7 @@ import util.geom as geom
 from util.debug import *
 
 
-# There are standard names/prefixes/suffixes which we expect and impose in Abaqus 
-#    MDBs.
+
 STANDARD_MODEL_NAME = "Model-1"
 STANDARD_MODEL_NAME_PREFIX = "Model-"
 STANDARD_INIT_GEOM_PART_NAME = "Initial_Geometry"
@@ -19,6 +18,7 @@ STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
 STANDARD_SECTION_NAME = "Section-1"
 STANDARD_ORPHAN_MESH_FEATURE_NAME = "Orphan mesh-1"
 STANDARD_BC_PREFIX = "Boundary_Condition_"
+STANDARD_JOB_PREFIX = "Job-"
 
 
 
@@ -26,6 +26,23 @@ STANDARD_BC_PREFIX = "Boundary_Condition_"
 #                         Abaqus Information Retrieval
 #       These functions retrieve information/state that Abaqus maintains.
 # *****************************************************************************
+
+
+# Get the number of models in an MDB.
+#
+# Notes:
+#    None.
+#
+# Arguments:
+#    mdb - Abaqus MDB object.
+#
+# Returns:
+#    Int. Number of models. 
+def get_model_cnt(mdb):
+# type: (Any) -> int
+
+    return len(mdb.models)
+
 
 
 def get_step_keyword(kwb):
@@ -769,14 +786,14 @@ def sketch_spec_right_rect_prism(part_name, spec_right_rect_prism, model_name, m
 
 
 
-def build_part(name, spec_right_rect_prism, model_name, record, mdb):
-# type: (str, geom.SpecRightRectPrism, str, md.CommittedToolPassMetadata, Any) -> Any
+def build_part(name, spec_right_rect_prism, model_name, mdb_metadata, mdb):
+# type: (str, geom.SpecRightRectPrism, str, abq_md.AbaqusMdbMetadata, Any) -> Any
    
     # Create the part in the model. 
     part = mdb.models[model_name].Part(name=name, dimensionality=THREE_D, type=DEFORMABLE_BODY)
 
     # Update metadata for bookkeeping. 
-    record.abaqus_mdb_metadata.models_metadata[model_name].part_names.append(name)
+    mdb_metadata.models_metadata[model_name].part_names.append(name)
 
     # Construct the sketch and draw on it.
     sketch = sketch_spec_right_rect_prism(name, spec_right_rect_prism, model_name, mdb)
@@ -868,10 +885,10 @@ def instance_part_into_assembly(instance_name, part, dependent, model_name, mdb)
 # Cut a single part instance via multiple other part instances. 
 # The result is a new part in the model.
 # Remember to instance the resulting part!
-def cut_instances_in_assembly(name, instance_to_be_cut, cutting_instances, model_name, record, mdb):
-# type: (str, Any, tuple[Any], str, md.CommittedToolPassMetadata, Any) -> Any
+def cut_instances_in_assembly(name, instance_to_be_cut, cutting_instances, model_name, mdb_metadata, mdb):
+# type: (str, Any, tuple[Any], str, abq_md.AbaqusMdbMetadata, Any) -> Any
 
-    record.abaqus_mdb_metadata.models_metadata[model_name].part_names.append(name)
+    mdb_metadata.models_metadata[model_name].part_names.append(name)
 
     # Beware, the argument list ordering in the documentation for PartFrom
     #    BooleanCut() appears to be incorrect.
@@ -903,12 +920,12 @@ def naive_mesh(part_instance, size, model_name, mdb):
 
 
 # Create an equilibrium step after another specified step.
-def create_equilibrium_step(name, name_step_to_follow, model_name, record, mdb):
-# type: (str, str, str, md.CommittedToolPassMetadata, Any) -> None
+def create_equilibrium_step(name, name_step_to_follow, model_name, mdb_metadata, mdb):
+# type: (str, str, str, abq_md.AbaqusMdbMetadata, Any) -> None
 
     step = mdb.models[model_name].StaticStep(name, name_step_to_follow)
     
-    record.abaqus_mdb_metadata.models_metadata[model_name].step_names.append(name)
+    mdb_metadata.models_metadata[model_name].step_names.append(name)
 
     return step 
 
@@ -916,15 +933,17 @@ def create_equilibrium_step(name, name_step_to_follow, model_name, record, mdb):
 
 # Note that the name of the job matches the name of the various files produced
 #    by the job when it is run (the .odb, .dat, etc. files).
-def create_job(job_name, model_name, record, mdb):
-# type: (str, str, md.CommittedToolPassMetadata, Any) -> None 
+def create_job(model_name, mdb_metadata, mdb):
+# type: (str, abq_md.AbaqusMdbMetadata, Any) -> None 
+
+    job_name = STANDARD_JOB_PREFIX + str(get_model_cnt(mdb))
 
     # The "resultsFormat=BOTH" causes Abaqus to generate .odb and .sim files
     #    when the simulation runs. This functionality is currently undocumented
     #    in the Abaqus documentation.
     job = mdb.Job(job_name, model_name, resultsFormat=BOTH)
     
-    record.abaqus_mdb_metadata.models_metadata[model_name].job_name = job_name
+    mdb_metadata.models_metadata[model_name].job_name = job_name
     
     return job
 
@@ -963,12 +982,12 @@ def print_job_messages(job):
     
 
 
-def create_model_from_odb(odb_path, model_name, record, mdb):
-# type: (str, str, md.CommittedToolPassMetadata, Any) -> None
+def create_model_from_odb(odb_path, model_name, mdb_metadata, mdb):
+# type: (str, str, abq_md.AbaqusMdbMetadata, Any) -> None
 
     model = mdb.ModelFromOdbFile(model_name, odb_path)
 
-    record.abaqus_mdb_metadata.add_model(model_name)
+    mdb_metadata.add_model(model_name)
 
     return model
 
