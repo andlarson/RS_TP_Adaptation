@@ -1,7 +1,4 @@
-import os.path as path
-
 import util.geom as geom
-import core.stress.stress as stress
 import core.material_properties.material_properties as mat_props 
 import core.abaqus.abaqus_shim as shim
 
@@ -55,5 +52,3 @@ class AbaqusDefinedPart(Part):
         shim.close_mdb(mdb)
 
         self.path_to_mdb = path
-
-

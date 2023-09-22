@@ -12,7 +12,12 @@ from util.debug import *
 # Simulate some consecutive tool passes and save off the results.
 #
 # Notes:
-#    None.
+#    This function has two effects on the file system:
+#       Creates a subdirectory in the CWD and runs the simulations. The simulation 
+#          artifacts are saved in this new subdirectory.
+#       Saves the .cae file which represents the work for the last tool pass in
+#          the subdirectory. Note that this .cae file does not have the last .odb
+#          files mapped into it. 
 #
 # Arguments:
 #    tool_pass_plan - ToolPassPlan object.
@@ -35,6 +40,7 @@ def sim_consecutive_tool_passes(tool_pass_plan, save_name, record):
 
     # And set the CWD to this directory. Now all simulation artifacts will be placed
     #    in this directory.
+    original_dir = os.getcwd()
     os.chdir(new_dir_path)
 
     mdb = shim.use_mdb(record.path_initial_mdb)
@@ -50,7 +56,9 @@ def sim_consecutive_tool_passes(tool_pass_plan, save_name, record):
     shim.save_mdb_as(new_mdb_path, mdb)
     shim.close_mdb(mdb)
 
-    record.simulated_tool_pass_plans.append(tool_pass_plan)
+    record.simulated_tool_pass_plans.append((save_name, tool_pass_plan))
+
+    os.chdir(original_dir)
 
 
 

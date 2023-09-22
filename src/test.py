@@ -134,10 +134,168 @@ if __name__ == "__main__":
 
     # ----- Construct the tool pass plan -----
 
-    tool_passes = [tp1, tp2, tp3, tp4]
+    # tool_passes = [tp1, tp2, tp3, tp4]
+    tool_passes = [tp1, tp2]
     tool_pass_plan = tp.ToolPassPlan(tool_passes)
 
 
     # ----- Simulate the potential tool passes ----- 
 
     machining_process.sim_potential_tool_passes(tool_pass_plan, "some_potential_tool_passes")
+
+
+
+
+    # ----- Specifying the first tool pass -----
+
+    # Tool Pass #1
+    v1 = geom.Point3D(np.array([40, 9, 215]))
+    v2 = geom.Point3D(np.array([40, 20, 215]))
+    v3 = geom.Point3D(np.array([40, 9, 185]))
+    v4 = geom.Point3D(np.array([40, 20, 185]))
+    v5 = geom.Point3D(np.array([0, 9, 215]))
+    v6 = geom.Point3D(np.array([0, 20, 215]))
+    v7 = geom.Point3D(np.array([0, 9, 185]))
+    v8 = geom.Point3D(np.array([0, 20, 185]))
+
+    tp1_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
+
+    tp1 = tp.ToolPass(tp1_shape)
+
+
+    # ----- Specifying the second tool pass -----
+
+    v1 = geom.Point3D(np.array([40, 5, 40]))
+    v2 = geom.Point3D(np.array([40, 5, 80]))
+    v3 = geom.Point3D(np.array([40, 30, 40]))
+    v4 = geom.Point3D(np.array([40, 30, 80]))
+    v5 = geom.Point3D(np.array([0, 5, 40]))
+    v6 = geom.Point3D(np.array([0, 5, 80]))
+    v7 = geom.Point3D(np.array([0, 30, 40]))
+    v8 = geom.Point3D(np.array([0, 30, 80]))
+
+    tp2_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
+
+    tp2 = tp.ToolPass(tp2_shape)
+
+
+    # ----- Specifying the third tool pass -----
+
+    v1 = geom.Point3D(np.array([20, 5, 50]))
+    v2 = geom.Point3D(np.array([30, 5, 50]))
+    v3 = geom.Point3D(np.array([20, 20, 50]))
+    v4 = geom.Point3D(np.array([30, 20, 50]))
+    v5 = geom.Point3D(np.array([20, 5, 150]))
+    v6 = geom.Point3D(np.array([30, 5, 150]))
+    v7 = geom.Point3D(np.array([20, 20, 150]))
+    v8 = geom.Point3D(np.array([30, 30, 150]))
+
+    tp3_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
+
+    tp3 = tp.ToolPass(tp3_shape)
+
+
+    # ----- Specifying the fourth tool pass -----
+
+    v1 = geom.Point3D(np.array([10, 3, 300]))
+    v2 = geom.Point3D(np.array([30, 3, 300]))
+    v3 = geom.Point3D(np.array([10, 3, 350]))
+    v4 = geom.Point3D(np.array([30, 3, 350]))
+    v5 = geom.Point3D(np.array([10, 30, 300]))
+    v6 = geom.Point3D(np.array([30, 30, 300]))
+    v7 = geom.Point3D(np.array([10, 30, 350]))
+    v8 = geom.Point3D(np.array([30, 30, 350]))
+
+    tp4_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
+
+    tp4 = tp.ToolPass(tp4_shape)
+
+
+    # ----- Construct the tool pass plan -----
+
+    # tool_passes = [tp1, tp2, tp3, tp4]
+    tool_passes = [tp1, tp2]
+    tool_pass_plan = tp.ToolPassPlan(tool_passes)
+
+
+    # ----- Simulate the potential tool passes ----- 
+
+    machining_process.sim_potential_tool_passes(tool_pass_plan, "another_set_of_potential_tool_passes")
+
+
+
+    # ----- Specifying the first tool pass -----
+
+    # Tool Pass #1
+    v1 = geom.Point3D(np.array([40, 9, 215]))
+    v2 = geom.Point3D(np.array([40, 20, 215]))
+    v3 = geom.Point3D(np.array([40, 9, 185]))
+    v4 = geom.Point3D(np.array([40, 20, 185]))
+    v5 = geom.Point3D(np.array([0, 9, 215]))
+    v6 = geom.Point3D(np.array([0, 20, 215]))
+    v7 = geom.Point3D(np.array([0, 9, 185]))
+    v8 = geom.Point3D(np.array([0, 20, 185]))
+
+    tp1_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
+
+    tp1 = tp.ToolPass(tp1_shape)
+
+
+    # ----- Specifying the second tool pass -----
+
+    v1 = geom.Point3D(np.array([40, 5, 40]))
+    v2 = geom.Point3D(np.array([40, 5, 80]))
+    v3 = geom.Point3D(np.array([40, 30, 40]))
+    v4 = geom.Point3D(np.array([40, 30, 80]))
+    v5 = geom.Point3D(np.array([0, 5, 40]))
+    v6 = geom.Point3D(np.array([0, 5, 80]))
+    v7 = geom.Point3D(np.array([0, 30, 40]))
+    v8 = geom.Point3D(np.array([0, 30, 80]))
+
+    tp2_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
+
+    tp2 = tp.ToolPass(tp2_shape)
+
+
+    # ----- Specifying the third tool pass -----
+
+    v1 = geom.Point3D(np.array([20, 5, 50]))
+    v2 = geom.Point3D(np.array([30, 5, 50]))
+    v3 = geom.Point3D(np.array([20, 20, 50]))
+    v4 = geom.Point3D(np.array([30, 20, 50]))
+    v5 = geom.Point3D(np.array([20, 5, 150]))
+    v6 = geom.Point3D(np.array([30, 5, 150]))
+    v7 = geom.Point3D(np.array([20, 20, 150]))
+    v8 = geom.Point3D(np.array([30, 30, 150]))
+
+    tp3_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
+
+    tp3 = tp.ToolPass(tp3_shape)
+
+
+    # ----- Specifying the fourth tool pass -----
+
+    v1 = geom.Point3D(np.array([10, 3, 300]))
+    v2 = geom.Point3D(np.array([30, 3, 300]))
+    v3 = geom.Point3D(np.array([10, 3, 350]))
+    v4 = geom.Point3D(np.array([30, 3, 350]))
+    v5 = geom.Point3D(np.array([10, 30, 300]))
+    v6 = geom.Point3D(np.array([30, 30, 300]))
+    v7 = geom.Point3D(np.array([10, 30, 350]))
+    v8 = geom.Point3D(np.array([30, 30, 350]))
+
+    tp4_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
+
+    tp4 = tp.ToolPass(tp4_shape)
+
+
+    # ----- Construct the tool pass plan -----
+
+    # tool_passes = [tp1, tp2, tp3, tp4]
+    tool_passes = [tp1, tp2]
+    tool_pass_plan = tp.ToolPassPlan(tool_passes)
+
+
+    # ----- Commit to some tool passes ----- 
+
+    machining_process.commit_tool_passes(tool_pass_plan, "good_tool_passes")

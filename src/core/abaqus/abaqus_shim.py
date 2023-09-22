@@ -519,11 +519,20 @@ def close_mdb(mdb):
 
 
 
+# Use an absolute path to save off the MDB.
 def save_mdb_as(save_path, mdb):
 # type: (str, Any) -> None
 
     mdb.saveAs(save_path)    
     dp("The mdb was saved to: " + mdb.pathName)
+
+
+
+# Save MDB based on location it was created at.
+def save_mdb(mdb):
+# type: (Any) -> None
+
+    mdb.save()
 
 
 

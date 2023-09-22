@@ -27,7 +27,9 @@ class CommittedToolPassPlanMetadata:
         #    the tool pass plans which have been simulated is maintained. That
         #    way, it's possible to check if the tool pass plan has already been
         #    simulated before commitment is done. If so, no need to re-simulate.   
-        self.simulated_tool_pass_plans = []
+        # Each list entry is a Tuple which contains a name and a ToolPassPlan
+        #    object.
+        self.simulated_tool_pass_plans = [] 
 
         self.committed_tool_pass_plan = None
         self.BCs = BCs
