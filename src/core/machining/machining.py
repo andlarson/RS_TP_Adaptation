@@ -3,6 +3,7 @@ import core.simulation.simulation as sim
 import core.boundary_conditions.boundary_conditions as bc
 import core.metadata.metadata as md 
 import core.metadata.abaqus_metadata as abq_md
+import core.tool_pass.tool_pass as tp
 
 
 class MachiningProcess:
@@ -18,7 +19,7 @@ class MachiningProcess:
             raise RuntimeError("Not yet supported.")
 
         elif isinstance(init_part, part.AbaqusDefinedPart):
-            first_tp_metadata = md.CommittedToolPassMetadata(init_part, init_part.path_to_mdb, boundary_conditions)
+            first_tp_metadata = md.CommittedToolPassPlanMetadata(init_part, init_part.path_to_mdb, boundary_conditions)
             self.metadata.append(first_tp_metadata)
 
         # The boundary conditions are assumed to be fixed for the whole machining process. 
@@ -26,10 +27,36 @@ class MachiningProcess:
 
 
 
-    def commit_tool_pass(self, tool_pass, in_real_life, measurement_data):
-    # type: (tp.ToolPass, bool, Any) -> None
+    # Commit to a tool pass plan. If this exact tool pass plan was already simulated
+    #    in this commitment phase, no additional simulations are done. If this
+    #    tool pass plan has not yet been simulated, it is simulated. 
+    #
+    # Notes:
+    #    The MDB which resulted from the last committed tool pass is the starting
+    #       point for these tool path simulations (or the first MDB for this
+    #       MachiningProcess object if no tool passes have been committed yet). 
+    #       That MDB must exist in some directory. This function will save the 
+    #       resulting simulation artifacts (the .odb, .sim, .inp, etc. and the 
+    #       final .cae file) in a subdirectory of the directory which this MDB 
+    #       exists in. 
+    #
+    # Arguments:
+    #    tool_pass_plan - ToolPassPlan object.
+    #    save_name      - String.
+    #
+    # Returns:
+    #    None. 
+    def commit_tool_passes(self, tool_pass_plan, save_name):
+    # type: (tp.ToolPassPlan, str) -> None
 
-        raise RuntimeError("Not yet supported.") 
+        
+
+
+
+
+
+
+
 
 
 
@@ -38,11 +65,12 @@ class MachiningProcess:
     # Notes:
     #    The MDB which resulted from the last committed tool pass is the starting
     #       point for these tool path simulations (or the first MDB for this
-    #       MachiningProcess object). That MDB must exist in some directory. 
-    #       This function will save the resulting simulation artifacts (the .odb, 
-    #       .sim, .inp, etc. and the final .cae file) in a subdirectory of the
-    #       directory which this MDB exists in. In this way, each call to this
-    #       funciton results in a new MDB being created.
+    #       MachiningProcess object if no tool passes have been committed yet). 
+    #       That MDB must exist in some directory. This function will save the 
+    #       resulting simulation artifacts (the .odb, .sim, .inp, etc. and the 
+    #       final .cae file) in a subdirectory of the directory which this MDB 
+    #       exists in. In this way, each call to this function results in a new 
+    #       MDB being created.
     #
     # Arguments:
     #    tool_pass_plan - ToolPassPlan object.

@@ -30,7 +30,7 @@ import core.abaqus.abaqus_shim as shim
 # 
 # Also, this metadata only includes additional information which is necessary.
 #    Its only purpose is to supplement the state that Abaqus maintains, not
-#    replace or duplicate it. For example, it's unnecessary to track the parts
+#    replace or duplicate it. For example, it's unnecessary to track the sketches 
 #    associated with a particular model since we don't care about ordering,
 #    etc.
 class AbaqusMdbMetadata:
@@ -55,7 +55,6 @@ class AbaqusMdbMetadata:
         # Order-matters list of models. Order mirrors order in the MDB.
         self.model_names = [shim.STANDARD_MODEL_NAME]
 
-        # Each model has a metadata data structure associated with it. 
         self.models_metadata = {shim.STANDARD_MODEL_NAME: AbaqusModelMetadata()}
 
     
@@ -66,7 +65,8 @@ class AbaqusMdbMetadata:
     #    None.
     # 
     # Arguments:
-    #    name - String. Name of the new model.
+    #    name - String. 
+    #           Name of the new model.
     #
     # Returns:
     #    None.

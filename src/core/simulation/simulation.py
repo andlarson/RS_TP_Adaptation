@@ -4,6 +4,7 @@ import core.abaqus.abaqus_shim as shim
 import core.tool_pass.tool_pass as tp
 import core.boundary_conditions.boundary_conditions as bc
 import core.metadata.metadata as md
+import core.metadata.naming as naming
 from util.debug import *        
 
 
@@ -17,14 +18,14 @@ from util.debug import *
 #    tool_pass_plan - ToolPassPlan object.
 #    save_name      - String.
 #                     Name of the MDB which results from all the tool path simulations.
-#    record         - CommittedToolPassMetadata object.
+#    record         - CommittedToolPassPlanMetadata object.
 #                     The record associated with ithe search for a good next tool pass
 #                        to do.
 #
 # Returns:
 #    None.
 def sim_consecutive_tool_passes(tool_pass_plan, save_name, record):
-# type: (tp.ToolPassPlan, str, md.CommittedToolPassMetadata) -> None
+# type: (tp.ToolPassPlan, str, md.CommittedToolPassPlanMetadata) -> None
 
     # Create the directory wherein all the simulation artifacts for this sequence
     #    of tool passes will live.
@@ -49,10 +50,12 @@ def sim_consecutive_tool_passes(tool_pass_plan, save_name, record):
     shim.save_mdb_as(new_mdb_path, mdb)
     shim.close_mdb(mdb)
 
+    record.simulated_tool_pass_plans.append(tool_pass_plan)
+
 
 
 def sim_single_tool_pass(tool_pass, record, mdb):
-# type: (tp.ToolPass, md.CommittedToolPassMetadata, Any) -> None
+# type: (tp.ToolPass, md.CommittedToolPassPlanMetadata, Any) -> None
 
     mdb_metadata = record.per_mdb_metadata[-1] 
 
@@ -80,11 +83,11 @@ def sim_single_tool_pass(tool_pass, record, mdb):
 
 # Simulating the very first tool pass in an MDB.
 def sim_first_tool_pass(tool_pass, record, mdb):
-# type: (tp.ToolPass, md.CommittedToolPassMetadata, Any) -> None
+# type: (tp.ToolPass, md.CommittedToolPassPlanMetadata, Any) -> None
 
     mdb_metadata = record.per_mdb_metadata[-1] 
 
-    names = md.new_model_names(mdb_metadata, True)
+    names = naming.new_model_names(mdb_metadata, True)
     do_boilerplate_sim_ops(tool_pass, names, record, mdb)
 
     # Very important note: This operation effectively imposes the user
@@ -105,16 +108,16 @@ def sim_first_tool_pass(tool_pass, record, mdb):
 
 
 def sim_nth_tool_pass(tool_pass, record, mdb):
-# type: (tp.ToolPass, md.CommittedToolPassMetadata, Any) -> Any
+# type: (tp.ToolPass, md.CommittedToolPassPlanMetadata, Any) -> Any
 
     mdb_metadata = record.per_mdb_metadata[-1] 
 
-    names = md.new_model_names(mdb_metadata, False)
-    last_odb_file_name = md.last_odb_file_name(mdb_metadata)
+    names = naming.new_model_names(mdb_metadata, False)
+    last_odb_file_name = naming.last_odb_file_name(mdb_metadata)
 
     # The .sim file contains the stress information which resulted from the last
     #    simulation.
-    last_sim_file_name = md.last_sim_file_name(mdb_metadata)
+    last_sim_file_name = naming.last_sim_file_name(mdb_metadata)
 
     # Create the new model from the output of the last model.
     shim.create_model_from_odb(last_odb_file_name, names["new_model_name"], mdb_metadata, mdb)
@@ -136,7 +139,7 @@ def sim_nth_tool_pass(tool_pass, record, mdb):
 
 
 def do_boilerplate_sim_ops(tool_pass, names, record, mdb):
-# type: (tp.ToolPass, dict[str, str], md.CommittedToolPassMetadata, Any) -> None
+# type: (tp.ToolPass, dict[str, str], md.CommittedToolPassPlanMetadata, Any) -> None
 
     # Instance the initial geometry part.
     initial_geom_part = shim.get_part(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)

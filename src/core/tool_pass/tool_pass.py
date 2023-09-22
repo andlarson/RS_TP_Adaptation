@@ -1,45 +1,9 @@
+"""
+This file contains code related to tool passes.
+"""
 
 import util.geom as geom
 
-
-
-""" 
-There needs to be a nice relationship between the residual stress field
-  definition and the tool pass definition. There are a couple ways we can
-  go about this:
-  1) Partition the part to define residual stress. Then add more partitions
-     for the tool passes. 
-     The downside with this approach is that we will have overlapping 
-     partitions. The volume of a cut might pass through multiple regions 
-     which have different residual stress tensors.
-     This is the way I did things by hand. When doing things by hand it
-     has the upside that changes to the mesh do not affect part partitons.
-  2) Partition the part to define residual stress. Then mesh the part. Then
-     collect elements from the mesh which need to be removed to do the
-     part cutting.
-     We might eventually want to mesh the part in a way which depends on
-     the cuts. This approach might complicate that.
-     This approach would allow us to potentially use sets in a clever way
-     since a collection of mesh elements can be bundled into a set.
-  3) Mesh the part. Then define both residual stress and the part cutting
-     in terms of the mesh elements.
-     Some potential problem due to dependency between the mesh and the
-     cuts.
-  4) Create a single part for the initial geometry and a part for each cut.
-     Create instances for each of these in the Assembly module. Use the
-     cut functionality in the Assembly module to create the post-cut geometry,
-     which still has a residual stress pattern in its remaining volume.
-     This approach deals with arbitrary cuts in space pretty well. It
-     natively removes only overlapping volume. 
-
-A fundumental realization:
-Cuts are specified as arbitrary paths in space. However, after the first cut
-is made the geometry of the part might change due to deformation. This
-means that the portion of material which is removed for a single cut depends
-on the deformation which occurred during the previous cut. Therefore, under
-the assumption of non-negligible deformation, each cut requires a single 
-simulation and the simulations must be chained together.
-""" 
 
 
 class ToolPass:
@@ -48,7 +12,6 @@ class ToolPass:
     # type: (geom.SpecRightRectPrism) -> None
 
         self.geom = tool_pass_geom
-
     
 
 
@@ -57,6 +20,7 @@ class ToolPassPlan:
     def __init__(self, tool_passes):
     # type: (list[ToolPass]) -> None
 
+        self.plan = tool_passes
         self.passes_done = []
         self.passes_todo = tool_passes
 
@@ -83,9 +47,89 @@ class ToolPassPlan:
     # type: (None) -> int 
 
         return len(self.passes_done)
-        
 
 
 
+# Check if two tool passes have exact same representation. 
+#
+# Notes:
+#    None.
+#
+# Arguments:
+#    tp1 - ToolPass.
+#    tp2 - ToolPass.
+#
+# Returns:
+#    Boolean. 
+def compare_tool_passes(tp1, tp2):
+
+    if type(tp1.geom) != type(tp2.geom):
+        return False
+
+    # Compare types on a case-by-case basis.
+    if type(tp1.geom) == geom.SpecRightRectPrism:
+
+        if len(tp1.geom.vertices) == len(tp2.geom.vertices):
+
+            for v in tp1.geom.vertices:
+                if v not in tp2.geom.vertices:
+                    return False
+            
+            for v in tp2.geom.vertices:
+                if v not in tp1.geom.vertices:
+                    return False
+
+        else:
+            return False
+
+        return True
+    
+    else:
+        raise RuntimeError("Not yet supported.")
 
 
+
+# Checks if two tool pass plans exactly match in order and representation.
+#
+# Notes:
+#    This function does not care if the two tool pass plans have been simulated,
+#       partially simulated, or not simulated at all. It just checks if the tool
+#       passes which underlie the two plans exactly match in order and 
+#       representation. 
+#
+# Arguments:
+#    tpp_1 - ToolPassPlan.
+#    tpp_2 - ToolPassPlan.
+#
+# Returns:
+#    Boolean.
+def compare_tool_pass_plans(tpp_1, tpp_2):
+# type: (ToolPassPlan, ToolPassPlan) -> bool
+
+    if len(tpp_1.plan) == len(tpp_2.plan):
+        for tp1 in tpp_1.plan:
+
+            in_plan_2 = False            
+            for tp2 in tpp_2.plan:
+                if compare_tool_passes(tp1, tp2):
+                    in_plan_2 = True
+                    break
+
+            if not in_plan_2:
+                return False
+
+        for tp2 in tpp_2.plan:
+
+            in_plan_1 = False            
+            for tp1 in tpp_1.plan:
+                if compare_tool_passes(tp1, tp2):
+                    in_plan_1 = True
+                    break
+
+            if not in_plan_1:
+                return False
+
+    else:
+        return False
+
+    return True
