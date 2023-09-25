@@ -259,13 +259,13 @@
 ,
 *End Instance
 **  
-*Nset, nset=_PickedSet19, internal, instance=Post_Tool_Pass_1
+*Nset, nset=_PickedSet8, internal, instance=Post_Tool_Pass_1
   5,  6, 14, 15
-*Elset, elset=_PickedSet19, internal, instance=Post_Tool_Pass_1
+*Elset, elset=_PickedSet8, internal, instance=Post_Tool_Pass_1
   96, 115
-*Nset, nset=_PickedSet21, internal, instance=Post_Tool_Pass_1
+*Nset, nset=_PickedSet10, internal, instance=Post_Tool_Pass_1
   9, 10, 18, 19
-*Elset, elset=_PickedSet21, internal, instance=Post_Tool_Pass_1
+*Elset, elset=_PickedSet10, internal, instance=Post_Tool_Pass_1
   27, 149
 *End Assembly
 ** 
@@ -273,26 +273,26 @@
 ** 
 *Material, name=Material-1
 *Elastic
- 1.9e+11, 0.3
+ 1e+10, 0.3
 ** 
 ** BOUNDARY CONDITIONS
 ** 
 ** Name: Boundary_Condition_0 Type: Displacement/Rotation
 *Boundary
-_PickedSet19, 1, 1
-_PickedSet19, 2, 2
-_PickedSet19, 3, 3
-_PickedSet19, 4, 4
-_PickedSet19, 5, 5
-_PickedSet19, 6, 6
+_PickedSet8, 1, 1
+_PickedSet8, 2, 2
+_PickedSet8, 3, 3
+_PickedSet8, 4, 4
+_PickedSet8, 5, 5
+_PickedSet8, 6, 6
 ** Name: Boundary_Condition_1 Type: Displacement/Rotation
 *Boundary
-_PickedSet21, 1, 1
-_PickedSet21, 2, 2
-_PickedSet21, 3, 3
-_PickedSet21, 4, 4
-_PickedSet21, 5, 5
-_PickedSet21, 6, 6
+_PickedSet10, 1, 1
+_PickedSet10, 2, 2
+_PickedSet10, 3, 3
+_PickedSet10, 4, 4
+_PickedSet10, 5, 5
+_PickedSet10, 6, 6
 ** ----------------------------------------------------------------
 ** 
 ** STEP: Equilibrium2

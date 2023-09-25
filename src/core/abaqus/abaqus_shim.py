@@ -1,7 +1,9 @@
 from abaqus import *
 from abaqusConstants import * 
 import regionToolset 
+import odbAccess
 import numpy as np
+
 
 import util.geom as geom
 from util.debug import *
@@ -42,6 +44,47 @@ def get_model_cnt(mdb):
 # type: (Any) -> int
 
     return len(mdb.models)
+
+
+
+# In a model with only a single part, get the name of the part. 
+#
+# Notes:
+#    None.
+#
+# Arguments:
+#    model_name - String.
+#    mdb        - Abaqus MDB object.
+#
+# Returns:
+#    String.
+def get_only_part_name(model_name, mdb):
+
+    assert(len(mdb.models[model_name].parts.keys()) == 1) 
+
+    return mdb.models[model_name].parts.keys()[0]
+
+
+
+# Change the name of the only part which exists in a model in an MDB. 
+#
+# Notes:
+#    None.
+#
+# Arguments:
+#    new_name   - String.
+#    model_name - String.
+#    mdb        - Abaqus MDB object.
+#
+# Returns:
+#    None. 
+def change_only_part_name(new_name, model_name, mdb):
+
+    assert(len(mdb.models[model_name].parts.keys()) == 1) 
+
+    old_name = mdb.models[model_name].parts.keys()[0]
+
+    mdb.models[model_name].parts.changeKey(fromName=old_name, toName=new_name)
 
 
 
@@ -473,6 +516,12 @@ def get_matching_face(ngon, obj):
 # *****************************************************************************
 
 
+# Remove all instances in the root assembly.
+def clear_instances(model_name, mdb):
+
+    mdb.models[model_name].rootAssembly.instances.clear()
+
+
 # Create a MDB and open it. 
 # This function does not automatically save the MDB. However, the path used
 #   here is the location of save when a save (not save as) does happen.
@@ -492,7 +541,6 @@ def assign_only_section_to_part(part, model_name, mdb):
     # There better be only a single section.
     assert(len(model.sections) == 1)
 
-    # A little hacky...We could also keep track of section names.
     section_name = model.sections.keys()[0]
 
     full_set = part.Set(name="simple_set", cells=part.cells)
@@ -558,7 +606,6 @@ def check_init_geom(should_print, mdb):
 
     if len(model.materials) != 1 or \
        len(model.sections) != 1 or \
-       STANDARD_SECTION_NAME not in model.sections or \
        len(part.sectionAssignments) != 1:
         if should_print:
             dp("check_init_geom failure 3")
@@ -991,14 +1038,64 @@ def print_job_messages(job):
     
 
 
-def create_model_from_odb(odb_path, model_name, mdb_metadata, mdb):
-# type: (str, str, abq_md.AbaqusMdbMetadata, Any) -> None
+# Create a new model with a single deformed part represented by an orphan mesh.
+#    The orphan mesh comes from an ODB.
+#
+# Notes:
+#    Assumes that the deformed part resulted from the last frame of the last
+#       step of the simulation which generated the ODB.
+#
+# Arguments:
+#    part_name    - String.
+#                   Desired new part name.
+#    model_name   - String.
+#                   Desired new model name.
+#    path_to_odb  - String.
+#                   Path to the ODB to use.
+#    mdb_metadata - AbaqusMdbMetadata object.
+#    mdb          - Abaqus MDB object.
+#
+# Returns:
+#    None. 
+def create_model_and_part_from_odb(part_name, model_name, path_to_odb, mdb_metadata, mdb):
+# type: (str, str, str, abq_md.AbaqusMdbMetadata, Any) -> None
 
-    model = mdb.ModelFromOdbFile(model_name, odb_path)
+    model = mdb.Model(model_name)
+    odb = odbAccess.openOdb(path=path_to_odb)
+    model.PartFromOdb(part_name, odb)
 
+    # Do book keeping.
     mdb_metadata.add_model(model_name)
+    mdb_metadata.models_metadata[model_name].part_names.append(part_name)
 
-    return model
+
+
+# Create a part as an orphan mesh via an ODB in a pre-existing model.
+#
+# Notes:
+#    Assumes that the deformed part resulted from the last frame of the last
+#       step of the simulation which generated the ODB.
+#
+# Arguments:
+#    part_name    - String.
+#                   Desired new part name.
+#    model_name   - String.
+#                   Existing new model name.
+#    path_to_odb  - String.
+#                   Path to the ODB to use.
+#    mdb_metadata - AbaqusMdbMetadata object.
+#    mdb          - Abaqus MDB object.
+#
+# Returns:
+#    None. 
+def create_part_from_odb(part_name, model_name, path_to_odb, mdb_metadata, mdb):
+# type: (str, str, str, abq_md.AbaqusMdbMetadata, Any) -> None
+
+    odb = odbAccess.openOdb(path=path_to_odb)
+    mdb.models[model_name].PartFromOdb(part_name, odb)
+
+    # Do book keeping.
+    mdb_metadata.models_metadata[model_name].part_names.append(part_name)
 
 
 

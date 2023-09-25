@@ -16,10 +16,10 @@ import core.abaqus.abaqus_shim as shim
 # Arguments:
 #    mdb_metadata - AbaqusMdbMetadata object.
 #    is_initial   - Boolean.
-#                   Should be True when the first model in an MDB is being worked
-#                      with.
-#                   Should be False when some model beyond the first is being
-#                      created.
+#                   Should be True when generating names for the first model in
+#                      an MDB, and the model already exists.
+#                   Should be False when generating names for some model beyond
+#                      the first in an MDB, and that model does not yet exist.
 #
 # Returns:
 #    Dict. See code for key-val pairings.
@@ -30,19 +30,21 @@ def new_model_names(mdb_metadata, is_initial):
 
     model_cnt = len(mdb_metadata.model_names)
 
-    names["tool_pass_part_name"] = shim.STANDARD_TOOL_PASS_PART_PREFIX + str(model_cnt)
-    names["post_tool_pass_part_name"] = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(model_cnt)
     step_cnt = 1
     names["equil_step_name"] = shim.STANDARD_EQUIL_STEP_PREFIX + str(step_cnt + 1)
     
     if is_initial:
 
+        names["post_tool_pass_part_name"] = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(model_cnt)
         names["new_model_name"] = shim.STANDARD_MODEL_NAME
         names["pre_tool_pass_part_name"] = shim.STANDARD_INIT_GEOM_PART_NAME
+        names["tool_pass_part_name"] = shim.STANDARD_TOOL_PASS_PART_PREFIX + str(model_cnt)
 
     else:
 
+        names["post_tool_pass_part_name"] = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(model_cnt + 1)
         names["new_model_name"] = shim.STANDARD_MODEL_NAME_PREFIX + str(model_cnt + 1) 
+        names["tool_pass_part_name"] = shim.STANDARD_TOOL_PASS_PART_PREFIX + str(model_cnt + 1)
 
         # Figure out the last model in this MDB. 
         last_model_name = mdb_metadata.model_names[-1] 

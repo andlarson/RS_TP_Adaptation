@@ -2,7 +2,10 @@
 This file contains code related to tool passes.
 """
 
+import copy
+
 import util.geom as geom
+from util.debug import *
 
 
 
@@ -22,7 +25,7 @@ class ToolPassPlan:
 
         self.plan = tool_passes
         self.passes_done = []
-        self.passes_todo = tool_passes
+        self.passes_todo = copy.deepcopy(tool_passes)
 
 
     def add(self, tool_pass):
@@ -67,16 +70,16 @@ def compare_tool_passes(tp1, tp2):
         return False
 
     # Compare types on a case-by-case basis.
-    if type(tp1.geom) == geom.SpecRightRectPrism:
+    if isinstance(tp1.geom, geom.SpecRightRectPrism):
 
         if len(tp1.geom.vertices) == len(tp2.geom.vertices):
 
-            for v in tp1.geom.vertices:
-                if v not in tp2.geom.vertices:
+            for v1 in tp1.geom.vertices:
+                if v1.components() not in [v2.components() for v2 in tp2.geom.vertices]:
                     return False
             
-            for v in tp2.geom.vertices:
-                if v not in tp1.geom.vertices:
+            for v2 in tp2.geom.vertices:
+                if v2.components() not in [v1.components() for v1 in tp1.geom.vertices]:
                     return False
 
         else:

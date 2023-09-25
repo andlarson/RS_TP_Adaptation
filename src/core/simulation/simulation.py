@@ -14,10 +14,10 @@ from util.debug import *
 # Notes:
 #    This function has two effects on the file system:
 #       Creates a subdirectory in the CWD and runs the simulations. The simulation 
-#          artifacts are saved in this new subdirectory.
+#          artifacts are saved in this new subdirectory. 
 #       Saves the .cae file which represents the work for the last tool pass in
-#          the subdirectory. Note that this .cae file does not have the last .odb
-#          files mapped into it. 
+#          the subdirectory. Note that this .cae file does not contain the result
+#          of the very last tool path geometry. 
 #
 # Arguments:
 #    tool_pass_plan - ToolPassPlan object.
@@ -36,11 +36,12 @@ def sim_consecutive_tool_passes(tool_pass_plan, save_name, record):
     #    of tool passes will live.
     dir_path = os.path.dirname(record.path_initial_mdb)
     new_dir_path = dir_path + "/" + save_name
+    new_mdb_path = new_dir_path + "/" + save_name
     os.mkdir(new_dir_path)
 
     # And set the CWD to this directory. Now all simulation artifacts will be placed
     #    in this directory.
-    original_dir = os.getcwd()
+    cwd = os.getcwd()
     os.chdir(new_dir_path)
 
     mdb = shim.use_mdb(record.path_initial_mdb)
@@ -52,13 +53,12 @@ def sim_consecutive_tool_passes(tool_pass_plan, save_name, record):
 
         tool_pass = tool_pass_plan.pop()
 
-    new_mdb_path = new_dir_path + "/" + save_name
     shim.save_mdb_as(new_mdb_path, mdb)
     shim.close_mdb(mdb)
 
     record.simulated_tool_pass_plans.append((save_name, tool_pass_plan))
 
-    os.chdir(original_dir)
+    os.chdir(cwd)
 
 
 
@@ -127,8 +127,8 @@ def sim_nth_tool_pass(tool_pass, record, mdb):
     #    simulation.
     last_sim_file_name = naming.last_sim_file_name(mdb_metadata)
 
-    # Create the new model from the output of the last model.
-    shim.create_model_from_odb(last_odb_file_name, names["new_model_name"], mdb_metadata, mdb)
+    # Create the new model with a part in it from the ODB. 
+    shim.create_model_and_part_from_odb(names["pre_tool_pass_part_name"], names["new_model_name"], last_odb_file_name, mdb_metadata, mdb)
 
     orphan_mesh_to_geometry(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
 

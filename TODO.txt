@@ -1,0 +1,157 @@
+
+Short Term TODO.
+
+1) Finish adding notion of tool pass commitment.
+      - Current Issue: Now that I'm just carrying the part over from an ODB across
+           tool passes and committed tool pass plans, I'm missing material, sections, 
+           section assignments, etc.
+      - If everything is being done in simulation, then stress state needs to propagate
+           across committed tool passes.
+
+2) Add more exotic tool path geometries.
+
+3) Add C++ support for defining some simple stress profiles.
+   As part of this, account for the case when the user specifies a stress profile
+      which is far from equilbirium. 
+
+4) Create a small library of examples illustrating current functionality, 
+      including BCs in the initial .cae files.
+
+5) Add support for back calculating stress which caused a particular
+      deformation.
+
+Experiments TODO:
+
+    Compare the deformation which results from geometry change to element deletion.
+
+
+
+
+Long Term TODO.
+
+Thinking TODO:
+
+    Think about Prof. Dick's claim: We need only a single BC constraining an element
+      in order to prvent numerial errors from resulting in non-physical deformations.
+      I agree with the claim. If the constrained element does not deform, then there
+      is a slight amount of error introduced. This error is small if the element/region
+      is small. If we restrict ourselves to situations where the clamps do not prevent
+      the deformations due to residual stress, then I believe that the only purpose of
+      boundary conditions is to prevent non-physical deformations due to numerical
+      error. Therefore, constraining a single element is sufficient.
+
+
+
+Code Organization / Structure TODO:
+
+    It also feels brittle to intermingle the stress equilibration and the machining
+      procedures. That is, material removal is really unrelated to a sometimes
+      necessary stress equilibration step. Stress equilibration is sometimes necessary
+      because the way that a stress field is represented doesn't exactly match
+      reality. Material removal is a fundamental procedure which is required during
+      the machining process.
+
+    Figure out a way to make the naming cleaner. Specifically, we expect some names to
+      be present and we always pick some particular names for use. Also, try to make
+      some of my variable names in simulation.py more concise. The names currently
+      make my eyes bleed.
+        Partially done. Still don't like some of name passing is done in simulation.py. 
+    Actually, just clean up how all the metadata is structured. Draw a picture!
+
+    What is a general strategy for keeping track file directory modifications? Should
+       no functions have any net effect on the CWD (i.e. they just change it when
+       strictly necessary and then change it back before returning?), should each
+       function be responsible for changing it as necessary and not change it back?
+    In the current implementation, the commit_tool_pass() function implicitly assumes
+       that the CWD is something and saves stuff in particular locations based on this
+       assumption.
+
+    Get the MyPy static analysis up and running. Note that, for now, I'm only attempting
+      to do static analysis when Python-native types are involved. There are objects
+      native to Abaqus, numpy, etc. being passed around for which no type checking is
+      done. I think there is hope of getting static analysis running for at least libraries
+      like numpy. It might be worthwhile to build/contribute some basic stub files
+      for Abaqus. Also, what should be done when a function takes in an  
+      argument of a particular type, but the rest of the file doesn't need access to
+      the file which contains the type? Does the type need to be absolutely referenced
+      in the type line?
+
+    Fix the way that imports are done so that main.py can be invoked from directories
+      other than /software/ and without using its full path name.
+
+    Use cleaner technique to deal with opening and closing an mdb. Figure out how to
+      deal with exceptional conditions when an MDB is open and needs to be closed.
+      Using a "with" statement might be very useful to do this.
+
+    I've decided that all calls into the Abaqus API should be located in the
+      abaqus_shim.py file. However, many of these functions return Abaqus-native
+      objects, which are passed around in functions outside of abaqus_shim.py. Is
+      this clean? Is the restriction of making Abaqus API calls in abaqus_shim.py
+      really necessary?
+        Solution: Eliminate the simple getter functions? 
+
+    Tuples should be passed as arguments when the function will not need to modify.
+      Passing a list to a function is dangerous because the function may modify the
+      list.
+
+    The new_model_names() function is overly complex. The general issue is that
+       sometimes we have an MDB with a single model, and this model has already
+       been created and has some components which are already named, and other 
+       times we call this function before a model is being created.
+
+
+
+
+Adding/Modifying Features TODO:
+
+    Deal with possibility that a tool path doesn't intersect the part geometry. If this
+      is the case, the PartFromBooleanCut() method will throw an exception.
+
+    Make meshing more robust. Currently we just try some parameters (seed density,
+      mesh shape, etc.) and if those parameters don't work we try some other
+      parameters.
+
+    There is an awful lot of runtime spent mapping an orphan mesh to a new geometry.
+      If we could instead chain simulations together within a single model, this could
+      be avoided. To do this, it's necessary to somehow delete part regions/elements
+      which live a prespecified locations in space across different steps in a simulation.
+      For example, in step 1 we would want the elements that live in a particular
+      region of space to be deactivated, some deformation would occur, in step 2 we 
+      would want the elements that live in some other region of space to be deactivated,
+      etc. 
+    Potential element deletion techniques: 
+        1) Contact interaction / damage model. 
+        2) Simulation restart with new model change.
+        3) Abaqus' Additive Manufacturing Process Simulation toolset (See Analysis 
+           > Analysis Techniques > Additive Manufacturing Process Simulation, also 
+           see User Subroutines > Toolpath-Mesh Intersection Utility Routines, and 
+           see Analysis > Analysis Techniques > Special Purpose Techniques > Progressive 
+           Element Activation. The most promising approach embedded in all of this 
+           is to use Progressive Element Activation to do element DEactivation at 
+           across multiple steps. We could define all elements in an initial mesh 
+           as eligible for element deactivation and then, in the user subroutine 
+           UEPACTIVATIONVOL, find all the elements in a particular tool path (this 
+           might involve querying all elements), and setting their material volume
+           fractions to 0). 
+        4) Approximating element removal by making the element elasticity modulus 
+           very small (this was Jan's suggestion, it doesn't fully make sense to me).
+    Also might be possible to speed things up by using my current approach but
+      doing things outside of Abaqus.
+
+    Allow more exotic kinds of cutting geometries.
+
+    Write routine which increases mesh density near the cut.
+
+    Add vertex-based boundary conditions.
+
+    Make the partition_face() function more robust. In particular, the find_face_ngon_lives_on()
+       assumes that the user doesn't make some mistake and specify an ngon that
+       doesn't actually live on any face!
+
+    Support user-defined parts. These part geometries will come from in-machine scans.
+
+    Add support for real-life measurement data.
+
+    Account for case when user-specified stress profile is far from equilibrium.
+       This necessitates adding a simulation to find equilibrium. Probably requires
+       updating list of assumptions.
