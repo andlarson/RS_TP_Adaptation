@@ -5,6 +5,7 @@ This module contains code which generates and retrieves names.
 import core.abaqus.abaqus_shim as shim
 
 
+
 # Figure out how to name all the stuff included in a new Abaqus model.
 #
 # Notes:

@@ -2,9 +2,6 @@
 Short Term TODO.
 
 1) Finish adding notion of tool pass commitment.
-      - Current Issue: Now that I'm just carrying the part over from an ODB across
-           tool passes and committed tool pass plans, I'm missing material, sections, 
-           section assignments, etc.
       - If everything is being done in simulation, then stress state needs to propagate
            across committed tool passes.
 

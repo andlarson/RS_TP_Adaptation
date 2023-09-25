@@ -1,6 +1,7 @@
 from abaqus import *
 from abaqusConstants import * 
 import regionToolset 
+import part
 import odbAccess
 import numpy as np
 
@@ -18,6 +19,7 @@ STANDARD_POST_TOOL_PASS_PART_PREFIX = "Post_Tool_Pass_"
 STANDARD_INITIAL_STEP_NAME = "Initial"
 STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
 STANDARD_SECTION_NAME = "Section-1"
+STANDARD_MATERIAL_NAME = "Material-1"
 STANDARD_ORPHAN_MESH_FEATURE_NAME = "Orphan mesh-1"
 STANDARD_BC_PREFIX = "Boundary_Condition_"
 STANDARD_JOB_PREFIX = "Job-"
@@ -584,104 +586,89 @@ def save_mdb(mdb):
 
 
 
-# Check if the mdb contains an initial geometry.
+# Top-level checker. 
 def check_init_geom(should_print, mdb):    
 # type: (bool, Any) -> bool
 
-    if len(mdb.models) != 1 or \
-       STANDARD_MODEL_NAME not in mdb.models:
-        if should_print:
-            dp("check_init_geom failure 1")
-        return False
+    if not check_standard_model_and_part(should_print, mdb):
+        return False 
 
-    model = mdb.models[STANDARD_MODEL_NAME]
-
-    if len(model.parts) != 1 or \
-       STANDARD_INIT_GEOM_PART_NAME not in model.parts:
-        if should_print:
-            dp("check_init_geom failure 2")
-        return False
-
-    part = model.parts[STANDARD_INIT_GEOM_PART_NAME]
-
-    if len(model.materials) != 1 or \
-       len(model.sections) != 1 or \
-       len(part.sectionAssignments) != 1:
-        if should_print:
-            dp("check_init_geom failure 3")
-        return False
-       
-    if len(model.rootAssembly.instances) != 0 or \
-       len(model.predefinedFields) != 0 or \
-       len(model.steps) != 1 or \
-       len(mdb.jobs) != 0 or \
-       len(model.loads) != 0:
-        if should_print:
-            dp("check_init_geom failure 4")
+    if not check_material_and_section(should_print, mdb) or \
+       not check_steps_loads_assembly(should_print, mdb):
         return False
 
     return True
+
+
     
-
-
-# Checks if the model contains multiple steps.
 def check_multiple_steps(should_print, model_name, mdb):
 # type: (bool, str, Any) -> bool
 
     if model_name not in mdb.models:
         if should_print:
-            dp("check_multiple_steps failure 1")
+            dp("failure 1")
         return False
 
     if len(mdb.models[model_name].steps) > 1:
         if should_print:
-            dp("check_multiple_steps failure 2")
+            dp("failure 2")
         return True
 
     return False
 
 
 
-# Checks if the model contains only an orphan mesh.
-# This is the content we expect when a new model is created and the results of
-#    a previous simulation have been imported via an ODB.
-def check_orphan_mesh(should_print, part_name, model_name, mdb):
-# type: (bool, str, str, Any) -> bool
+def check_standard_model_and_part(should_print, mdb):
+# type: (bool, Any) -> bool
 
-    if model_name not in mdb.models or \
-       len(mdb.models[model_name].parts) != 1:
+    if STANDARD_MODEL_NAME not in mdb.models or \
+       len(mdb.models[STANDARD_MODEL_NAME].parts) != 1:
         if should_print:
-            dp("check_orphan_mesh failure 1")
+            dp("failure 1")
         return False
 
-    model = mdb.models[model_name]
+    model = mdb.models[STANDARD_MODEL_NAME]
 
-    if part_name not in model.parts:
+    if STANDARD_INIT_GEOM_PART_NAME not in model.parts:
         if should_print:
-            dp("check_orphan_mesh failure 2")
+            dp("failure 2")
         return False
 
-    part = mdb.models[model_name].parts[part_name]
+    return True
 
-    if len(part.features) != 1 or \
-       STANDARD_ORPHAN_MESH_FEATURE_NAME not in part.features:
-        if should_print:
-            dp("check_orphan_mesh failure 3")
-        return False
+
+
+def check_material_and_section(should_print, mdb):
+# type: (bool, Any) -> bool
+
+    model = mdb.models[STANDARD_MODEL_NAME]
+    part = model.parts[STANDARD_INIT_GEOM_PART_NAME]
 
     if len(model.materials) != 1 or \
        len(model.sections) != 1 or \
-       len(part.sectionAssignments) != 1 or \
-       len(model.rootAssembly.instances) != 1 or \
-       len(model.predefinedFields) != 0:
+       len(part.sectionAssignments) != 1: 
         if should_print:
-            dp("check_orphan_mesh failure 4")
+            dp("failure 1")
         return False
+    
+    return True
+
+
+
+def check_steps_loads_assembly(should_print, mdb):
+# type: (bool, Any) -> bool
+
+    model = mdb.models[STANDARD_MODEL_NAME]
 
     if len(model.steps) != 1 or \
        len(model.loads) != 0:
         if should_print:
-            dp("check_orphan_mesh failure 5")
+            dp("failure 1")
+        return False
+
+    if len(model.rootAssembly.instances) != 0:
+        if should_print:
+            dp("failure 2")
         return False
 
     return True
@@ -930,7 +917,7 @@ def inp_map_stress(path_sim_file, model_name, mdb):
 
 
 
-# Create part instance in the root assembly for the default model.
+# Create part instance in the root assembly. 
 def instance_part_into_assembly(instance_name, part, dependent, model_name, mdb):
 # type: (str, Any, bool, str, Any) -> Any 
     
@@ -944,11 +931,13 @@ def instance_part_into_assembly(instance_name, part, dependent, model_name, mdb)
 def cut_instances_in_assembly(name, instance_to_be_cut, cutting_instances, model_name, mdb_metadata, mdb):
 # type: (str, Any, tuple[Any], str, abq_md.AbaqusMdbMetadata, Any) -> Any
 
-    mdb_metadata.models_metadata[model_name].part_names.append(name)
-
     # Beware, the argument list ordering in the documentation for PartFrom
     #    BooleanCut() appears to be incorrect.
-    return mdb.models[model_name].rootAssembly.PartFromBooleanCut(name=name, instanceToBeCut=instance_to_be_cut, cuttingInstances=cutting_instances)
+    part = mdb.models[model_name].rootAssembly.PartFromBooleanCut(name=name, instanceToBeCut=instance_to_be_cut, cuttingInstances=cutting_instances)
+    mdb_metadata.models_metadata[model_name].part_names.append(name)
+
+    return part
+
 
 
 
@@ -1062,7 +1051,7 @@ def create_model_and_part_from_odb(part_name, model_name, path_to_odb, mdb_metad
 
     model = mdb.Model(model_name)
     odb = odbAccess.openOdb(path=path_to_odb)
-    model.PartFromOdb(part_name, odb)
+    model.PartFromOdb(part_name, odb, shape=DEFORMED)
 
     # Do book keeping.
     mdb_metadata.add_model(model_name)
@@ -1092,10 +1081,90 @@ def create_part_from_odb(part_name, model_name, path_to_odb, mdb_metadata, mdb):
 # type: (str, str, str, abq_md.AbaqusMdbMetadata, Any) -> None
 
     odb = odbAccess.openOdb(path=path_to_odb)
-    mdb.models[model_name].PartFromOdb(part_name, odb)
+    mdb.models[model_name].PartFromOdb(part_name, odb, shape=DEFORMED)
 
     # Do book keeping.
     mdb_metadata.models_metadata[model_name].part_names.append(part_name)
+
+
+
+# Propagate the material definition from an ODB into a model.
+#
+# Notes:
+#    None.
+#
+# Arguments:
+#    path_to_odb - String.
+#    model_name  - String. 
+#    mdb         - Abaqus MDB object.
+#
+# Returns:
+#    None. 
+def create_material_from_odb(path_to_odb, model_name, mdb):
+# type: (str, str, Any) -> None 
+
+    assert(len(mdb.models[model_name].materials) == 0)
+
+    materials = mdb.models[model_name].materialsFromOdb(path_to_odb)
+
+    assert(len(materials) == 1)
+
+
+
+# Propagate the section from an ODB into a model. 
+#
+# Notes:
+#    This does not propagate section assignments.
+#    Renames section if necessary to conform.
+#
+# Arguments:
+#    path_to_odb - String.
+#    model_name  - String. 
+#    mdb         - Abaqus MDB object.
+#
+# Returns:
+#    None. 
+def create_section_from_odb(path_to_odb, model_name, mdb):
+# type: (str, str, Any) -> None 
+
+    section_repo = mdb.models[model_name].sections
+    assert(len(section_repo) == 0)
+
+    new_sections = mdb.models[model_name].sectionsFromOdb(path_to_odb)
+
+    assert(len(new_sections) == 1)
+    assert(len(section_repo) == 1)
+
+    if section_repo.keys()[0] != STANDARD_SECTION_NAME:
+        section_repo.changeKey(fromName=section_repo.keys()[0], toName=STANDARD_SECTION_NAME)
+
+
+
+# Assign a single section to an entire part. 
+#
+# Notes:
+#    Assumes that the section has standard name.
+#
+# Arguments:
+#    part_name    - String.
+#    model_name   - String. 
+#    mdb          - Abaqus MDB object.
+#
+# Returns:
+#    None. 
+def assign_section_to_whole_part(part_name, model_name, mdb):
+# type: (str, str, Any) -> None
+
+    assert(len(mdb.models[model_name].parts[part_name].sectionAssignments) == 0)
+    assert(len(mdb.models[model_name].sections) == 1)
+    
+    # Create a set which encompasses all the cells in the part.
+    all_cells = mdb.models[model_name].parts[part_name].cells
+    set = mdb.models[model_name].parts[part_name].Set("entire_part", cells=all_cells)
+
+    # Assign the section to that whole part.
+
+    mdb.models[model_name].parts[part_name].SectionAssignment(region=set, sectionName=STANDARD_SECTION_NAME)
 
 
 

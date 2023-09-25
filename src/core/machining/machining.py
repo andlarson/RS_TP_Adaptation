@@ -109,12 +109,19 @@ class MachiningProcess:
         new_part = shim.get_part(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
         shim.add_virtual_topology(new_part)
 
+        # Propagate the material definitions and sections from the ODB.
+        shim.create_material_from_odb(odb_path, names["new_model_name"], mdb)
+        shim.create_section_from_odb(odb_path, names["new_model_name"], mdb)
+
+        # Do the necessary section assignment.
+        shim.assign_section_to_whole_part(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
+
         # Save the MDB so it is visible.
         save_path = os.path.join(os.getcwd(), new_mdb_name)
         shim.save_mdb_as(save_path, mdb)
 
         # The starting point for the next commitment phase.
-        abaqus_part = part.AbaqusDefinedPart(save_name, new_mdb_name)
+        abaqus_part = part.AbaqusDefinedPart(save_name, save_path)
 
         # The initial state of the next commitment phase depends on the result
         #    of the simulation. 

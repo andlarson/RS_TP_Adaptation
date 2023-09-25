@@ -127,10 +127,18 @@ def sim_nth_tool_pass(tool_pass, record, mdb):
     #    simulation.
     last_sim_file_name = naming.last_sim_file_name(mdb_metadata)
 
-    # Create the new model with a part in it from the ODB. 
+    # Create the new model with the deformed part in it from the ODB. 
     shim.create_model_and_part_from_odb(names["pre_tool_pass_part_name"], names["new_model_name"], last_odb_file_name, mdb_metadata, mdb)
 
+    # Propagate the material definitions and sections from the ODB.
+    shim.create_material_from_odb(last_odb_file_name, names["new_model_name"], mdb)
+    shim.create_section_from_odb(last_odb_file_name, names["new_model_name"], mdb)
+
     orphan_mesh_to_geometry(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
+
+    # Do the section assignment only after the orphan mesh has been mapped to a
+    #    geometry. This cannot be done before mapping to a geometry. 
+    shim.assign_section_to_whole_part(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
 
     do_boilerplate_sim_ops(tool_pass, names, record, mdb)
 
@@ -193,10 +201,17 @@ def do_boilerplate_sim_ops(tool_pass, names, record, mdb):
 #    useful. For example, to do boolean operations between parts, the parts
 #    need to have geometries associated with them. This function adds geoemtric
 #    features to a part, giving it a geometry.
+#
+# Notes:
+#    None.
+#
+# Arguments:
+#    mdb - Abaqus MDB object.
+#
+# Returns:
+#    None.
 def orphan_mesh_to_geometry(part_name, model_name, mdb):
 # type: (str, str, Any) -> None 
-
-    assert(shim.check_orphan_mesh(True, part_name, model_name, mdb))
 
     part = shim.get_part(part_name, model_name, mdb) 
     unique_elem_faces = shim.get_unique_element_faces(part)
