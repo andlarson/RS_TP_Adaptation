@@ -9,7 +9,7 @@ from util.debug import *
 
 
 
-# Simulate some consecutive tool passes and save off the results.
+# Simulate consecutive tool passes and save off the results.
 #
 # Notes:
 #    This function has two effects on the file system:
@@ -21,22 +21,27 @@ from util.debug import *
 #
 # Arguments:
 #    tool_pass_plan - ToolPassPlan object.
-#    save_name      - String.
+#    name           - String.
 #                     Name of the MDB which results from all the tool path simulations.
+#                     Also, the name of the directory which is created.
+#    init_stress    - InitialStress object.
+#                     Indicates the source of the initial stress profile. The
+#                        stress profile may be propagated from a past simulation
+#                        or it may be estimated. 
 #    record         - CommittedToolPassPlanMetadata object.
 #                     The record associated with ithe search for a good next tool pass
 #                        to do.
 #
 # Returns:
 #    None.
-def sim_consecutive_tool_passes(tool_pass_plan, save_name, record):
+def sim_tool_pass_plan(tool_pass_plan, name, record):
 # type: (tp.ToolPassPlan, str, md.CommittedToolPassPlanMetadata) -> None
 
     # Create the directory wherein all the simulation artifacts for this sequence
     #    of tool passes will live.
     dir_path = os.path.dirname(record.path_initial_mdb)
-    new_dir_path = dir_path + "/" + save_name
-    new_mdb_path = new_dir_path + "/" + save_name
+    new_dir_path = dir_path + "/" + name
+    new_mdb_path = new_dir_path + "/" + name
     os.mkdir(new_dir_path)
 
     # And set the CWD to this directory. Now all simulation artifacts will be placed
@@ -46,18 +51,16 @@ def sim_consecutive_tool_passes(tool_pass_plan, save_name, record):
 
     mdb = shim.use_mdb(record.path_initial_mdb)
 
-    tool_pass = tool_pass_plan.pop() 
-    while tool_pass is not None:
-
+    for tool_pass in tool_pass_plan.plan:
         sim_single_tool_pass(tool_pass, record, mdb)    
-
-        tool_pass = tool_pass_plan.pop()
+        tool_pass_plan.pop()
 
     shim.save_mdb_as(new_mdb_path, mdb)
     shim.close_mdb(mdb)
 
-    record.simulated_tool_pass_plans.append((save_name, tool_pass_plan))
+    record.simulated_tool_pass_plans.append((name, tool_pass_plan))
 
+    # Don't permanently change the CWD.
     os.chdir(cwd)
 
 
@@ -65,15 +68,14 @@ def sim_consecutive_tool_passes(tool_pass_plan, save_name, record):
 def sim_single_tool_pass(tool_pass, record, mdb):
 # type: (tp.ToolPass, md.CommittedToolPassPlanMetadata, Any) -> None
 
-    mdb_metadata = record.per_mdb_metadata[-1] 
-
     # The way that the next tool pass is simulated depends on the content of
     #    the MDB.
     # If the MDB contains a single model which represents an initial
-    #    geometry, then it's necessary to simulate the first tool pass. 
+    #    geometry, then we simulate the first tool pass. 
     # If the MDB contains n (where n > 1) models and the last model to be 
-    #    added contains an orphan mesh, then we must be simulating the n-th 
-    #    tool pass.
+    #    added contains an orphan mesh, then we're simulating an nth tool pass
+    #    (where n > 1).
+    mdb_metadata = record.per_mdb_metadata[-1] 
     last_model_name = mdb_metadata.model_names[-1]
 
     if shim.check_init_geom(False, mdb):
@@ -98,10 +100,6 @@ def sim_first_tool_pass(tool_pass, record, mdb):
     names = naming.new_model_names(mdb_metadata, True)
     do_boilerplate_sim_ops(tool_pass, names, record, mdb)
 
-    # Very important note: This operation effectively imposes the user
-    #    subroutine defined stress profile on the part after the material has
-    #    been removed! In order for this to make any sense, the user subroutine
-    #    defined stress profile must achieve equilbrium!
     # Since this modifies the input file directly, this should be the last
     #    thing that happens before the job is submitted and runs.
     shim.inp_add_stress_subroutine(names["new_model_name"], mdb)

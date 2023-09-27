@@ -23,9 +23,4 @@ class StressProfile:
 
         # TODO: Check how close to equilibrium the stress field is. Warn the
         #   user if the stress field is not in equilibrium.
-
         self.stress_profile_list = stress_profile_list
-
-
-
-

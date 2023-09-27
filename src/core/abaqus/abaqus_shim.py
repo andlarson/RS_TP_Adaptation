@@ -586,7 +586,6 @@ def save_mdb(mdb):
 
 
 
-# Top-level checker. 
 def check_init_geom(should_print, mdb):    
 # type: (bool, Any) -> bool
 

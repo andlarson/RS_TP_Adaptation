@@ -19,13 +19,6 @@ class Part:
         raise RuntimeError("Not yet supported.")
 
 
-    # Associate a stress profile, as defined by a particular subroutine file,
-    #    with this part.
-    def add_stress_profile(self, path_to_subroutine):
-    # type: (str) -> None
-         
-         self.path_to_stress_subroutine = path_to_subroutine
-
 
 
 class UserDefinedPart(Part):

@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     # ----- Building the top-level machining object -----
 
-    machining_process = mach.MachiningProcess(abaqus_part, BCs)
+    machining_process = mach.MachiningProcess(True, abaqus_part, BCs)
 
     
     # ----- Specifying the first tool pass -----
@@ -162,39 +162,22 @@ if __name__ == "__main__":
     # ----- Specifying the first tool pass -----
 
     # Tool Pass #1
-    v1 = geom.Point3D(np.array([40, 9, 215]))
-    v2 = geom.Point3D(np.array([40, 20, 215]))
-    v3 = geom.Point3D(np.array([40, 9, 185]))
-    v4 = geom.Point3D(np.array([40, 20, 185]))
-    v5 = geom.Point3D(np.array([0, 9, 215]))
-    v6 = geom.Point3D(np.array([0, 20, 215]))
-    v7 = geom.Point3D(np.array([0, 9, 185]))
-    v8 = geom.Point3D(np.array([0, 20, 185]))
+    v1 = geom.Point3D(np.array([15, 7, 100]))
+    v2 = geom.Point3D(np.array([45, 7, 100]))
+    v3 = geom.Point3D(np.array([15, 7, 150]))
+    v4 = geom.Point3D(np.array([45, 7, 150]))
+    v5 = geom.Point3D(np.array([15, 30, 100]))
+    v6 = geom.Point3D(np.array([45, 30, 100]))
+    v7 = geom.Point3D(np.array([15, 30, 150]))
+    v8 = geom.Point3D(np.array([45, 30, 150]))
 
     tp1_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
 
     tp1 = tp.ToolPass(tp1_shape)
 
-
-    # ----- Specifying the second tool pass -----
-
-    v1 = geom.Point3D(np.array([40, 5, 40]))
-    v2 = geom.Point3D(np.array([40, 5, 80]))
-    v3 = geom.Point3D(np.array([40, 30, 40]))
-    v4 = geom.Point3D(np.array([40, 30, 80]))
-    v5 = geom.Point3D(np.array([0, 5, 40]))
-    v6 = geom.Point3D(np.array([0, 5, 80]))
-    v7 = geom.Point3D(np.array([0, 30, 40]))
-    v8 = geom.Point3D(np.array([0, 30, 80]))
-
-    tp2_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
-
-    tp2 = tp.ToolPass(tp2_shape)
-
-
     # ----- Construct the tool pass plan -----
 
-    tool_passes = [tp1, tp2]
+    tool_passes = [tp1]
     tool_pass_plan = tp.ToolPassPlan(tool_passes)
 
 
@@ -222,9 +205,25 @@ if __name__ == "__main__":
     tp1 = tp.ToolPass(tp1_shape)
 
 
+    # ----- Specifying the second tool pass -----
+
+    # Tool Pass #2
+    v1 = geom.Point3D(np.array([15, 7, 100]))
+    v2 = geom.Point3D(np.array([45, 7, 100]))
+    v3 = geom.Point3D(np.array([15, 7, 150]))
+    v4 = geom.Point3D(np.array([45, 7, 150]))
+    v5 = geom.Point3D(np.array([15, 30, 100]))
+    v6 = geom.Point3D(np.array([45, 30, 100]))
+    v7 = geom.Point3D(np.array([15, 30, 150]))
+    v8 = geom.Point3D(np.array([45, 30, 150]))
+
+    tp2_shape = geom.SpecRightRectPrism(v1, v2, v3, v4, v5, v6, v7, v8)
+
+    tp2 = tp.ToolPass(tp2_shape)
+
     # ----- Construct the tool pass plan -----
 
-    tool_passes = [tp1]
+    tool_passes = [tp1, tp2]
     tool_pass_plan = tp.ToolPassPlan(tool_passes)
 
 

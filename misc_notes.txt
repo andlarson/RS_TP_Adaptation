@@ -2,57 +2,84 @@
 
 
 There needs to be a nice relationship between the residual stress field
-  definition and the tool pass definition. There are a couple ways we can
-  go about this:
-  1) Partition the part to define residual stress. Then add more partitions
-     for the tool passes. 
-     The downside with this approach is that we will have overlapping 
-     partitions. The volume of a cut might pass through multiple regions 
-     which have different residual stress tensors.
-     This is the way I did things by hand. When doing things by hand it
-     has the upside that changes to the mesh do not affect part partitons.
-  2) Partition the part to define residual stress. Then mesh the part. Then
-     collect elements from the mesh which need to be removed to do the
-     part cutting.
-     We might eventually want to mesh the part in a way which depends on
-     the cuts. This approach might complicate that.
-     This approach would allow us to potentially use sets in a clever way
-     since a collection of mesh elements can be bundled into a set.
-  3) Mesh the part. Then define both residual stress and the part cutting
-     in terms of the mesh elements.
-     Some potential problem due to dependency between the mesh and the
-     cuts.
-  4) Create a single part for the initial geometry and a part for each cut.
-     Create instances for each of these in the Assembly module. Use the
-     cut functionality in the Assembly module to create the post-cut geometry,
-     which still has a residual stress pattern in its remaining volume.
-     This approach deals with arbitrary cuts in space pretty well. It
-     natively removes only overlapping volume. 
+   definition and the tool pass definition. There are a couple ways we can
+   go about this:
+   1) Partition the part to define residual stress. Then add more partitions
+      for the tool passes. 
+      The downside with this approach is that we will have overlapping 
+      partitions. The volume of a cut might pass through multiple regions 
+      which have different residual stress tensors.
+      This is the way I did things by hand. When doing things by hand it
+      has the upside that changes to the mesh do not affect part partitons.
+   2) Partition the part to define residual stress. Then mesh the part. Then
+      collect elements from the mesh which need to be removed to do the
+      part cutting.
+      We might eventually want to mesh the part in a way which depends on
+      the cuts. This approach might complicate that.
+      This approach would allow us to potentially use sets in a clever way
+      since a collection of mesh elements can be bundled into a set.
+   3) Mesh the part. Then define both residual stress and the part cutting
+      in terms of the mesh elements.
+      Some potential problem due to dependency between the mesh and the
+      cuts.
+   4) Create a single part for the initial geometry and a part for each cut.
+      Create instances for each of these in the Assembly module. Use the
+      cut functionality in the Assembly module to create the post-cut geometry,
+      which still has a residual stress pattern in its remaining volume.
+      This approach deals with arbitrary cuts in space pretty well. It
+      natively removes only overlapping volume. 
 
 A fundumental realization:
 Cuts are specified as arbitrary paths in space. However, after the first cut
-is made the geometry of the part might change due to deformation. This
-means that the portion of material which is removed for a single cut depends
-on the deformation which occurred during the previous cut. Therefore, under
-the assumption of non-negligible deformation, each cut requires a single 
-simulation and the simulations must be chained together.
+   is made the geometry of the part might change due to deformation. This
+   means that the portion of material which is removed for a single cut depends
+   on the deformation which occurred during the previous cut. Therefore, under
+   the assumption of non-negligible deformation, each cut requires a single 
+   simulation and the simulations must be chained together.
 
 
 
 Abaqus Feature objects are almost completely useless. When an Abaqus Feature object
-  is created (via a call to PartitionFaceBySketch() for example) it's usually the
-  case that some other object is created at the same time (for PartitionFaceBySketch(),
-  at least one new Abaqus Face object is created and added to the appropriate
-  repository of Abaqus Face objects). It's not uncommon to want to retrieve the 
-  Abaqus Face object which was just created. However, it's not possible to do 
-  this with just the Abaqus Feature object which was created alongside the 
-  Abaqus Face object. The Abaqus Feature object has id and name data members,
-  but these can only be used to lookup the Abaqus Feature object itself, not
-  the underlying object.
+   is created (via a call to PartitionFaceBySketch() for example) it's usually the
+   case that some other object is created at the same time (for PartitionFaceBySketch(),
+   at least one new Abaqus Face object is created and added to the appropriate
+   repository of Abaqus Face objects). It's not uncommon to want to retrieve the 
+   Abaqus Face object which was just created. However, it's not possible to do 
+   this with just the Abaqus Feature object which was created alongside the 
+   Abaqus Face object. The Abaqus Feature object has id and name data members,
+   but these can only be used to lookup the Abaqus Feature object itself, not
+   the underlying object.
 A hack can be done where you monitor the sequence of interest (for example, the
-  Abaqus FaceArray object associated with an Abaqus Part object) and if you know
-  only a single new Abaqus object is created when the feature creation
-  happens, you can extract the new Abaqus object by just extracting the
-  last entry in the sequence. This forces you to assume that the new Abaqus object
-  is always added as the last entry, and that only a single Abaqus object is
-  created.
+   Abaqus FaceArray object associated with an Abaqus Part object) and if you know
+   only a single new Abaqus object is created when the feature creation
+   happens, you can extract the new Abaqus object by just extracting the
+   last entry in the sequence. This forces you to assume that the new Abaqus object
+   is always added as the last entry, and that only a single Abaqus object is
+   created.
+
+
+
+There may or may not be an actual machining process going on while the simulation
+   engine is running. This affects the sourcing of the stress profiles. What I mean
+   by this is that, at the beginning of each Abaqus simulation, the part must have
+   some stress profile associated with it or there is no reason to do a simulation.
+   The source of the stress profile at the beginning of each simulation can be
+   either: the stress profile from the last simulation or a stress profile estimated
+   by the user. Recall that each simulation happens relative to beginning of
+   the commitment phase.
+   Here are all the cases:
+      1) Everything in simulation, very first commitment phase.
+         The stress profile must be user supplied. 
+      2) Everything in simulation, not first commitment phase.
+         The stress profile can be propagated from the end of the last commitment
+            phase or can be user specified.
+      3) Real-life machining going on, very first commitment phase.
+         The stress profile must be user supplied.
+      4) Real-life machining going on, not first commitment phase.
+         The stress profile can be propagated from the end of the last commitment
+            phase or can be user specified.
+         Note: If we are highly confident in our stress profile estimate at the
+            beginning of a commitment phase and we believe that Abaqus is very
+            effective at modeling stress profile evolution, we might want to just
+            source the initial profile from Abaqus' final estimate.
+    

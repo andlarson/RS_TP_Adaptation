@@ -1,9 +1,12 @@
 
+
+
 Short Term TODO.
 
 1) Finish adding notion of tool pass commitment.
       - If everything is being done in simulation, then stress state needs to propagate
            across committed tool passes.
+           - Fixup initial stress state sourcing logic.
 
 2) Add more exotic tool path geometries.
 
@@ -17,14 +20,15 @@ Short Term TODO.
 5) Add support for back calculating stress which caused a particular
       deformation.
 
+
+
+Long Term TODO.
+
 Experiments TODO:
 
     Compare the deformation which results from geometry change to element deletion.
 
 
-
-
-Long Term TODO.
 
 Thinking TODO:
 

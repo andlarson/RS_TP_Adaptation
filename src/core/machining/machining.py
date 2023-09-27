@@ -16,11 +16,43 @@ STANDARD_POST_COMMIT_FILE_NAME_PREFIX = "Post_Committed_Tool_Pass_"
 
 
 class MachiningProcess:
-   
+
+    # The object which defines the whole machining process for a single part.
+    # 
+    # Notes:
+    #    Does a one-time switch of the CWD. If init_part already has an underlying
+    #       MDB, then the CWD is switched to the directory that the MDB already
+    #       lives in. If init_part does not have an underlying MDB, an MDB is
+    #       created at some known location (TODO: Fill in this behavior) and the
+    #       CWD is switched to the directory of that this new MDB lives in. This
+    #       is the only place that the CWD is permanently changed.
+    #
+    # Arguments:
+    #    totally_in_simulation - Boolean.
+    #                            Flag which indicates if the whole machining process
+    #                               is being conducted in simulation i.e. there is
+    #                               no real-world machining process going on.
+    #    init_part             - Part object.
+    #                            The initial part geometry before any machining has
+    #                               taken place i.e. the block of material from which
+    #                               the part will be machined.
+    #    boundary_conditions   - List of BC objects.
+    #                            The boundary conditions which should be used for
+    #                               all simulations in this machining process. Usually,
+    #                               these reflect the clamping conditions of the
+    #                               part. Without any boundary conditions, a finite
+    #                               element simulation is unconstrained. 
     def __init__(self, init_part, boundary_conditions):
-    # type: (part.Part, List[bc.BC]) -> None
+    # type: (bool, part.Part, List[bc.BC]) -> None
   
-        self.metadata = []
+        assert(len(boundary_conditions) > 0)
+
+        os.chdir(os.path.dirname(init_part.path_to_mdb))
+
+        self.metadata_committed_tool_pass_plans = []
+        self.stress_profile_estimates = []
+        self.boundary_conditions = boundary_conditions 
+
         if isinstance(init_part, part.UserDefinedPart):
             # When this is supported, it's expected that a UserDefinedPart is
             #    first constructed in an MDB so the method of setting up the
@@ -29,15 +61,10 @@ class MachiningProcess:
 
         elif isinstance(init_part, part.AbaqusDefinedPart):
             first_tp_metadata = md.CommittedToolPassPlanMetadata(init_part, init_part.path_to_mdb, boundary_conditions)
-            self.metadata.append(first_tp_metadata)
+            self.metadata_committed_tool_pass_plans.append(first_tp_metadata)
 
-        # The boundary conditions are assumed to be fixed for the whole machining process. 
-        self.boundary_conditions = boundary_conditions 
-
-        # Do a one-time switch of the CWD to the directory that the initial .cae
-        #    file lives in.
-        # This should be the only function which permanently changes the CWD.
-        os.chdir(os.path.dirname(init_part.path_to_mdb))
+        else:
+            raise RuntimeError("Unrecognized part type.")
 
 
 
@@ -64,14 +91,25 @@ class MachiningProcess:
     def commit_tool_passes(self, tool_pass_plan, save_name):
     # type: (tp.ToolPassPlan, str) -> None
 
-        self.metadata[-1].committed_tool_pass_plan = tool_pass_plan 
+        # For the first commitment phase, the user must supply a stress profile.
+        if len(self.metadata_committed_tool_pass_plans) == 0 and \
+           len(self.stress_profile_estimates) == 0:
+            raise AssertionError("A user-specified stress profile must be supplied \
+                                  for the first commitment phase!")
 
-        num_commits = len(self.metadata)
+        # If the user did not supply a stress profile estimate for this commitment 
+        #    phase, record as such.
+        if len(self.stress_profile_estimates) < len(self.metadata_committed_tool_pass_plans):
+            self.stress_profile_estimates.append(None)
+
+        self.metadata_committed_tool_pass_plans[-1].committed_tool_pass_plan = tool_pass_plan 
+
+        num_commits = len(self.metadata_committed_tool_pass_plans)
 
         # If the tool pass matches one which was already simulated, just duplicate
         #    the results of the previous simulation into a new directory. 
         match = False
-        for name, already_simulated_plan in self.metadata[-1].simulated_tool_pass_plans:
+        for name, already_simulated_plan in self.metadata_committed_tool_pass_plans[-1].simulated_tool_pass_plans:
             if tp.compare_tool_pass_plans(tool_pass_plan, already_simulated_plan):
                 shutil.copytree(name, save_name)
                 
@@ -125,7 +163,7 @@ class MachiningProcess:
 
         # The initial state of the next commitment phase depends on the result
         #    of the simulation. 
-        self.metadata.append(md.CommittedToolPassPlanMetadata(abaqus_part, abaqus_part.path_to_mdb, self.boundary_conditions))
+        self.metadata_committed_tool_pass_plans.append(md.CommittedToolPassPlanMetadata(abaqus_part, abaqus_part.path_to_mdb, self.boundary_conditions))
 
 
 
@@ -149,15 +187,47 @@ class MachiningProcess:
     def sim_potential_tool_passes(self, tool_pass_plan, save_name):
     # type: (tp.ToolPassPlan, str) -> None
 
+        # For the first commitment phase, the user must supply a stress profile.
+        if len(self.metadata_committed_tool_pass_plans) == 0 and \
+           len(self.stress_profile_estimates) == 0:
+            raise AssertionError("A user-specified stress profile must be supplied \
+                                  for the first commitment phase!")
+
         # The start point for each sequence of simulations is always the MDB which
         #    resulted from the last committed tool pass (or the very initial MDB).
-        path_to_mdb = self.metadata[-1].path_initial_mdb
+        path_to_mdb = self.metadata_committed_tool_pass_plans[-1].path_initial_mdb
 
         # A new MDB is created for this sequence of simulations. Therefore, a
         #    new metadata data structure must exist and accompany this new MDB.
-        self.metadata[-1].per_mdb_metadata.append(abq_md.AbaqusMdbMetadata(path_to_mdb))
+        self.metadata_committed_tool_pass_plans[-1].per_mdb_metadata.append(abq_md.AbaqusMdbMetadata(path_to_mdb))
 
-        sim.sim_consecutive_tool_passes(tool_pass_plan, save_name, self.metadata[-1])
+        sim.sim_tool_pass_plan(tool_pass_plan, save_name, self.metadata_committed_tool_pass_plans[-1])
+
+
+
+    # Provide a stress profile as the start point for the current commitment
+    #    phase.
+    # By default, the stress profile for the start point of the current commitment
+    #    phase comes from the output of last simulation in the previous commitment
+    #    phase. This function overrides that default behavior!!
+    #
+    # Notes:
+    #    At the beginning of each commitment phase, the part needs to have some stress
+    #       profile associated with it. By default, the part's stress profile is sourced
+    #       from the output of the last simulation in the previous commitment phase.
+    #       This doesn't work in the first commitment phase. Also, it's possible to
+    #       glean information from deformations observed in real-life to improve stress
+    #       profile estimates.
+    #    
+    # Arguments:
+    #    path - String.
+    #           Path to the stress subroutine which represents the stress profile. 
+    #    
+    # Return:
+    #    None.
+    def record_estimated_stress_profile(self, path):
+
+        self.stress_profile_estimates.append(path)
 
 
 
