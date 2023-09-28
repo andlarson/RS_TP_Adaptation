@@ -82,4 +82,9 @@ There may or may not be an actual machining process going on while the simulatio
             beginning of a commitment phase and we believe that Abaqus is very
             effective at modeling stress profile evolution, we might want to just
             source the initial profile from Abaqus' final estimate.
-    
+   What this all boils down to is that, in both the everything-in-simulation case
+      and the real-life case, the user may or may not specify an estimated stress
+      profile which acts as the start point for the commitment phase. If the user
+      does not specify a stress profile for a commitment phase, the stress profile
+      which resulted from the last simulation in the last commitment phase ought
+      to be used as the starting point for the new commitment phase. 

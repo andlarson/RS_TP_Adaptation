@@ -51,7 +51,12 @@ if __name__ == "__main__":
     BCs = [BC1, BC2]
 
 
-    # ----- Specifying the stress profile -----
+    # ----- Building the top-level machining object -----
+
+    machining_process = mach.MachiningProcess(abaqus_part, BCs)
+
+
+    # ----- Specifying the stress profile for the first commitment phase -----
 
     # The stress profile comes from a user subroutine.
     # We associate the stress profile with the part, then when a simulation is
@@ -59,12 +64,7 @@ if __name__ == "__main__":
     #    imbue the stress profile. The user subroutine is inherently invoked at
     #    simulation runtime, so only setup can be done defore that.
     path_to_subroutine = "/home/andlars/Desktop/RS_TP_Adaptation/src/core/user_subroutines/def_stress-std.o"
-    abaqus_part.add_stress_profile(path_to_subroutine)
-
-
-    # ----- Building the top-level machining object -----
-
-    machining_process = mach.MachiningProcess(True, abaqus_part, BCs)
+    machining_process.record_estimated_stress_profile(path_to_subroutine)
 
     
     # ----- Specifying the first tool pass -----

@@ -12,7 +12,7 @@ import core.abaqus.abaqus_shim as shim
 from util.debug import *
 
 
-STANDARD_POST_COMMIT_FILE_NAME_PREFIX = "Post_Committed_Tool_Pass_"
+STANDARD_POST_COMMIT_FILE_NAME_PREFIX = "Post_Commit_"
 
 
 class MachiningProcess:
@@ -42,6 +42,9 @@ class MachiningProcess:
     #                               these reflect the clamping conditions of the
     #                               part. Without any boundary conditions, a finite
     #                               element simulation is unconstrained. 
+    # 
+    # Returns:
+    #    None.
     def __init__(self, init_part, boundary_conditions):
     # type: (bool, part.Part, List[bc.BC]) -> None
   
@@ -119,11 +122,16 @@ class MachiningProcess:
 
                 match = True
 
-                dp("For committed tool pass number " + str(num_commits) + ", the tool pass plan was already simulated so no additional simulation was needed!")
+                dp("For commit " + str(num_commits) + ", the tool pass plan was already simulated so no additional simulation was needed!")
 
         # Otherwise, simulate the plan.
         if not match:
             self.sim_potential_tool_passes(tool_pass_plan, save_name)
+
+        # Record the path of the .sim file.
+        num_jobs = len(tool_pass_plan.plan)
+        sim_file_name = shim.STANDARD_JOB_PREFIX + str(num_jobs) + ".sim"
+        sim_file_path = os.path.join(os.getcwd(), save_name, sim_file_name) 
 
         # Create the MDB for the next commitment phase and the metadata that
         #    accompanies it.
@@ -143,15 +151,11 @@ class MachiningProcess:
         # Map the orphan mesh to a part geometry.
         sim.orphan_mesh_to_geometry(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
 
-        # Remove redundant features.
-        new_part = shim.get_part(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
-        shim.add_virtual_topology(new_part)
-
         # Propagate the material definitions and sections from the ODB.
         shim.create_material_from_odb(odb_path, names["new_model_name"], mdb)
         shim.create_section_from_odb(odb_path, names["new_model_name"], mdb)
 
-        # Do the necessary section assignment.
+        # Do section assignment.
         shim.assign_section_to_whole_part(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
 
         # Save the MDB so it is visible.
@@ -163,7 +167,11 @@ class MachiningProcess:
 
         # The initial state of the next commitment phase depends on the result
         #    of the simulation. 
-        self.metadata_committed_tool_pass_plans.append(md.CommittedToolPassPlanMetadata(abaqus_part, abaqus_part.path_to_mdb, self.boundary_conditions))
+        new_commit_metadata = md.CommittedToolPassPlanMetadata(abaqus_part, abaqus_part.path_to_mdb, self.boundary_conditions)
+        self.metadata_committed_tool_pass_plans.append(new_commit_metadata)
+
+        # Record the stress state after the last tool pass in the previous commit.
+        self.metadata_committed_tool_pass_plans[-1].path_last_commit_sim_file = sim_file_path
 
 
 
@@ -194,14 +202,20 @@ class MachiningProcess:
                                   for the first commitment phase!")
 
         # The start point for each sequence of simulations is always the MDB which
-        #    resulted from the last committed tool pass (or the very initial MDB).
+        #    resulted from the last commitment phase (or the initial MDB in the
+        #    very first commitment phase).
         path_to_mdb = self.metadata_committed_tool_pass_plans[-1].path_initial_mdb
 
         # A new MDB is created for this sequence of simulations. Therefore, a
         #    new metadata data structure must exist and accompany this new MDB.
-        self.metadata_committed_tool_pass_plans[-1].per_mdb_metadata.append(abq_md.AbaqusMdbMetadata(path_to_mdb))
+        mdb_metadata = abq_md.AbaqusMdbMetadata(path_to_mdb)
+        self.metadata_committed_tool_pass_plans[-1].per_mdb_metadata.append(mdb_metadata)
 
-        sim.sim_tool_pass_plan(tool_pass_plan, save_name, self.metadata_committed_tool_pass_plans[-1])
+        # If there is an estimated stress profile for this commitment phase, use it.
+        if len(self.metadata_committed_tool_pass_plans) == len(self.stress_profile_estimates):
+            sim.sim_tool_pass_plan(tool_pass_plan, save_name, self.metadata_committed_tool_pass_plans[-1], self.stress_profile_estimates[-1])
+        else:
+            sim.sim_tool_pass_plan(tool_pass_plan, save_name, self.metadata_committed_tool_pass_plans[-1])
 
 
 
@@ -226,6 +240,11 @@ class MachiningProcess:
     # Return:
     #    None.
     def record_estimated_stress_profile(self, path):
+
+        if len(self.stress_profile_estimates) >= len(self.metadata_committed_tool_pass_plans):
+            raise AssertionError("Trying to pass too many estimated stress \
+                                 profiles. Each commitment phase should have, at \
+                                 most, one accompanying estimated stress profile!")
 
         self.stress_profile_estimates.append(path)
 

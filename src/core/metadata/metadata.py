@@ -9,8 +9,8 @@ from util.debug import *
 
 # Data structure associated with a single committed tool pass plan.
 # Encapsulates all metadata associated with a single committed tool pass plan. This
-#    includes all metadata associated with simulations which led to the decision
-#    to commit to the tool pass plan (i.e. exploratory tool pass simulations).
+#    includes metadata associated with simulations which led to the decision
+#    to commit to the tool pass plan.
 class CommittedToolPassPlanMetadata:
 
     def __init__(self, init_part, path_to_mdb, BCs):
@@ -18,9 +18,12 @@ class CommittedToolPassPlanMetadata:
 
         self.init_part = init_part
         self.path_initial_mdb = path_to_mdb
+        self.committed_tool_pass_plan = None
+        self.BCs = BCs
 
-        # Could be dictionary, mapping mdb objects to metadata data structures.
-        # Doesn't seem to matter - we always work with the most recent MDB.
+        # There is a single MDB for each tool pass plan simulated in this
+        #    commitment phase. This keeps track of the metadata for each of these
+        #    MDBs.
         self.per_mdb_metadata = [] 
 
         # Optimization: To speed up committing a tool pass plan, a list of all
@@ -31,5 +34,8 @@ class CommittedToolPassPlanMetadata:
         #    object.
         self.simulated_tool_pass_plans = [] 
 
-        self.committed_tool_pass_plan = None
-        self.BCs = BCs
+        # Store the path to the .sim file for the last simulation in the last
+        #    commitment phase.
+        # This is helpful to keep track of because it can be used as the starting
+        #    stress profile for the current commitment phase.
+        self.path_last_commit_sim_file = None

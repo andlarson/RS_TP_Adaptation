@@ -24,22 +24,26 @@ from util.debug import *
 #    name           - String.
 #                     Name of the MDB which results from all the tool path simulations.
 #                     Also, the name of the directory which is created.
-#    init_stress    - InitialStress object.
-#                     Indicates the source of the initial stress profile. The
-#                        stress profile may be propagated from a past simulation
-#                        or it may be estimated. 
 #    record         - CommittedToolPassPlanMetadata object.
 #                     The record associated with ithe search for a good next tool pass
 #                        to do.
+# 
+# Optional Arguments:
+#    stress_subroutine - String.
+#                        Path to stress subroutine. If this argument is not specified,
+#                           then the initial stress state of the part will be sourced
+#                           from the last simulation in the previous commitment
+#                           phase. If this argument is specified, it is used
+#                           instead.
 #
 # Returns:
 #    None.
-def sim_tool_pass_plan(tool_pass_plan, name, record):
-# type: (tp.ToolPassPlan, str, md.CommittedToolPassPlanMetadata) -> None
+def sim_tool_pass_plan(tool_pass_plan, name, commit_metadata, stress_subroutine=None):
+# type: (tp.ToolPassPlan, str, md.CommittedToolPassPlanMetadata, Optional[str]) -> None
 
     # Create the directory wherein all the simulation artifacts for this sequence
     #    of tool passes will live.
-    dir_path = os.path.dirname(record.path_initial_mdb)
+    dir_path = os.path.dirname(commit_metadata.path_initial_mdb)
     new_dir_path = dir_path + "/" + name
     new_mdb_path = new_dir_path + "/" + name
     os.mkdir(new_dir_path)
@@ -49,24 +53,24 @@ def sim_tool_pass_plan(tool_pass_plan, name, record):
     cwd = os.getcwd()
     os.chdir(new_dir_path)
 
-    mdb = shim.use_mdb(record.path_initial_mdb)
+    mdb = shim.use_mdb(commit_metadata.path_initial_mdb)
 
     for tool_pass in tool_pass_plan.plan:
-        sim_single_tool_pass(tool_pass, record, mdb)    
+        sim_single_tool_pass(tool_pass, commit_metadata, mdb, stress_subroutine)    
         tool_pass_plan.pop()
 
     shim.save_mdb_as(new_mdb_path, mdb)
     shim.close_mdb(mdb)
 
-    record.simulated_tool_pass_plans.append((name, tool_pass_plan))
+    commit_metadata.simulated_tool_pass_plans.append((name, tool_pass_plan))
 
     # Don't permanently change the CWD.
     os.chdir(cwd)
 
 
 
-def sim_single_tool_pass(tool_pass, record, mdb):
-# type: (tp.ToolPass, md.CommittedToolPassPlanMetadata, Any) -> None
+def sim_single_tool_pass(tool_pass, commit_metadata, mdb, stress_subroutine=None):
+# type: (tp.ToolPass, md.CommittedToolPassPlanMetadata, Any, Optional[str]) -> None
 
     # The way that the next tool pass is simulated depends on the content of
     #    the MDB.
@@ -75,48 +79,57 @@ def sim_single_tool_pass(tool_pass, record, mdb):
     # If the MDB contains n (where n > 1) models and the last model to be 
     #    added contains an orphan mesh, then we're simulating an nth tool pass
     #    (where n > 1).
-    mdb_metadata = record.per_mdb_metadata[-1] 
+    mdb_metadata = commit_metadata.per_mdb_metadata[-1] 
     last_model_name = mdb_metadata.model_names[-1]
 
     if shim.check_init_geom(False, mdb):
-
-        sim_first_tool_pass(tool_pass, record, mdb)  
-
+        if stress_subroutine is not None:
+            sim_first_tool_pass(tool_pass, commit_metadata, mdb, stress_subroutine)
+        else:
+            sim_first_tool_pass(tool_pass, commit_metadata, mdb)  
     elif shim.check_multiple_steps(False, last_model_name, mdb):
-
-        sim_nth_tool_pass(tool_pass, record, mdb)
-
+        sim_nth_tool_pass(tool_pass, commit_metadata, mdb)
     else:
         raise RuntimeError("Can't figure out how to do next tool pass...")
 
 
 
 # Simulating the very first tool pass in an MDB.
-def sim_first_tool_pass(tool_pass, record, mdb):
-# type: (tp.ToolPass, md.CommittedToolPassPlanMetadata, Any) -> None
+def sim_first_tool_pass(tool_pass, commit_metadata, mdb, stress_subroutine=None):
+# type: (tp.ToolPass, md.CommittedToolPassPlanMetadata, Any, Optional[str]) -> None
 
-    mdb_metadata = record.per_mdb_metadata[-1] 
+    mdb_metadata = commit_metadata.per_mdb_metadata[-1] 
 
     names = naming.new_model_names(mdb_metadata, True)
-    do_boilerplate_sim_ops(tool_pass, names, record, mdb)
 
-    # Since this modifies the input file directly, this should be the last
-    #    thing that happens before the job is submitted and runs.
-    shim.inp_add_stress_subroutine(names["new_model_name"], mdb)
+    do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb)
+
+    if stress_subroutine is not None:
+        # Since this modifies the input file directly, this should be the last
+        #    thing that happens before the job is submitted and runs.
+        shim.inp_add_stress_subroutine(names["new_model_name"], mdb)
+    else:
+        # Use the stress state from the last toolpath in the previous commit.
+        path_sim_file = commit_metadata.path_last_commit_sim_file
+
+        # Since this modifies the input file directly, this should be the last
+        #    thing that happens before the job is submitted and runs.
+        shim.inp_map_stress(path_sim_file, names["new_model_name"], mdb)
 
     job = shim.create_job(names["new_model_name"], mdb_metadata, mdb) 
 
-    # Associate the user subroutine with the job.
-    shim.add_user_subroutine(job, record.init_part.path_to_stress_subroutine)
+    if stress_subroutine is not None:
+        # Associate the user subroutine with the job.
+        shim.add_user_subroutine(job, stress_subroutine)
 
     shim.run_job(job)
 
 
 
-def sim_nth_tool_pass(tool_pass, record, mdb):
+def sim_nth_tool_pass(tool_pass, commit_metadata, mdb):
 # type: (tp.ToolPass, md.CommittedToolPassPlanMetadata, Any) -> Any
 
-    mdb_metadata = record.per_mdb_metadata[-1] 
+    mdb_metadata = commit_metadata.per_mdb_metadata[-1] 
 
     names = naming.new_model_names(mdb_metadata, False)
     last_odb_file_name = naming.last_odb_file_name(mdb_metadata)
@@ -138,7 +151,7 @@ def sim_nth_tool_pass(tool_pass, record, mdb):
     #    geometry. This cannot be done before mapping to a geometry. 
     shim.assign_section_to_whole_part(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
 
-    do_boilerplate_sim_ops(tool_pass, names, record, mdb)
+    do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb)
 
     # Map the stress profile which existed at the end of the last simulation
     #    onto the new geometry. 
@@ -152,7 +165,7 @@ def sim_nth_tool_pass(tool_pass, record, mdb):
 
 
 
-def do_boilerplate_sim_ops(tool_pass, names, record, mdb):
+def do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb):
 # type: (tp.ToolPass, dict[str, str], md.CommittedToolPassPlanMetadata, Any) -> None
 
     # Instance the initial geometry part.
@@ -161,14 +174,14 @@ def do_boilerplate_sim_ops(tool_pass, names, record, mdb):
     
     # Build the next tool pass path as a part.
     tool_pass_geom = tool_pass.geom
-    tool_pass_part = shim.build_part(names["tool_pass_part_name"], tool_pass_geom, names["new_model_name"], record.per_mdb_metadata[-1], mdb)
+    tool_pass_part = shim.build_part(names["tool_pass_part_name"], tool_pass_geom, names["new_model_name"], commit_metadata.per_mdb_metadata[-1], mdb)
 
     # Instance the tool pass part.
     tool_pass_part_instance = shim.instance_part_into_assembly(names["tool_pass_part_name"], tool_pass_part, True, names["new_model_name"], mdb)
 
     # Create the post tool pass geometry as a part.
     cut_instances = (tool_pass_part_instance, )
-    post_tool_pass_part = shim.cut_instances_in_assembly(names["post_tool_pass_part_name"], initial_geom_instance, cut_instances, names["new_model_name"], record.per_mdb_metadata[-1], mdb)
+    post_tool_pass_part = shim.cut_instances_in_assembly(names["post_tool_pass_part_name"], initial_geom_instance, cut_instances, names["new_model_name"], commit_metadata.per_mdb_metadata[-1], mdb)
 
     # Assign a section to the part.
     shim.assign_only_section_to_part(post_tool_pass_part, names["new_model_name"], mdb)
@@ -182,14 +195,14 @@ def do_boilerplate_sim_ops(tool_pass, names, record, mdb):
     post_tool_pass_instance = shim.instance_part_into_assembly(names["post_tool_pass_part_name"], post_tool_pass_part, False, names["new_model_name"], mdb)
 
     # Apply the boundary conditions. 
-    bc.apply_BCs(record.BCs, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_instance, names["new_model_name"], mdb)
+    bc.apply_BCs(commit_metadata.BCs, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_instance, names["new_model_name"], mdb)
 
     # Then mesh the part in the assembly module.
     shim.naive_mesh(post_tool_pass_instance, 30, names["new_model_name"], mdb)
 
-    # Add an equilibrium step following the last step on record.
-    last_step_name = record.per_mdb_metadata[-1].models_metadata[names["new_model_name"]].step_names[-1]
-    shim.create_equilibrium_step(names["equil_step_name"], last_step_name, names["new_model_name"], record.per_mdb_metadata[-1], mdb)
+    # Add an equilibrium step following the last step on commit_metadata.
+    last_step_name = commit_metadata.per_mdb_metadata[-1].models_metadata[names["new_model_name"]].step_names[-1]
+    shim.create_equilibrium_step(names["equil_step_name"], last_step_name, names["new_model_name"], commit_metadata.per_mdb_metadata[-1], mdb)
 
 
 

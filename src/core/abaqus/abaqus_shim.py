@@ -1051,6 +1051,7 @@ def create_model_and_part_from_odb(part_name, model_name, path_to_odb, mdb_metad
     model = mdb.Model(model_name)
     odb = odbAccess.openOdb(path=path_to_odb)
     model.PartFromOdb(part_name, odb, shape=DEFORMED)
+    odb.close()
 
     # Do book keeping.
     mdb_metadata.add_model(model_name)
@@ -1081,6 +1082,7 @@ def create_part_from_odb(part_name, model_name, path_to_odb, mdb_metadata, mdb):
 
     odb = odbAccess.openOdb(path=path_to_odb)
     mdb.models[model_name].PartFromOdb(part_name, odb, shape=DEFORMED)
+    odb.close()
 
     # Do book keeping.
     mdb_metadata.models_metadata[model_name].part_names.append(part_name)
