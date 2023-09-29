@@ -94,7 +94,6 @@ def sim_single_tool_pass(tool_pass, commit_metadata, mdb, stress_subroutine=None
 
 
 
-# Simulating the very first tool pass in an MDB.
 def sim_first_tool_pass(tool_pass, commit_metadata, mdb, stress_subroutine=None):
 # type: (tp.ToolPass, md.CommittedToolPassPlanMetadata, Any, Optional[str]) -> None
 
@@ -225,6 +224,7 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
 # type: (str, str, Any) -> None 
 
     part = shim.get_part(part_name, model_name, mdb) 
+
     unique_elem_faces = shim.get_unique_element_faces(part)
 
     # For each unique face in the mesh, we know the face is on the surface if it is

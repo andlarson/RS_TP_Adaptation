@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     # ----- Simulate the potential tool passes ----- 
 
-    machining_process.sim_potential_tool_passes(tool_pass_plan, "some_potential_tool_passes")
+    machining_process.sim_potential_tool_passes(tool_pass_plan, "potential_tool_passes")
 
 
 
@@ -154,7 +154,7 @@ if __name__ == "__main__":
 
     # ----- Commit to some tool passes ----- 
 
-    machining_process.commit_tool_passes(tool_pass_plan, "good_tool_passes")
+    machining_process.commit_tool_passes(tool_pass_plan, "commit_1")
 
 
 
@@ -183,7 +183,7 @@ if __name__ == "__main__":
 
     # ----- Simulate the potential tool passes ----- 
 
-    machining_process.sim_potential_tool_passes(tool_pass_plan, "post_commit1_tool_passes")
+    machining_process.sim_potential_tool_passes(tool_pass_plan, "after_commit_1")
 
 
 
@@ -229,4 +229,4 @@ if __name__ == "__main__":
 
     # ----- Commit to some tool passes ----- 
 
-    machining_process.commit_tool_passes(tool_pass_plan, "commit_2!")
+    machining_process.commit_tool_passes(tool_pass_plan, "commit_2")

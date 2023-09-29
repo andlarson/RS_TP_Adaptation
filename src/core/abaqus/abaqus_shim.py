@@ -1089,6 +1089,31 @@ def create_part_from_odb(part_name, model_name, path_to_odb, mdb_metadata, mdb):
 
 
 
+# Close and re-open all ODBs in the current session. 
+#
+# Notes:
+#    This function is necessary due to, what I think is, a bug in the Abaqus
+#       codebase. The bug signature is a message like "ODB is out-of-date. Please
+#       close and reopen all ODBs". This bug might happen even when a path to
+#       the ODB is passed to a function like materialsFromOdb(). This makes
+#       me think that Abaqus has cached a version of the ODB at the specified
+#       path, and realizes that the ODB needs to be updated.
+#
+# Arguments:
+#    None.
+# 
+# Returns:
+#    None.
+def update_session_odbs():
+# type: () -> None
+
+    for i in range(len(session.odbs.keys())):
+        name = session.odbs.keys()[i]
+        session.odbs[name].close()
+        odbAccess.openOdb(name)
+
+
+
 # Propagate the material definition from an ODB into a model.
 #
 # Notes:
@@ -1106,6 +1131,7 @@ def create_material_from_odb(path_to_odb, model_name, mdb):
 
     assert(len(mdb.models[model_name].materials) == 0)
 
+    update_session_odbs()
     materials = mdb.models[model_name].materialsFromOdb(path_to_odb)
 
     assert(len(materials) == 1)
@@ -1131,6 +1157,7 @@ def create_section_from_odb(path_to_odb, model_name, mdb):
     section_repo = mdb.models[model_name].sections
     assert(len(section_repo) == 0)
 
+    update_session_odbs()
     new_sections = mdb.models[model_name].sectionsFromOdb(path_to_odb)
 
     assert(len(new_sections) == 1)
