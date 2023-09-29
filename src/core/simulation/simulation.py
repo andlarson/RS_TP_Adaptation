@@ -1,4 +1,5 @@
 import os
+import time
 
 import core.abaqus.abaqus_shim as shim
 import core.tool_pass.tool_pass as tp
@@ -82,7 +83,7 @@ def sim_single_tool_pass(tool_pass, commit_metadata, mdb, stress_subroutine=None
     mdb_metadata = commit_metadata.per_mdb_metadata[-1] 
     last_model_name = mdb_metadata.model_names[-1]
 
-    if shim.check_init_geom(False, mdb):
+    if shim.check_ready_for_toolpasses(False, mdb):
         if stress_subroutine is not None:
             sim_first_tool_pass(tool_pass, commit_metadata, mdb, stress_subroutine)
         else:

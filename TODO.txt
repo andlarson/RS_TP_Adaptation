@@ -4,9 +4,6 @@
 Short Term TODO.
 
 1) Finish adding notion of tool pass commitment.
-      - If everything is being done in simulation, then stress state needs to propagate
-           across committed tool passes.
-           - Fixup initial stress state sourcing logic.
 
 2) Add more exotic tool path geometries.
 

@@ -1,3 +1,6 @@
+import os
+import time
+
 from abaqus import *
 from abaqusConstants import * 
 import regionToolset 
@@ -5,7 +8,7 @@ import part
 import odbAccess
 import numpy as np
 
-
+import core.material_properties.material_properties as material_properties
 import util.geom as geom
 from util.debug import *
 
@@ -586,7 +589,19 @@ def save_mdb(mdb):
 
 
 
-def check_init_geom(should_print, mdb):    
+def check_basic_geom(should_print, mdb):
+# type: (bool, Any) -> bool
+
+    if not check_standard_model_and_part(should_print, mdb):
+        return False 
+
+    if not check_steps_loads_assembly(should_print, mdb) or \
+       not check_no_material_and_section(should_print, mdb):
+        return False
+
+
+
+def check_ready_for_toolpasses(should_print, mdb):    
 # type: (bool, Any) -> bool
 
     if not check_standard_model_and_part(should_print, mdb):
@@ -633,6 +648,23 @@ def check_standard_model_and_part(should_print, mdb):
             dp("failure 2")
         return False
 
+    return True
+
+
+
+def check_no_material_and_section(should_print, mdb):
+# type: (bool, mdb) -> bool
+
+    model = mdb.models[STANDARD_MODEL_NAME]
+    part = model.parts[STANDARD_INIT_GEOM_PART_NAME]
+
+    if len(model.materials) != 0 or \
+       len(model.sections) != 0 or \
+       len(part.sectionAssignments) != 0: 
+        if should_print:
+            dp("failure 1")
+        return False
+    
     return True
 
 
@@ -963,6 +995,20 @@ def naive_mesh(part_instance, size, model_name, mdb):
 
 
 
+# Add a material to a model.
+def create_material(material, model_name, mdb):
+# type: (material_properties.Material, str, Any) -> None
+
+    if isinstance(material, material_properties.ElasticMaterial):
+        poissons_ratio = material.poissons_ratio
+        youngs_modulus = material.youngs_modulus
+        material = mdb.models[model_name].Material(STANDARD_MATERIAL_NAME)
+        material.Elastic((youngs_modulus, poissons_ratio), type=ISOTROPIC)
+    else:
+        raise AssertionError("No support for this type of material.")
+
+
+
 # Create an equilibrium step after another specified step.
 def create_equilibrium_step(name, name_step_to_follow, model_name, mdb_metadata, mdb):
 # type: (str, str, str, abq_md.AbaqusMdbMetadata, Any) -> None
@@ -1004,8 +1050,22 @@ def add_user_subroutine(job, path_to_subroutine):
 def run_job(job):
 # type: (Any) -> None
 
+    # DEBUG
+    j_name = job.name + ".odb"
+
+    dp("The status of " + j_name + " is " + str(job.status))
+
     job.submit()
+
+    # DEBUG
+    dp("The status of " + j_name + " is " + str(job.status))
+
     job.waitForCompletion()
+
+    # DEBUG
+    dp("The current time is " + str(time.time()))
+    dp("The time of last modification to " + j_name + " is " + str(os.path.getmtime(j_name)))
+    dp("The status of " + j_name + " is " + str(job.status))
 
     if job.status == ABORTED:
         raise RuntimeError("The job with name " + job.name + " was aborted!")
@@ -1089,7 +1149,7 @@ def create_part_from_odb(part_name, model_name, path_to_odb, mdb_metadata, mdb):
 
 
 
-# Close and re-open all ODBs in the current session. 
+# Update all ODBs open in the current session. 
 #
 # Notes:
 #    This function is necessary due to, what I think is, a bug in the Abaqus
@@ -1120,21 +1180,62 @@ def update_session_odbs():
 #    None.
 #
 # Arguments:
-#    path_to_odb - String.
-#    model_name  - String. 
-#    mdb         - Abaqus MDB object.
+#    path_to_odb    - String.
+#    odb_model_name - String. 
+#                     The name of the model in the ODB which contains the material.
+#    new_model_name - String.
+#                     The name of the model that the material will be imported
+#                        into.
+#    mdb            - Abaqus MDB object.
 #
 # Returns:
 #    None. 
-def create_material_from_odb(path_to_odb, model_name, mdb):
-# type: (str, str, Any) -> None 
+def create_material_from_odb(path_to_odb, odb_model_name, new_model_name, mdb):
+# type: (str, str, str, Any) -> None 
 
-    assert(len(mdb.models[model_name].materials) == 0)
+    assert(len(mdb.models[new_model_name].materials) == 0)
 
-    update_session_odbs()
-    materials = mdb.models[model_name].materialsFromOdb(path_to_odb)
+    # Note: Don't do the following!!
+    # This often causes a segmentation fault because, I believe, it uses a
+    #    cached ODB that is out of date and out of our control. Explicitly 
+    #    opening and accessing the ODB is preferable.
+    # materials = mdb.models[model_name].materialsFromOdb(path_to_odb)
 
+    odb = odbAccess.openOdb(path_to_odb)
+
+    materials = odb.models[odb_model_name].materials
     assert(len(materials) == 1)
+
+    material = materials[materials.keys()[0]]
+    youngs_modulus, poissons_ratio = check_material_properties(material)
+    
+    new_material = mdb.models[new_model_name].Material(STANDARD_MATERIAL_NAME)
+    new_material.Elastic(((youngs_modulus), (poissons_ratio)))
+
+    odb.close()
+
+
+
+# Ensure that the material has the expected properties.
+#
+# Notes:
+#   An elastic, isotropic material with a Young's modulus and a Poisson's ratio
+#      is expected. 
+#
+# Arguments:
+#    material - Abaqus Material object.
+#
+# Returns:
+#    Tuple of two floats.
+def check_material_properties(material):
+# type: (Any) -> None 
+
+    assert(material.elastic.type == ISOTROPIC)
+    assert(len(material.elastic.table) == 2)
+    assert(len(material.elastic.table[0]) == 1)
+    assert(len(material.elastic.table[1]) == 1)
+
+    return (material.elastic.table[0], material)
 
 
 
@@ -1142,29 +1243,61 @@ def create_material_from_odb(path_to_odb, model_name, mdb):
 #
 # Notes:
 #    This does not propagate section assignments.
-#    Renames section if necessary to conform.
+#    Assumes that the material underlying the section already exists in the
+#       new model.
 #
 # Arguments:
-#    path_to_odb - String.
-#    model_name  - String. 
-#    mdb         - Abaqus MDB object.
+#    path_to_odb     - String.
+#    odb_model_name  - String. 
+#                      The name of the model in the ODB that the section comes
+#                         from.
+#    new_model_name  - String.
+#                      The name of the model that the section will be imported
+#                         into.
+#    mdb             - Abaqus MDB object.
 #
 # Returns:
 #    None. 
-def create_section_from_odb(path_to_odb, model_name, mdb):
-# type: (str, str, Any) -> None 
+def create_section_from_odb(path_to_odb, odb_model_name, new_model_name, mdb):
+# type: (str, str, str, Any) -> None 
 
-    section_repo = mdb.models[model_name].sections
+    section_repo = mdb.models[new_model_name].sections
     assert(len(section_repo) == 0)
 
-    update_session_odbs()
-    new_sections = mdb.models[model_name].sectionsFromOdb(path_to_odb)
+    # Note: Don't do the following!!
+    # This often causes a segmentation fault because, I believe, it uses a
+    #    cached ODB that is out of date and out of our control. Explicitly 
+    #    opening and accessing the ODB is preferable.
+    # new_sections = mdb.models[model_name].sectionsFromOdb(path_to_odb)
 
-    assert(len(new_sections) == 1)
-    assert(len(section_repo) == 1)
+    odb = odbAccess.openOdb(path_to_odb)
+    sections = odb.models[odb_model_name].sections
+    assert(len(sections) == 1)
 
-    if section_repo.keys()[0] != STANDARD_SECTION_NAME:
-        section_repo.changeKey(fromName=section_repo.keys()[0], toName=STANDARD_SECTION_NAME)
+    section = sections[sections.keys()[0]]
+    check_section_properties(section)
+
+    mdb.models[new_model_name].HomogeneousSolidSection(STANDARD_SECTION_NAME, STANDARD_MATERIAL_NAME)
+
+    odb.close()
+
+
+
+# Check that the section has the expected properties.
+#
+# Notes:
+#    A homogeneous solid section corresponding is expected.
+# 
+# Arguments:
+#    section - Abaqus section object.
+# 
+# Returns:
+#    None.
+def check_section_properties(section):
+# type: (Any) -> None
+
+    assert(section.name == STANDARD_SECTION_NAME)
+    assert(section.material == STANDARD_MATERIAL_NAME)
 
 
 
