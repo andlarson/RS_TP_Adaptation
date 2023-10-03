@@ -4,7 +4,6 @@ import numpy as np
 import numpy.linalg as linalg
 import matplotlib.path as path
 
-# DEBUG
 from debug import *
 
 

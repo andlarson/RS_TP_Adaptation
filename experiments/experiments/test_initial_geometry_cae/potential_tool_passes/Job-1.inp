@@ -273,7 +273,7 @@
 ** 
 *Material, name=Material-1
 *Elastic
- 1e+10, 0.3
+ 1e+09, 0.3
 ** 
 ** BOUNDARY CONDITIONS
 ** 

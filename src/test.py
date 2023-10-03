@@ -13,6 +13,7 @@ import util.geom as geom
 import core.part.part as part
 import core.tool_pass.tool_pass as tp
 import core.boundary_conditions.boundary_conditions as bc
+import core.material_properties.material_properties as mp
 
 
 if __name__ == "__main__":
@@ -20,8 +21,9 @@ if __name__ == "__main__":
 
     # ----- Specifying the initial geometry -----
 
+    material = mp.ElasticMaterial(.3, 10**(9))
     path_to_cae = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/test_initial_geometry_cae/test_initial_geometry.cae" 
-    abaqus_part = part.AbaqusDefinedPart("an_example_part", path_to_cae)
+    abaqus_part = part.AbaqusDefinedPart("an_example_part", path_to_cae, material)
 
 
     # ----- Specifying the clamping setup (aka the boundary conditions) -----

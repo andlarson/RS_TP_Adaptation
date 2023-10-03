@@ -599,6 +599,8 @@ def check_basic_geom(should_print, mdb):
        not check_no_material_and_section(should_print, mdb):
         return False
 
+    return True
+
 
 
 def check_ready_for_toolpasses(should_print, mdb):    
@@ -1003,9 +1005,20 @@ def create_material(material, model_name, mdb):
         poissons_ratio = material.poissons_ratio
         youngs_modulus = material.youngs_modulus
         material = mdb.models[model_name].Material(STANDARD_MATERIAL_NAME)
-        material.Elastic((youngs_modulus, poissons_ratio), type=ISOTROPIC)
+        material.Elastic(((youngs_modulus, poissons_ratio), ), type=ISOTROPIC)
     else:
         raise AssertionError("No support for this type of material.")
+
+
+
+# Create section based on default material name.
+def create_section(model_name, mdb):
+# type: (str, Any) -> None
+
+    section_repo = mdb.models[model_name].sections
+    assert(len(section_repo) == 0)
+
+    mdb.models[model_name].HomogeneousSolidSection(STANDARD_SECTION_NAME, STANDARD_MATERIAL_NAME)
 
 
 
@@ -1050,22 +1063,8 @@ def add_user_subroutine(job, path_to_subroutine):
 def run_job(job):
 # type: (Any) -> None
 
-    # DEBUG
-    j_name = job.name + ".odb"
-
-    dp("The status of " + j_name + " is " + str(job.status))
-
     job.submit()
-
-    # DEBUG
-    dp("The status of " + j_name + " is " + str(job.status))
-
     job.waitForCompletion()
-
-    # DEBUG
-    dp("The current time is " + str(time.time()))
-    dp("The time of last modification to " + j_name + " is " + str(os.path.getmtime(j_name)))
-    dp("The status of " + j_name + " is " + str(job.status))
 
     if job.status == ABORTED:
         raise RuntimeError("The job with name " + job.name + " was aborted!")
@@ -1174,6 +1173,7 @@ def update_session_odbs():
 
 
 
+# ***** DEPRECATED DUE TO ODB ISSUES *****
 # Propagate the material definition from an ODB into a model.
 #
 # Notes:
@@ -1239,6 +1239,7 @@ def check_material_properties(material):
 
 
 
+# ***** DEPRECATED DUE TO ODB ISSUES *****
 # Propagate the section from an ODB into a model. 
 #
 # Notes:

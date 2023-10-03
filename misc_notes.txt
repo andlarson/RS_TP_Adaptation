@@ -88,3 +88,12 @@ There may or may not be an actual machining process going on while the simulatio
       does not specify a stress profile for a commitment phase, the stress profile
       which resulted from the last simulation in the last commitment phase ought
       to be used as the starting point for the new commitment phase. 
+
+
+
+Using the noGUI option to invoke an Abaqus script is dangerous. In particular, if
+   noGUI is used, there cannot be any monitoring of jobs. This means that a job
+   issues no messages when submitted and therefore the waitForCompletion() method
+   is useless. This is dangerous if jobs are chained. If waitForCompletion() does
+   not work, then an access to an ODB that is still being written to might happen.
+   This can cause a segfault.

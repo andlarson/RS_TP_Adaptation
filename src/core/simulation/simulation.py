@@ -45,8 +45,8 @@ def sim_tool_pass_plan(tool_pass_plan, name, commit_metadata, stress_subroutine=
     # Create the directory wherein all the simulation artifacts for this sequence
     #    of tool passes will live.
     dir_path = os.path.dirname(commit_metadata.path_initial_mdb)
-    new_dir_path = dir_path + "/" + name
-    new_mdb_path = new_dir_path + "/" + name
+    new_dir_path = os.path.join(dir_path, name)
+    new_mdb_path = os.path.join(new_dir_path, name)
     os.mkdir(new_dir_path)
 
     # And set the CWD to this directory. Now all simulation artifacts will be placed
@@ -83,7 +83,7 @@ def sim_single_tool_pass(tool_pass, commit_metadata, mdb, stress_subroutine=None
     mdb_metadata = commit_metadata.per_mdb_metadata[-1] 
     last_model_name = mdb_metadata.model_names[-1]
 
-    if shim.check_ready_for_toolpasses(False, mdb):
+    if shim.check_basic_geom(False, mdb):
         if stress_subroutine is not None:
             sim_first_tool_pass(tool_pass, commit_metadata, mdb, stress_subroutine)
         else:
@@ -101,6 +101,11 @@ def sim_first_tool_pass(tool_pass, commit_metadata, mdb, stress_subroutine=None)
     mdb_metadata = commit_metadata.per_mdb_metadata[-1] 
 
     names = naming.new_model_names(mdb_metadata, True)
+
+    # Do material and section creation.
+    shim.create_material(commit_metadata.init_part.material, names["new_model_name"], mdb)
+    shim.create_section(names["new_model_name"], mdb)
+    shim.assign_section_to_whole_part(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
 
     do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb)
 
@@ -141,9 +146,9 @@ def sim_nth_tool_pass(tool_pass, commit_metadata, mdb):
     # Create the new model with the deformed part in it from the ODB. 
     shim.create_model_and_part_from_odb(names["pre_tool_pass_part_name"], names["new_model_name"], last_odb_file_name, mdb_metadata, mdb)
 
-    # Propagate the material definitions and sections from the ODB.
-    shim.create_material_from_odb(last_odb_file_name, names["new_model_name"], mdb)
-    shim.create_section_from_odb(last_odb_file_name, names["new_model_name"], mdb)
+    # Do material and section creation.
+    shim.create_material(commit_metadata.init_part.material, names["new_model_name"], mdb)
+    shim.create_section(names["new_model_name"], mdb)
 
     orphan_mesh_to_geometry(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
 
@@ -237,6 +242,9 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
         if len(shim.get_mesh_face_elements(elem_face)) == 1:
             face_reg = shim.build_region_with_elem_face(elem_face, part)
             shim.add_face_from_region(face_reg, part)
+
+    # DEBUG
+    shim.save_mdb_as("testing", mdb)
 
     # Build the solid feature from the face features.
     shim.add_solid_from_faces(part)

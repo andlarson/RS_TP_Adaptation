@@ -3,7 +3,7 @@
 
 Short Term TODO.
 
-1) Finish adding notion of tool pass commitment.
+1) Fix shell-to-solid conversion failure.
 
 2) Add more exotic tool path geometries.
 

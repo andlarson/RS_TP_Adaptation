@@ -9,6 +9,7 @@ import core.metadata.abaqus_metadata as abq_md
 import core.metadata.naming as naming
 import core.tool_pass.tool_pass as tp
 import core.abaqus.abaqus_shim as shim
+import core.material_properties.material_properties as mp
 from util.debug import *
 
 
@@ -151,19 +152,18 @@ class MachiningProcess:
         # Map the orphan mesh to a part geometry.
         sim.orphan_mesh_to_geometry(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
 
-        # Propagate the material definitions and sections from the ODB.
-        shim.create_material_from_odb(odb_path, names["new_model_name"], mdb)
-        shim.create_section_from_odb(odb_path, names["new_model_name"], mdb)
-
-        # Do section assignment.
-        shim.assign_section_to_whole_part(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
-
         # Save the MDB so it is visible.
         save_path = os.path.join(os.getcwd(), new_mdb_name)
         shim.save_mdb_as(save_path, mdb)
 
+        # Create the material based on the material of the very first part in
+        #    the machining process. 
+        first_commit_phase_metadata = self.metadata_committed_tool_pass_plans[0]
+        very_first_part = first_commit_phase_metadata.init_part
+        material = very_first_part.material
+
         # The starting point for the next commitment phase.
-        abaqus_part = part.AbaqusDefinedPart(save_name, save_path)
+        abaqus_part = part.AbaqusDefinedPart(save_name, save_path, material)
 
         # The initial state of the next commitment phase depends on the result
         #    of the simulation. 
