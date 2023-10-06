@@ -2,7 +2,12 @@
 
 ---
 ### Current Assumptions / Limitations:
-1. Toolpath geometries must be special right rectangular prisms.
+1. The space of potential toolpaths is exactly the set of toolpaths which can be taken by the machine. The set of toolpaths which can be taken by the machine is governed by the G-code which the machine accepts. 
+   Some machines are only able to perform, for example, linear interpolation and circular interpolation. Others support toolpaths which are specified via cubic splines, quadratic splines, and more exotic options.
+
+   To be fully general, the simulation must be able to represent all toolpaths which the machine can perform in simulation. Furthermore, the simulation needs to represent the toolpaths **exactly**.
+
+   The sets of toolpaths which can be represented by the simulation engine forms the search space over which we search for good toolpaths.
 2. Meshes are always constructed with tetrahedrons and the Free meshing technique. Starting from some heuristically chosen density, the mesh is made more dense until the part is successfully meshed. Currently, there is no concern about mesh quality. 
 3. All simulations include an initial step which allows any residual stress profile to relax to equilibrium. 
 
@@ -14,5 +19,5 @@
 6. We assume that the clamping setup does not affect the way that the residual stress profile evolves in a part during the machining process. More concretely, it's easy to imagine a clamping setup which restricts the part in such a way that deformations due to residual stress stress don't happen until the clamps are released. For now, we assume that all deformations which occur due to residual stress are observable and not impacted by clamping. Under this assumption, it follows that we need only estimate the residual stress profile which existed in the part before any cuts occurred.
 7. There is no functionality to incorporate real-life measurements.
 8. For our purposes, the only material properties which we care about are Young's Modulus and Poisson's Ratio. 
-9. When a full machining process is conducted in simulation, the user must only specify the part's initial residual stress profile. The stress profile which results from one tool pass simulation is always used as the initial stress profile for the next tool pass simulation. 
+9. The user has the option to inject their own estimate of the entire residual stress profile of a part after a tool pass plan has been committed (and potentially conducted in real life). However, by default, the stress profile which resulted from the simulation of the last committed tool pass plan is the stress profile used as the starting stress profile of the part in the next commitment phase. 
 ---

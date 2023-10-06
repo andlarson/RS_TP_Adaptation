@@ -1,0 +1,18 @@
+
+What are the toolpath geometries that we need to represent in simulation?
+The answer depends on the G-code for the machine tool we are using. If we cannot
+   represent the toolpath geometry in terms of the machine's G-code, we have
+   no way of actually doing the cut and therefore there is no reason to simulate
+   the cut.
+
+
+Ok, so what are some example G-code commands?
+   LinuxCNC: http://linuxcnc.org/docs/html/gcode.html
+   2023 HaasCNC: https://www.haascnc.com/content/dam/haascnc/en/service/manual/operator/english_mill_interactive_manual_print_version_2023.pdf 
+   FANUC CNC Function catalog: https://www.fanucamerica.com/docs/default-source/cnc-files/brochures/cnc-function-catalogue.pdf
+
+   Standard features seem to include linear motion and circular interpolation (G0, G1, G2, G3).
+   Some machines support more advanced motions. For example, the LinuxCNC system
+      appears to support Cubic Splines (G5) and Quadratic Splines (G5.1). The
+      FANUC CNC Funciton catalog lists significantly more exotic options. The
+      HaasCNC machines seem to only offer standard features (G0 - G3).
