@@ -5,11 +5,12 @@
 1. The space of potential toolpaths is exactly the set of toolpaths which can be taken by the machine. The set of toolpaths which can be taken by the machine is governed by the G-code which the machine accepts. 
    Some machines are only able to perform, for example, linear interpolation and circular interpolation. Others support toolpaths which are specified via cubic splines, quadratic splines, and more exotic options.
 
-   To be fully general, the simulation must be able to represent all toolpaths which the machine can perform in simulation. Furthermore, the simulation needs to represent the toolpaths **exactly**.
+   For full generality, the simulation engine must be able to represent and simulate all toolpaths which the machine can perform. Furthermore, the toolpath representations cannot be approximate representations or "close enough" representations. They must be as **exact** as possible. 
 
-   The sets of toolpaths which can be represented by the simulation engine forms the search space over which we search for good toolpaths.
+   The simulation engine is currently able to represent toolpaths created by cylindrical tools which follow cubic splines in 3D and are **not self-intersecting**. Note that multiple toolpaths may intersect one another, but a single toolpath should not intersect itself.
 2. Meshes are always constructed with tetrahedrons and the Free meshing technique. Starting from some heuristically chosen density, the mesh is made more dense until the part is successfully meshed. Currently, there is no concern about mesh quality. 
-3. All simulations include an initial step which allows any residual stress profile to relax to equilibrium. 
+3. TODO: 
+   All simulations include an initial step which allows any residual stress profile to relax to equilibrium. 
 
    If everything is being done in simulation (i.e. there is no real-world machining process going on), there are exactly three sources of residual stress profiles: the user-specified initial residual stress profile, the residual stress profile which remains in a part after some chunk of the part has been removed during simulation, and estimated residual stress profiles based on the deformations which occur in simulation. If there is a real-world machining process going on, the residual stress profile estimates come from deformations measured in real-life, not in simulation. 
    

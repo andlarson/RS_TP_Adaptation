@@ -204,6 +204,38 @@ class Vec3D:
         
 
 
+class PlanarCubicC2Spline3D:
+
+    # A planar cubic spline with continuous first and second derivatives in 3D.
+    # 
+    # Notes:
+    #    Abaqus always uses the a cubic spline with continuous first and second
+    #       derivatives to contruct wire features. For this reason, this is a very
+    #       natural geometry.
+    #    For simplicity, we force the spline to be planar for now. In particular,
+    #       the points must all have the have y coordinate!
+    #
+    # Arguments:
+    #    points - List of Point3D objects.
+    #             The ordering of the list is the order in which the points will
+    #                be connected.
+    #
+    # Returns:
+    #   None. 
+    def __init__(self, points):
+    # type: (List[Point3D]) -> None
+
+        assert(len(points) > 1)
+
+        y = points[0].arr[1]
+        for point in points:
+            if not float_equals(y, point.arr[1]):
+                raise AssertionError("Points are not planar!")
+
+        self.v_list = points
+
+
+
 # A right rectangular prism is a 3D object which consists of 8 vertices,
 #   all right angles, and opposite faces have equal area.
 # This is not only a right rectangular prism, but also a right rectangular

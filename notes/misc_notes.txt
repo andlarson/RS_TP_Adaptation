@@ -39,16 +39,16 @@ Cuts are specified as arbitrary paths in space. However, after the first cut
 
 
 
-Abaqus Feature objects are almost completely useless. When an Abaqus Feature object
-   is created (via a call to PartitionFaceBySketch() for example) it's usually the
-   case that some other object is created at the same time (for PartitionFaceBySketch(),
-   at least one new Abaqus Face object is created and added to the appropriate
-   repository of Abaqus Face objects). It's not uncommon to want to retrieve the 
-   Abaqus Face object which was just created. However, it's not possible to do 
-   this with just the Abaqus Feature object which was created alongside the 
-   Abaqus Face object. The Abaqus Feature object has id and name data members,
-   but these can only be used to lookup the Abaqus Feature object itself, not
-   the underlying object.
+When an Abaqus Feature object is created, another object is also usually created.
+   For example, the PartitionFaceBySketch() also creates a new Abaqus Face object
+   in addition to the Abaqus Feature object returned by the function. Sometimes
+   the location of this new object is a repository (basically a dictionary) and
+   sometimes the location of this new object is an array. When the location is
+   a repository, the id member of the associated Abaqus Feature object DOES appear
+   to be the key for the object. However, when the location is an array, the id
+   member for the associated Abaqus Feature object DOES NOT appear to be the index
+   into the array. The conclusion is that sometimes the Abaqus Feature object is
+   useless and other times it isn't.
 A hack can be done where you monitor the sequence of interest (for example, the
    Abaqus FaceArray object associated with an Abaqus Part object) and if you know
    only a single new Abaqus object is created when the feature creation

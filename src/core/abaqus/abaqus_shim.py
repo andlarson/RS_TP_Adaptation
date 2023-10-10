@@ -795,7 +795,10 @@ def extract_global_csys_to_sketch_csys(transform):
 def build_constrained_sketch(transform, sketch_name, model_name, mdb):
 # type: (Any, str, str, Any) -> None
 
-    sketch = mdb.models[model_name].ConstrainedSketch(sketch_name, sheetSize=1, transform=transform)
+    if transform is not None:
+        sketch = mdb.models[model_name].ConstrainedSketch(sketch_name, sheetSize=1, transform=transform)
+    else:
+        sketch = mdb.models[model_name].ConstrainedSketch(sketch_name, sheetSize=1)
 
     if sketch == None:
         raise RuntimeError("Failed to build sketch!!")
@@ -862,25 +865,196 @@ def sketch_spec_right_rect_prism(part_name, spec_right_rect_prism, model_name, m
 
 
 
-def build_part(name, spec_right_rect_prism, model_name, mdb_metadata, mdb):
-# type: (str, geom.SpecRightRectPrism, str, abq_md.AbaqusMdbMetadata, Any) -> Any
-   
+# Sketch a rectangle. 
+# 
+# Notes:
+#    The rectangle is oriented on the sketch so that it lives exclusively in
+#       +y half of the plane, its width lies on the x axis, its length lies
+#       on the y axis, and it is symmetric about the y axis. 
+#
+# Arguments:
+#    length     - Float.
+#    width      - Float.
+#    part_name  - String.
+#    model_name - String.
+#    mdb        - Abaqus MDB object.
+#
+# Returns:
+#    Abaqus ConstrinedSketch object.
+def sketch_rectangle(length, width, part_name, model_name, mdb):
+# type: (float, float, str, str, Any) -> Any
+
+    sketch = build_constrained_sketch(None, part_name, model_name, mdb)
+
+    # Draw the rectangle.
+    sketch.rectangle((width, 0), (-width, length))
+
+    return sketch
+
+
+
+# Build wire feature. 
+# 
+# Notes:
+#    When a wire feature is created in Abaqus and the spline option is chosen to
+#       connect the points, by default, a cubic polynomial with continuous first
+#       and second derivatives is used. No other splines can be used.
+#    Assumes that the spline is not self-connecting.
+#
+# Arguments:
+#    spline     - PlanarCubicC2Spline3D object.
+#    part_name  - String.
+#    model_name - String.
+#    mdb        - Abaqus MDB object.
+#
+# Returns:
+#    Abaqus Feature object associated with the newly created wire. 
+def build_wire(spline, part_name, model_name, mdb):
+# type: (geom.PlanarCubicC2Spline3D, str, str, Any) -> Any
+
+    part = mdb.models[model_name].parts[part_name]
+
+    # Create datum points for each point in the spline.
+    dps = []
+    for v in spline.v_list:
+        feature = part.DatumPointByCoordinate(v.components())
+        dps.append(part.datums[feature.id])
+
+    # Use the datum points to construct the wire feature.
+    return part.WireSpline(dps, mergeType=SEPARATE)
+
+
+
+# Sweep a tool cross section along a wire to create a solid feature.
+#
+# Notes:
+#    The primary failure mode of this function is self-intersection. If the
+#       path of the tool pass has sufficiently sharp turns and the cross section
+#       is too large, the resulting solid would have self-intersections. However,
+#       if the feature were to have a self-intersection, Abaqus will fail to
+#       create it.
+# 
+# Arguments:
+#    tool_pass  - ToolPass object.
+#    edge       - Abaqus Edge object.
+#                 The edge object which corresponds to the wire.
+#    part_name  - String.
+#    model_name - String.
+#    mdb        - Abaqus MDB object.
+#
+# Return:
+#    Abaqus Feature object that corresponds to the newly created solid. 
+def sweep_tool_along_wire(tool_pass, edge, part_name, model_name, mdb):
+# type: (Any, Any, str, str, Any) -> Any
+
+    part = mdb.models[model_name].parts[part_name]
+
+    # This datum axis defines the orientation of the tool with respect to the
+    #    path that it follows.
+    # For now, the datum axis is parallel to the principal y axis. This guarantees
+    #    that it is easy to orient the tool so that it sits on top of the path.
+    start_point = tool_pass.path.v_list[0].components()
+    above_start_point = (start_point[0], start_point[1] + 1, start_point[2])
+    feature = part.DatumAxisByTwoPoint(start_point, above_start_point)
+    datum_axis = part.datums[feature.id]
+
+    # Create the sketch that will be swept along the wire.
+    sketch = sketch_rectangle(tool_pass.length, tool_pass.width, part_name, model_name, mdb)
+
+    sweep = part.SolidSweep(path=edge, profile=sketch, sketchUpEdge=datum_axis, sketchOrientation=RIGHT)
+
+    return sweep
+
+
+
+# Add the caps at both ends of the tool pass.
+# 
+# Notes:
+#    This function adds features to the part which already exists.
+#    This function assumes that the cross section of the tool has already been
+#       extruded along the path that the tool takes.
+#    This function assumes the orientation of the tool pass with respect to the
+#       path that the tool takes.
+# 
+# Arguments:
+#    tool_pass  - ToolPass object.
+#    part_name  - String.
+#    model_name - String.
+#    mdb        - Abaqus MDB object.
+#
+# Returns:
+#    None.
+def add_tool_pass_caps(tool_pass, part_name, model_name, mdb):
+# type: (ToolPass, str, str, Any) -> None
+
+    part = mdb.models[model_name].parts[part_name]
+
+    # *** Cap at start point *** 
+
+    # Identify the start point, the face that the start point lies on, and 
+    #    build a datum axis going through the start point.
+    start_point = tool_pass.path.v_list[0].components()
+    starting_face = part.faces.findAt(start_point)
+    above_start_point = (start_point[0], start_point[1] + 1, start_point[2])
+    datum_axis = part.DatumAxisByTwoPoint(start_point, above_start_point)
+
+    # Build the sketch, create its axis of rotation, and draw the shape to be
+    #    revolved. 
+    sketch = build_constrained_sketch(None, "CAP_1", model_name, mdb)
+    axis_of_revolution = sketch.ConstructionLine((0., 0.), (0., 1.))
+    sketch.assignCenterline(axis_of_revolution)
+    sketch.rectangle((tool_pass.radius, tool_pass.length/2), (tool_pass.radius, -tool_pass.length/2))
+
+    # Do the revolving.
+    part.SolidRevolve(sketchPlane=starting_face, sketchPlaneSide=SIDE1, sketchUpEdge=datum_axis, sketch=sketch, angle=180)
+
+    # **************************
+
+
+    # *** Cap at end point *** 
+
+    # Identify the end point, the face that the start point lies on, and 
+    #    build a datum axis going through the start point.
+    end_point = tool_pass.path.v_list[-1].components()
+    starting_face = part.faces.findAt(end_point)
+    above_end_point = (end_point[0], end_point[1] + 1, end_point[2])
+    datum_axis = part.DatumAxisByTwoPoint(end_point, above_end_point)
+
+    # Build the sketch, create its axis of rotation, and draw the shape to be
+    #    revolved. 
+    sketch = build_constrained_sketch(None, "CAP_2", model_name, mdb)
+    axis_of_revolution = sketch.ConstructionLine((0., 0.), (0., 1.))
+    sketch.assignCenterline(axis_of_revolution)
+    sketch.rectangle((tool_pass.radius, tool_pass.length/2), (tool_pass.radius, -tool_pass.length/2))
+
+    # Do the revolving.
+    part.SolidRevolve(sketchPlane=starting_face, sketchPlaneSide=SIDE1, sketchUpEdge=datum_axis, sketch=sketch, angle=180)
+
+    # **************************
+
+
+
+def build_part(name, tool_pass, model_name, mdb_metadata, mdb):
+# type: (str, tool_pass.ToolPass, str, abq_md.AbaqusMdbMetadata, Any) -> Any
+
     # Create the part in the model. 
     part = mdb.models[model_name].Part(name=name, dimensionality=THREE_D, type=DEFORMABLE_BODY)
 
     # Update metadata for bookkeeping. 
     mdb_metadata.models_metadata[model_name].part_names.append(name)
 
-    # Construct the sketch and draw on it.
-    sketch = sketch_spec_right_rect_prism(name, spec_right_rect_prism, model_name, mdb)
+    # Create the wire feature.
+    build_wire(tool_pass.path, name, model_name, mdb)
 
-    # Extrude the sketch.
-    # Note that BaseSolidExtrude() adds a feature to the Part and returns the
-    #   associated feature object. We need not keep track of or deal with the
-    #   feature object. By adding the feature, the part itself has been
-    #   updated.
-    depth = spec_right_rect_prism.get_dims()[2]
-    mdb.models[model_name].parts[name].BaseSolidExtrude(sketch=sketch, depth=depth)
+    # Extract the Abaqus Edge object created when the feature object is created.
+    # This must immediately follow the wire being created.
+    edge = mdb.models[model_name].parts[name].edges[-1]
+
+    # Sweep the cross section of the cylinder along the wire.
+    sweep_tool_along_wire(tool_pass, edge, name, model_name, mdb)
+
+    # Add the rounded portions at both ends of the tool pass.
+    add_tool_pass_caps(tool_pass, name, model_name, mdb)
 
     return part
 

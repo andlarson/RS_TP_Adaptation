@@ -178,8 +178,7 @@ def do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb):
     initial_geom_instance = shim.instance_part_into_assembly(names["pre_tool_pass_part_name"], initial_geom_part, True, names["new_model_name"], mdb)  
     
     # Build the next tool pass path as a part.
-    tool_pass_geom = tool_pass.geom
-    tool_pass_part = shim.build_part(names["tool_pass_part_name"], tool_pass_geom, names["new_model_name"], commit_metadata.per_mdb_metadata[-1], mdb)
+    tool_pass_part = shim.build_part(names["tool_pass_part_name"], tool_pass, names["new_model_name"], commit_metadata.per_mdb_metadata[-1], mdb)
 
     # Instance the tool pass part.
     tool_pass_part_instance = shim.instance_part_into_assembly(names["tool_pass_part_name"], tool_pass_part, True, names["new_model_name"], mdb)

@@ -10,12 +10,30 @@ from util.debug import *
 
 
 class ToolPass:
-    
-    def __init__(self, tool_pass_geom):
-    # type: (geom.SpecRightRectPrism) -> None
 
-        self.geom = tool_pass_geom
-    
+    # A cylindrical tool pass.
+    #
+    # Notes:
+    #    See notes/toolpath/toolpath_orientation_1.jpg and notes/toolpath/toolpath_
+    #       orientation_2.jpg to understand how the toolpath is oriented with
+    #       with to the path.
+    #    
+    # Arguments:
+    #    path   - PlanarCubicC2Spline3D object.
+    #    radius - Float.
+    #             Radius of the cylindrical tool.
+    #    length - Float.
+    #             Length of the cylindrical tool.
+    #
+    # Return:
+    #    ToolPass object. 
+    def __init__(self, path, radius, length):
+    # type: (geom.PlanarCubicC2Spline3D, float, float) -> None
+
+        self.path = path
+        self.radius = radius
+        self.length = length
+
 
 
 class ToolPassPlan:

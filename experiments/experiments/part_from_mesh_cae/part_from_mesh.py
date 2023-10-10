@@ -12,6 +12,7 @@ if __name__ == "__main__":
     new_part = mdb.models["Model-1"].parts["Part-1"].PartFromMesh("from_mesh")
 
     mdb.saveAs("post_test.cae")
+    mdb.close()
 
     
 

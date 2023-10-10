@@ -4,8 +4,12 @@
 Short Term TODO.
 
 1) Add more exotic tool path geometries.
-   - What are the limits of G-code? If we can't represent a tool path in G-code,
-        the machine cannot perform the tool pass.
+   - Abaqus natively uses cubic spline with continuous first and second derivatives
+        to construct wire spline. It's possible that G-code might allow, for example,
+        a quadratic spline and we might want a toolpath to follow a quadratic spline.
+        Is there any way to get a quadratic spline with Abaqus?
+   - What's the deal with self-intersections?
+   - Update list of assumptions.
 
 2) Fix shell-to-solid conversion failure.
 
@@ -160,3 +164,7 @@ Adding/Modifying Features TODO:
     Account for case when user-specified stress profile is far from equilibrium.
        This necessitates adding a simulation to find equilibrium. Probably requires
        updating list of assumptions.
+
+    Account for case during spline part creation wherein the datum axis happens to
+       be parallel to the spline. I believe this will cause a failure during part
+       creation.
