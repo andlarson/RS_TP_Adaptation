@@ -227,9 +227,9 @@ class PlanarCubicC2Spline3D:
 
         assert(len(points) > 1)
 
-        y = points[0].arr[1]
+        y = points[0].rep[1]
         for point in points:
-            if not float_equals(y, point.arr[1]):
+            if not float_equals(y, point.rep[1]):
                 raise AssertionError("Points are not planar!")
 
         self.v_list = points

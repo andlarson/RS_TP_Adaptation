@@ -108,70 +108,8 @@ class MachiningProcess:
 
         self.metadata_committed_tool_pass_plans[-1].committed_tool_pass_plan = tool_pass_plan 
 
-        num_commits = len(self.metadata_committed_tool_pass_plans)
-
-        # If the tool pass matches one which was already simulated, just duplicate
-        #    the results of the previous simulation into a new directory. 
-        match = False
-        for name, already_simulated_plan in self.metadata_committed_tool_pass_plans[-1].simulated_tool_pass_plans:
-            if tp.compare_tool_pass_plans(tool_pass_plan, already_simulated_plan):
-                shutil.copytree(name, save_name)
-                
-                # Rename the .cae and .jnl files in this new subdirectory to conform.
-                shutil.move(os.path.join(save_name, name + ".cae"), os.path.join(save_name, save_name + ".cae"))
-                shutil.move(os.path.join(save_name, name + ".jnl"), os.path.join(save_name, save_name + ".jnl"))
-
-                match = True
-
-                dp("For commit " + str(num_commits) + ", the tool pass plan was already simulated so no additional simulation was needed!")
-
-        # Otherwise, simulate the plan.
-        if not match:
-            self.sim_potential_tool_passes(tool_pass_plan, save_name)
-
-        # Record the path of the .sim file.
-        num_jobs = len(tool_pass_plan.plan)
-        sim_file_name = shim.STANDARD_JOB_PREFIX + str(num_jobs) + ".sim"
-        sim_file_path = os.path.join(os.getcwd(), save_name, sim_file_name) 
-
-        # Create the MDB for the next commitment phase and the metadata that
-        #    accompanies it.
-        new_mdb_name = STANDARD_POST_COMMIT_FILE_NAME_PREFIX + str(num_commits)
-        mdb = shim.create_mdb(new_mdb_name, os.getcwd()) 
-        mdb_metadata = abq_md.AbaqusMdbMetadata(new_mdb_name) 
-
-        # Generate the names for the stuff in the MDB.
-        names = naming.new_model_names(mdb_metadata, True)
-
-        # Create a part in the pre-existing lone model which comes with a new
-        #    MDB.
-        odb_name = shim.STANDARD_JOB_PREFIX + str(len(tool_pass_plan.plan)) + ".odb"
-        odb_path = os.path.join(save_name, odb_name)
-        shim.create_part_from_odb(names["pre_tool_pass_part_name"], names["new_model_name"], odb_path, mdb_metadata, mdb)
-
-        # Map the orphan mesh to a part geometry.
-        sim.orphan_mesh_to_geometry(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
-
-        # Save the MDB so it is visible.
-        save_path = os.path.join(os.getcwd(), new_mdb_name)
-        shim.save_mdb_as(save_path, mdb)
-
-        # Create the material based on the material of the very first part in
-        #    the machining process. 
-        first_commit_phase_metadata = self.metadata_committed_tool_pass_plans[0]
-        very_first_part = first_commit_phase_metadata.init_part
-        material = very_first_part.material
-
-        # The starting point for the next commitment phase.
-        abaqus_part = part.AbaqusDefinedPart(save_name, save_path, material)
-
-        # The initial state of the next commitment phase depends on the result
-        #    of the simulation. 
-        new_commit_metadata = md.CommittedToolPassPlanMetadata(abaqus_part, abaqus_part.path_to_mdb, self.boundary_conditions)
-        self.metadata_committed_tool_pass_plans.append(new_commit_metadata)
-
-        # Record the stress state after the last tool pass in the previous commit.
-        self.metadata_committed_tool_pass_plans[-1].path_last_commit_sim_file = sim_file_path
+        self._lazy_sim_potential_tool_passes(tool_pass_plan, save_name)
+        self._prepare_next_commit(tool_pass_plan, save_name)
 
 
 
@@ -254,3 +192,107 @@ class MachiningProcess:
     # type: (None) -> None
         
         raise RuntimeError("Not yet supported.")
+
+
+
+    # Don't simulate the toolpass plan if it has already been simulated.
+    # 
+    # Notes:
+    #    If the toolpass plan was already been simulated, the results are copied
+    #       into a new directory and the names are updated accordingly.
+    #    Assumes that CWD contains the directories of simulation results.
+    # 
+    # Arguments:
+    #    tool_pass_plan - ToolPassPlan object.
+    #                     The tool pass plan which may or may not need to be re-
+    #                        simulated.
+    #    save_name      - String.
+    #                     The name of the simulation results.
+    #
+    # Returns:
+    #    None. 
+    def _lazy_sim_potential_tool_passes(self, tool_pass_plan, save_name):
+
+        match = False
+        for name, already_simulated_plan in self.metadata_committed_tool_pass_plans[-1].simulated_tool_pass_plans:
+            if tp.compare_tool_pass_plans(tool_pass_plan, already_simulated_plan):
+                shutil.copytree(name, save_name)
+                
+                # Rename the .cae and .jnl files in this new subdirectory.
+                shutil.move(os.path.join(save_name, name + ".cae"), os.path.join(save_name, save_name + ".cae"))
+                shutil.move(os.path.join(save_name, name + ".jnl"), os.path.join(save_name, save_name + ".jnl"))
+
+                match = True
+
+                num_commits = len(self.metadata_committed_tool_pass_plans)
+                dp("For commit " + str(num_commits) + ", the tool pass plan was already simulated so no additional simulation was needed!")
+                break
+
+        # Simulate the plan if necessary.
+        if not match:
+            self.sim_potential_tool_passes(tool_pass_plan, save_name)
+
+
+
+    # Prepare for the next commitment phase.
+    # 
+    # Notes:
+    #    Assumes that CWD contains the directories of simulation results.
+    # 
+    # Arguments:
+    #    tool_pass_plan - ToolPassPlan object.
+    #                     The tool pass plan which may or may not need to be re-
+    #                        simulated.
+    #    save_name      - String.
+    #                     The name of the simulation results.
+    #
+    # Returns:
+    #    None.
+    def _prepare_next_commit(self, tool_pass_plan, save_name):
+    # type: (str, tp.ToolPassPlan) -> None
+
+        # Record the path of the .sim file.
+        num_jobs = len(tool_pass_plan.plan)
+        sim_file_name = shim.STANDARD_JOB_PREFIX + str(num_jobs) + ".sim"
+        sim_file_path = os.path.join(os.getcwd(), save_name, sim_file_name) 
+
+        # Create the MDB for the next commitment phase and the metadata that
+        #    accompanies it.
+        num_commits = len(self.metadata_committed_tool_pass_plans)
+        new_mdb_name = STANDARD_POST_COMMIT_FILE_NAME_PREFIX + str(num_commits)
+        mdb = shim.create_mdb(new_mdb_name, os.getcwd()) 
+        mdb_metadata = abq_md.AbaqusMdbMetadata(new_mdb_name) 
+
+        # Generate the names for the stuff in the MDB.
+        names = naming.new_model_names(mdb_metadata, True)
+
+        # Create a part in the pre-existing lone model which comes with a new
+        #    MDB.
+        odb_name = shim.STANDARD_JOB_PREFIX + str(len(tool_pass_plan.plan)) + ".odb"
+        odb_path = os.path.join(save_name, odb_name)
+        shim.create_part_from_odb(names["pre_tool_pass_part_name"], names["new_model_name"], odb_path, mdb_metadata, mdb)
+
+        # Map the orphan mesh to a part geometry.
+        sim.orphan_mesh_to_geometry(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
+
+        # Save the MDB so it is visible.
+        save_path = os.path.join(os.getcwd(), new_mdb_name)
+        shim.save_mdb_as(save_path, mdb)
+
+        # Create the material based on the material of the very first part in
+        #    the machining process. 
+        first_commit_phase_metadata = self.metadata_committed_tool_pass_plans[0]
+        very_first_part = first_commit_phase_metadata.init_part
+        material = very_first_part.material
+
+        # The starting point for the next commitment phase.
+        abaqus_part = part.AbaqusDefinedPart(save_name, save_path, material)
+
+        # The initial state of the next commitment phase depends on the result
+        #    of the simulation. 
+        new_commit_metadata = md.CommittedToolPassPlanMetadata(abaqus_part, abaqus_part.path_to_mdb, self.boundary_conditions)
+        self.metadata_committed_tool_pass_plans.append(new_commit_metadata)
+
+        # Record the stress state after the last tool pass in the previous commit.
+        self.metadata_committed_tool_pass_plans[-1].path_last_commit_sim_file = sim_file_path
+

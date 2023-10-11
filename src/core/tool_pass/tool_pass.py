@@ -11,7 +11,10 @@ from util.debug import *
 
 class ToolPass:
 
-    # A cylindrical tool pass.
+    # A cylindrical tool pass which is not self-intersecting! No checks are done
+    #    for self-intersection upon creation of the this object, but when the
+    #    underlying object is created in Abaqus, an unrecoverable failure will
+    #    occur. 
     #
     # Notes:
     #    See notes/toolpath/toolpath_orientation_1.jpg and notes/toolpath/toolpath_

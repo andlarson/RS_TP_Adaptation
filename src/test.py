@@ -69,17 +69,48 @@ if __name__ == "__main__":
     machining_process.record_estimated_stress_profile(path_to_subroutine)
 
 
-    # ----- Specify a first tool pass -----
+    """
+    # ----- First tool pass plan -----
 
-    p1 = geom.Point3D(np.array(-10, 5, 100))
-    p2 = geom.Point3D(np.array(0, 5, 90))
-    p3 = geom.Point3D(np.array(10, 5, 120))
-    p4 = geom.Point3D(np.array(30, 5, 150))
+    p1 = geom.Point3D(np.array((-10, 5, 100)))
+    p2 = geom.Point3D(np.array((0, 5, 90)))
+    p3 = geom.Point3D(np.array((10, 5, 120)))
+    p4 = geom.Point3D(np.array((30, 5, 150)))
 
     path = geom.PlanarCubicC2Spline3D([p1, p2, p3, p4])
     tp1 = tp.ToolPass(path, 1, 10)
     plan = tp.ToolPassPlan([tp1])
 
     machining_process.sim_potential_tool_passes(plan, "first_test")
+    """
 
+    # ----- Second tool pass plan -----
 
+    p1 = geom.Point3D(np.array((5, 5, 300)))
+    p2 = geom.Point3D(np.array((5, 5, 200)))
+    path = geom.PlanarCubicC2Spline3D([p1, p2])
+    tp1 = tp.ToolPass(path, 2, 10)
+
+    p1 = geom.Point3D(np.array((5, 5, 300)))
+    p2 = geom.Point3D(np.array((35, 5, 300)))
+    path = geom.PlanarCubicC2Spline3D([p1, p2])
+    tp2 = tp.ToolPass(path, 2, 10)
+
+    p1 = geom.Point3D(np.array((35, 5, 300)))
+    p2 = geom.Point3D(np.array((35, 5, 200)))
+    path = geom.PlanarCubicC2Spline3D([p1, p2])
+    tp3 = tp.ToolPass(path, 2, 10)
+
+    p1 = geom.Point3D(np.array((5, 5, 200)))
+    p2 = geom.Point3D(np.array((35, 5, 200)))
+    path = geom.PlanarCubicC2Spline3D([p1, p2])
+    tp4 = tp.ToolPass(path, 2, 10)
+
+    p1 = geom.Point3D(np.array((5, 5, 200)))
+    p2 = geom.Point3D(np.array((35, 5, 300)))
+    path = geom.PlanarCubicC2Spline3D([p1, p2])
+    tp5 = tp.ToolPass(path, 2, 10)
+
+    plan = tp.ToolPassPlan([tp1, tp2, tp3, tp4, tp5])
+
+    machining_process.sim_potential_tool_passes(plan, "second_test")

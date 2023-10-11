@@ -723,9 +723,7 @@ def suppress_feature(name, part):
 #       Abaqus Face object is passed in, the sketchUpEdge argument is required
 #       even though the documentation says otherwise.
 #    All other optional arguments for MakeSketchTransform() are left unspecified.
-#       These arguments fully specify the spacial orientation of a sketch. In
-#       general, it's not important to specify a particular orientation in space.
-#       Rather, it's important to know what the orientation in space is.
+#       These arguments fully specify the spacial orientation of a sketch. 
 #    An Abaqus Transform object has a single method called matrix() that returns
 #       the matrix which contains the translation and orientation of the sketch
 #       in space. Extracting this information can be useful to map points in the
@@ -734,7 +732,7 @@ def suppress_feature(name, part):
 # Arguments:
 #    face - Abaqus Face object. 
 #           Locates the sketch in space.
-#    edge - Abaqus Edge object. 
+#    edge - Abaqus Edge object or Abaqus DatumAxis object.
 #           Orients the sketch in space.
 #    obj  - Abaqus Part object or Abaqus Assembly object. 
 #           The object that the transform is associated with.
@@ -865,34 +863,6 @@ def sketch_spec_right_rect_prism(part_name, spec_right_rect_prism, model_name, m
 
 
 
-# Sketch a rectangle. 
-# 
-# Notes:
-#    The rectangle is oriented on the sketch so that it lives exclusively in
-#       +y half of the plane, its width lies on the x axis, its length lies
-#       on the y axis, and it is symmetric about the y axis. 
-#
-# Arguments:
-#    length     - Float.
-#    width      - Float.
-#    part_name  - String.
-#    model_name - String.
-#    mdb        - Abaqus MDB object.
-#
-# Returns:
-#    Abaqus ConstrinedSketch object.
-def sketch_rectangle(length, width, part_name, model_name, mdb):
-# type: (float, float, str, str, Any) -> Any
-
-    sketch = build_constrained_sketch(None, part_name, model_name, mdb)
-
-    # Draw the rectangle.
-    sketch.rectangle((width, 0), (-width, length))
-
-    return sketch
-
-
-
 # Build wire feature. 
 # 
 # Notes:
@@ -936,16 +906,16 @@ def build_wire(spline, part_name, model_name, mdb):
 # 
 # Arguments:
 #    tool_pass  - ToolPass object.
-#    edge       - Abaqus Edge object.
-#                 The edge object which corresponds to the wire.
+#    edge_array - Abaqus EdgeArray object.
+#                 The sequence of edges along which to sweep the tool.
 #    part_name  - String.
 #    model_name - String.
 #    mdb        - Abaqus MDB object.
 #
 # Return:
 #    Abaqus Feature object that corresponds to the newly created solid. 
-def sweep_tool_along_wire(tool_pass, edge, part_name, model_name, mdb):
-# type: (Any, Any, str, str, Any) -> Any
+def sweep_tool_along_wire(tool_pass, edge_array, part_name, model_name, mdb):
+# type: (tp.ToolPass, Any, str, str, Any) -> Any
 
     part = mdb.models[model_name].parts[part_name]
 
@@ -959,9 +929,12 @@ def sweep_tool_along_wire(tool_pass, edge, part_name, model_name, mdb):
     datum_axis = part.datums[feature.id]
 
     # Create the sketch that will be swept along the wire.
-    sketch = sketch_rectangle(tool_pass.length, tool_pass.width, part_name, model_name, mdb)
+    sketch = build_constrained_sketch(None, part_name, model_name, mdb)
 
-    sweep = part.SolidSweep(path=edge, profile=sketch, sketchUpEdge=datum_axis, sketchOrientation=RIGHT)
+    # Draw the rectangle.
+    sketch.rectangle((tool_pass.radius, 0), (-tool_pass.radius, tool_pass.length))
+
+    sweep = part.SolidSweep(path=edge_array, profile=sketch, sketchUpEdge=datum_axis, sketchOrientation=RIGHT)
 
     return sweep
 
@@ -970,7 +943,7 @@ def sweep_tool_along_wire(tool_pass, edge, part_name, model_name, mdb):
 # Add the caps at both ends of the tool pass.
 # 
 # Notes:
-#    This function adds features to the part which already exists.
+#    This function adds features to a part which already exists.
 #    This function assumes that the cross section of the tool has already been
 #       extruded along the path that the tool takes.
 #    This function assumes the orientation of the tool pass with respect to the
@@ -985,52 +958,71 @@ def sweep_tool_along_wire(tool_pass, edge, part_name, model_name, mdb):
 # Returns:
 #    None.
 def add_tool_pass_caps(tool_pass, part_name, model_name, mdb):
-# type: (ToolPass, str, str, Any) -> None
+# type: (tp.ToolPass, str, str, Any) -> None
 
     part = mdb.models[model_name].parts[part_name]
 
-    # *** Cap at start point *** 
+    start_point = tool_pass.path.v_list[0]
+    face = part.faces.findAt(start_point.components())
+    build_cap("CAP_1", tool_pass, face, part_name, model_name, mdb)
 
-    # Identify the start point, the face that the start point lies on, and 
-    #    build a datum axis going through the start point.
-    start_point = tool_pass.path.v_list[0].components()
-    starting_face = part.faces.findAt(start_point)
-    above_start_point = (start_point[0], start_point[1] + 1, start_point[2])
-    datum_axis = part.DatumAxisByTwoPoint(start_point, above_start_point)
+    end_point = tool_pass.path.v_list[-1]
+    face = part.faces.findAt(end_point.components())
+    build_cap("CAP_2", tool_pass, face, part_name, model_name, mdb)
+
+
+
+# Add a cap to the face of a part.
+# 
+# Notes:
+#    This function assumes a toolpath orientation with respect to the toolpass
+#       path.
+#    Adds a feature to the part.
+# 
+# Arguments:
+#    name       - String.
+#                 Name of the sketch created for the cap.
+#    tool_pass  - ToolPass object.
+#                 Dictates the geometry of the cap.
+#    face       - Abaqus Face object.
+#                 The face on which the cap will be created.
+#                 This face should be planar.
+#    part_name  - String.
+#    model_name - String.
+#    mdb        - Abaqus MDB object. 
+#
+# Returns:
+#    None. 
+def build_cap(name, tool_pass, face, part_name, model_name, mdb):
+# type: (str, Any, Any, str, str, Any) -> None
+
+    part = mdb.models[model_name].parts[part_name]
+
+    point = face.getCentroid()[0]
+    datum_feature = part.DatumPointByCoordinate(point)
+    point_datum = part.datums[datum_feature.id]
+
+    # Assuming orientation of toolpath with respect to path of tool. 
+    above_point = (point[0], point[1] + 1, point[2])
+    datum_feature = part.DatumPointByCoordinate(above_point)
+    above_point_datum = part.datums[datum_feature.id]
+
+    datum_feature = part.DatumAxisByTwoPoint(point_datum, above_point_datum)
+    datum_axis = part.datums[datum_feature.id]
+
+    # Position the sketch in space.
+    transform = build_sketch_transform_from_face(face, datum_axis, part)
 
     # Build the sketch, create its axis of rotation, and draw the shape to be
     #    revolved. 
-    sketch = build_constrained_sketch(None, "CAP_1", model_name, mdb)
+    sketch = build_constrained_sketch(transform, name, model_name, mdb)
     axis_of_revolution = sketch.ConstructionLine((0., 0.), (0., 1.))
     sketch.assignCenterline(axis_of_revolution)
-    sketch.rectangle((tool_pass.radius, tool_pass.length/2), (tool_pass.radius, -tool_pass.length/2))
+    sketch.rectangle((tool_pass.radius, tool_pass.length/2), (0, -tool_pass.length/2))
 
     # Do the revolving.
-    part.SolidRevolve(sketchPlane=starting_face, sketchPlaneSide=SIDE1, sketchUpEdge=datum_axis, sketch=sketch, angle=180)
-
-    # **************************
-
-
-    # *** Cap at end point *** 
-
-    # Identify the end point, the face that the start point lies on, and 
-    #    build a datum axis going through the start point.
-    end_point = tool_pass.path.v_list[-1].components()
-    starting_face = part.faces.findAt(end_point)
-    above_end_point = (end_point[0], end_point[1] + 1, end_point[2])
-    datum_axis = part.DatumAxisByTwoPoint(end_point, above_end_point)
-
-    # Build the sketch, create its axis of rotation, and draw the shape to be
-    #    revolved. 
-    sketch = build_constrained_sketch(None, "CAP_2", model_name, mdb)
-    axis_of_revolution = sketch.ConstructionLine((0., 0.), (0., 1.))
-    sketch.assignCenterline(axis_of_revolution)
-    sketch.rectangle((tool_pass.radius, tool_pass.length/2), (tool_pass.radius, -tool_pass.length/2))
-
-    # Do the revolving.
-    part.SolidRevolve(sketchPlane=starting_face, sketchPlaneSide=SIDE1, sketchUpEdge=datum_axis, sketch=sketch, angle=180)
-
-    # **************************
+    part.SolidRevolve(sketchPlane=face, sketchPlaneSide=SIDE1, sketchUpEdge=datum_axis, sketch=sketch, angle=180.0, 
+                      sketchOrientation=RIGHT, flipRevolveDirection=OFF)
 
 
 
@@ -1046,9 +1038,10 @@ def build_part(name, tool_pass, model_name, mdb_metadata, mdb):
     # Create the wire feature.
     build_wire(tool_pass.path, name, model_name, mdb)
 
-    # Extract the Abaqus Edge object created when the feature object is created.
+    # Extract the Abaqus EdgeArray object which the containts the Abaqus Edge
+    #    object that corresponds to the wire.
     # This must immediately follow the wire being created.
-    edge = mdb.models[model_name].parts[name].edges[-1]
+    edge = mdb.models[model_name].parts[name].edges[-1:]
 
     # Sweep the cross section of the cylinder along the wire.
     sweep_tool_along_wire(tool_pass, edge, name, model_name, mdb)
@@ -1624,7 +1617,8 @@ def add_face_from_region(region, part):
     #    Region Object, whenever a command accepts a named set or surface, it
     #    will also accept a Region object. However, the converse does not seem
     #    to be true. Therefore a Region object really is required.
-    return part.FaceFromElementFaces(region)
+    # Set associateFace=FALSE to speed this up.
+    return part.FaceFromElementFaces(region, associateFace=FALSE)
 
 
 

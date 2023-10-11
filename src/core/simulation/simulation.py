@@ -1,13 +1,14 @@
 import os
-import time
 
 import core.abaqus.abaqus_shim as shim
 import core.tool_pass.tool_pass as tp
 import core.boundary_conditions.boundary_conditions as bc
 import core.metadata.metadata as md
 import core.metadata.naming as naming
-from util.debug import *        
 
+# DEBUG
+import time
+from util.debug import *        
 
 
 # Simulate consecutive tool passes and save off the results.
@@ -221,7 +222,9 @@ def do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb):
 #    None.
 #
 # Arguments:
-#    mdb - Abaqus MDB object.
+#    part_name  - String.
+#    model_name - String.
+#    mdb        - Abaqus MDB object.
 #
 # Returns:
 #    None.
@@ -232,6 +235,9 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
 
     unique_elem_faces = shim.get_unique_element_faces(part)
 
+    # DEBUG
+    dp("There are " + str(len(unique_elem_faces)) + " unique element faces.")
+
     # For each unique face in the mesh, we know the face is on the surface if it is
     #    associated with exactly one element.
     # We need to construct a region for each face on the surface of the part. 
@@ -239,11 +245,28 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
     #    with the part.
     for elem_face in unique_elem_faces:
         if len(shim.get_mesh_face_elements(elem_face)) == 1:
+
+            # DEBUG
+            dp("On element face with index " + str(elem_face.label))
+
+            # DEBUG
+            t1 = time.clock()
+
             face_reg = shim.build_region_with_elem_face(elem_face, part)
+
+            # DEBUG
+            t2 = time.clock()
+            dp("Time for building face region is: " + str(t2 - t1))
+
+            # DEBUG
+            t1 = time.clock()
+
             shim.add_face_from_region(face_reg, part)
 
-    # DEBUG
-    shim.save_mdb_as("testing", mdb)
+            # DEBUG
+            t2 = time.clock()
+            dp("Time for adding face from region is: " + str(t2 - t1))
+
 
     # Build the solid feature from the face features.
     shim.add_solid_from_faces(part)
