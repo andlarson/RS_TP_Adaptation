@@ -74,18 +74,19 @@ class VertexBC(BC):
 #                    The step at which the boundary conditions are first applied. 
 #                       By default, they propagate to future steps. 
 #    part_instance - Abaqus PartInstance object. 
-#                    In order to apply boundary conditions to regions which don't
-#                       already exist, it's necessary to partition pre-existing
-#                       features. In general, an Abaqus Part object or an Abaqus 
-#                       PartInstance object can be partitioned. This function
-#                       creates new regions on parts, when necessary, by
-#                       partitioning this single Abaqus PartInstance object.
-#                    Since a PartInstance object must be passed, it means that
-#                       the Assembly is not empty. In my experience, if you try
-#                       to create a boundary condition on a region of an Abaqus
-#                       Part object and the Assembly is empty, Abaqus segfaults.
 #    model_name    - String.
 #    mdb           - Abaqus MDB object.
+#
+# Notes:
+#    In order to apply boundary conditions to regions which don't already exist, 
+#       it's necessary to partition pre-existing features. In general, an Abaqus 
+#       Part object or an Abaqus PartInstance object can be partitioned. This 
+#       function creates new regions on parts, when necessary, by partitioning 
+#       this single Abaqus PartInstance object.
+#    Since a PartInstance object must be passed, it means that the Assembly is 
+#       not empty. In my experience, if you try to create a boundary condition 
+#       on a region of an Abaqus Part object and the Assembly is empty, Abaqus 
+#       segfaults.
 #
 # Returns:
 #    None.
@@ -100,12 +101,15 @@ def apply_BCs(BCs, step_name, part_instance, model_name, mdb):
         if isinstance(BC, SurfaceBC):
             face = shim.partition_face(BC.region, BC_name, model_name, mdb, instance=part_instance) 
             region = shim.build_region_with_face(face, part_instance)
+
         elif isinstance(BC, VertexBC):
             raise RuntimeError("Not yet supported.")
+
         else:
             raise RuntimeError("Not yet supported.")
 
         if isinstance(BC.bc_settings, DisplacementBCSettings):
             shim.create_displacement_bc(BC_name, step_name, region, BC.bc_settings, model_name, mdb)
+
         else:
             raise RuntimeError("Not yet supported.")

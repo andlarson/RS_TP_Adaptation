@@ -203,7 +203,7 @@ def do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb):
     bc.apply_BCs(commit_metadata.BCs, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_instance, names["new_model_name"], mdb)
 
     # Then mesh the part in the assembly module.
-    shim.naive_mesh(post_tool_pass_instance, 30, names["new_model_name"], mdb)
+    shim.naive_mesh(post_tool_pass_instance, 15, names["new_model_name"], mdb)
 
     # Add an equilibrium step following the last step on commit_metadata.
     last_step_name = commit_metadata.per_mdb_metadata[-1].models_metadata[names["new_model_name"]].step_names[-1]
@@ -235,9 +235,6 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
 
     unique_elem_faces = shim.get_unique_element_faces(part)
 
-    # DEBUG
-    dp("There are " + str(len(unique_elem_faces)) + " unique element faces.")
-
     # For each unique face in the mesh, we know the face is on the surface if it is
     #    associated with exactly one element.
     # We need to construct a region for each face on the surface of the part. 
@@ -246,27 +243,32 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
     for elem_face in unique_elem_faces:
         if len(shim.get_mesh_face_elements(elem_face)) == 1:
 
+            """
             # DEBUG
             dp("On element face with index " + str(elem_face.label))
 
             # DEBUG
             t1 = time.clock()
+            """
 
             face_reg = shim.build_region_with_elem_face(elem_face, part)
 
+            """
             # DEBUG
             t2 = time.clock()
             dp("Time for building face region is: " + str(t2 - t1))
 
             # DEBUG
             t1 = time.clock()
+            """
 
             shim.add_face_from_region(face_reg, part)
 
+            """
             # DEBUG
             t2 = time.clock()
             dp("Time for adding face from region is: " + str(t2 - t1))
-
+            """
 
     # Build the solid feature from the face features.
     shim.add_solid_from_faces(part)

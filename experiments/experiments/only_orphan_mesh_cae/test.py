@@ -1,14 +1,5 @@
-import core.machining.machining as mach
-import util.geom as geom
-import core.part.part as part
-import core.tool_pass.tool_pass as tp
-
-# DEBUG
 import core.simulation.simulation as sim
 import core.abaqus.abaqus_shim as shim
-
-import sys
-import os
 
 
 """

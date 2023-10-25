@@ -426,13 +426,42 @@ def get_edge_vertices(edge, part):
    
 
 
-# Error in documentation of pointOn member.
-def get_face_vertices(face, part):
-# type: (Any, Any) -> Tuple[Tuple[float, float, float], ...]
+# Get the vertices of a face.
+# 
+# Notes:
+#    Error in documentation of pointOn member.
+#    The Abaqus Face object can belong to an Abaqus Part object or an Abaqus 
+#       PartInstance object. If the Abaqus Face object belongs to an Abaqus Part
+#       object, the caller is obligated to pass the Abaqus Part object. The same
+#       rule applies if the Abaqus Face object belongs to an Abaqus PartInstance
+#       object.
+#
+# Arguments:
+#    face - Abaqus Face object. 
+#
+# Optional Arguments:
+#    part          - Abaqus Part object.
+#    assembly      - Abaqus Assembly object.
+#    part_instance - Abaqus PartInstance object.
+#
+# Optional Arguments Notes:
+#    Either the part argument or the assembly and part_instance arguments must be 
+#       passed.
+#
+# Returns:
+#    List of tuples containing 3 entries. 
+def get_face_vertices(face, part=None, assembly=None, part_instance=None):
+# type: (Any, Optional[Any], Optional[Any], Optional[Any]) -> List[Tuple[float, float, float], ...]
 
     vertex_ids = face.getVertices()
-    vertices = [part.vertices[vertex_id].pointOn[0] for vertex_id in vertex_ids]
-    return tuple(vertices)
+    if assembly != None and part_instance != None:
+        vertices = [part_instance.vertices[vertex_id].pointOn[0] for vertex_id in vertex_ids]
+    elif part != None:
+        vertices = [part.vertices[vertex_id].pointOn[0] for vertex_id in vertex_ids]
+    else:
+        raise AssertionError("Incorrect arguments passed!")
+
+    return vertices 
 
 
 
@@ -453,8 +482,10 @@ def get_BC_cnt(model_name, mdb):
 # Check if the face and the ngon have matching vertices. 
 # 
 # Notes:
-#    In general, I don't think that this means that they exactly match. The face
-#       could be curved but have vertices which nicely match the ngon.
+#    A face and an ngon could have matching vertices, but could look very different.
+#       The face could be curved....
+#    This function checks for an EXACT match, floating point issues are not taken
+#       into account.
 #
 # Arguments:
 #    ngon - NGon3D object.
@@ -476,42 +507,6 @@ def check_face_ngon_match(ngon, face, obj):
         ngon_face_share_vertices = False
 
     return ngon_face_share_vertices
-
-
-
-# Try to find a face on an object with vertices which exactly match those of some
-#    ngon. 
-# 
-# Notes:
-#    If no matching face is found, this function returns None. 
-#
-# Arguments:
-#    ngon - NGon3D object.
-#    obj - Abaqus Part or Abaqus PartInstance object.
-#
-# Returns:
-#    Abaqus Face object or None. 
-def get_matching_face(ngon, obj):
-# type: (geom.NGon3D, Any) -> Any
-    
-    new_face = None
-    for face in get_faces(obj):
-
-        vertices_single_face = get_face_vertices(face, obj)
-       
-        if len(vertices_single_face) == len(ngon.vertices):
-
-            all_match = True
-            for vertex in ngon.vertices:
-                if vertex.components() not in vertices_single_face:
-                    all_match = False
-
-            if all_match:
-                new_face = face 
-                break
-    
-    return new_face
-
 
 
 
@@ -722,8 +717,6 @@ def suppress_feature(name, part):
 #    It appears that when the MakeSketchTransform() method is called and an
 #       Abaqus Face object is passed in, the sketchUpEdge argument is required
 #       even though the documentation says otherwise.
-#    All other optional arguments for MakeSketchTransform() are left unspecified.
-#       These arguments fully specify the spacial orientation of a sketch. 
 #    An Abaqus Transform object has a single method called matrix() that returns
 #       the matrix which contains the translation and orientation of the sketch
 #       in space. Extracting this information can be useful to map points in the
@@ -963,11 +956,11 @@ def add_tool_pass_caps(tool_pass, part_name, model_name, mdb):
     part = mdb.models[model_name].parts[part_name]
 
     start_point = tool_pass.path.v_list[0]
-    face = part.faces.findAt(start_point.components())
+    face = part.faces.findAt(coordinates=start_point.components())
     build_cap("CAP_1", tool_pass, face, part_name, model_name, mdb)
 
     end_point = tool_pass.path.v_list[-1]
-    face = part.faces.findAt(end_point.components())
+    face = part.faces.findAt(coordinates=end_point.components())
     build_cap("CAP_2", tool_pass, face, part_name, model_name, mdb)
 
 
@@ -1546,7 +1539,7 @@ def build_region_with_face(face, obj):
     #    if it only finds a single Face object, then a single Face object is
     #    returned.
     point_on_face = face.pointOn
-    face_seq = obj.faces.findAt(point_on_face)
+    face_seq = obj.faces.findAt(coordinates=point_on_face)
     region = regionToolset.Region(faces=face_seq)
 
     return region
@@ -1615,10 +1608,10 @@ def add_face_from_region(region, part):
    
     # According to Scripting Reference > Python Commands > Region Commands >
     #    Region Object, whenever a command accepts a named set or surface, it
-    #    will also accept a Region object. However, the converse does not seem
-    #    to be true. Therefore a Region object really is required.
+    #    will also accept an Abaqus Region object. However, the converse does not seem
+    #    to be true. Therefore a Abaqus Region object really is required.
     # Set associateFace=FALSE to speed this up.
-    return part.FaceFromElementFaces(region, associateFace=FALSE)
+    return part.FaceFromElementFaces(region, stitch=TRUE, stitchTolerance=.05, associateFace=FALSE)
 
 
 
@@ -1636,32 +1629,53 @@ def add_solid_from_faces(part):
 
 
 
-# This adds a virtual topology feature to the part. All default options are
-#    used. The goal of this is to simplify unimportant, small, and redundant 
-#    geometric features, resulting in a part geometry which is easier to mesh.
+# Remove redundant geometric features to simplify meshing.
+# 
+# Notes:
+#    In general, it can be useful to call createVirtualTopology recursively on
+#       a part. Each call may eliminate more geometric features.
+#    Creating a virtual topology is dangerous because the geometry of the part
+#       may be degraded. We could try to remove faces which lie on planes which
+#       are subtended by an angle very near 180 degrees, but this can lead to
+#       wierd stuff.
+#    Note that Abaqus > Abaqus/CAE > Using Toolsets > The Virtual Topology Toolset >
+#       Creating virtual topology based on geometric features says that the
+#       ignoreRedundantEntities removes edges that separate an otherwise planar
+#       or curved surface. This is a very conservative approach.
+# 
+# Arguments:
+#    part - Abaqus Part object.
+#
+# Returns:
+#    None.
 def add_virtual_topology(part):
 # type: (Any) -> None
 
     # The documentation says that createVirtualTopology() will not issue exceptions.
     # I found that if createVirtualTopology() does not eliminate any features,
-    #    then it issues an exception! It's unclear if this is the only exception
-    #    which can be generated by createVirtualTopology().
+    #    then it issues an exception! 
     try:
-        part.createVirtualTopology(ignoreRedundantEntities=True)
+        part.createVirtualTopology(ignoreRedundantEntities=True, mergeSmallFaces=True, smallFaceAreaThreshold=10000, cornerAngleTolerance=10.0)
     except:
        dp("No excess features were removed by creating a virtual topology! This does not necessarily indicate that there is a bug.") 
 
 
 
+
 # Add some reference points to a root assembly.
-# The reference points can, for example, then be used to build a region.
-# There is a bit of subtlety here. To build a region with reference points, a
-#    sequence of ReferencePoint objects is needed. This function returns a
-#    sequence of Feature objects which are tied to ReferencePoint objects. To
-#    translate from the Feature objects to ReferencePoint objects, it's
-#    necessary to use the 'id' data member of the Feature object to get the
-#    key for the referencePoint repository which is associated with the root
-#    assembly.
+# 
+# Notes:
+#    Abaqus ReferencePoint objects can, for example, be used to build an Abaqus 
+#       Region object. However, this function only returns Abaqus Feature objects. 
+#
+# Arguments:
+#    points     - List of Point3D objects.
+#                 Points to add as reference points.
+#    model_name - String.
+#    mdb        - Abaqus MDB object.
+#
+# Returns:
+#    List of Abaqus Feature objects. 
 def add_ref_points(points, model_name, mdb):
 # type: (List[geom.Point3D], str, Any) -> List[Any]
 
@@ -1693,15 +1707,15 @@ def create_displacement_bc(BC_name, step_name, region, settings, model_name, mdb
 # 
 # Notes:
 #    The PartitionFaceBySketch() method claims to take a "sequence of Face
-#       objects". I believe it should instead take an Abaqus FaceArray object. 
+#       objects". I believe it actually takes an Abaqus FaceArray object. 
 # 
 # Arguments:
 #    face     - Abaqus Face object. 
 #               The face to partition.
 #    edge     - Abaqus Edge object. 
-#               Specifies the orientation of the sketch on the
-#                  face. This edge should have been used to orient the sketch on 
-#                  the face when the sketch was constructed.
+#               Specifies the orientation of the sketch on the face. This edge 
+#                  should have been used to orient the sketch on the face when 
+#                  the sketch was constructed.
 #    sketch   - Abaqus ConstrainedSketch object.
 #
 # Optional Arguments:
@@ -1713,21 +1727,37 @@ def create_displacement_bc(BC_name, step_name, region, settings, model_name, mdb
 #    Either assembly and instance must be specified or part must be specified.
 #
 # Returns:
-#    None. The Abaqus Feature object returned by the PartitionFaceBySketch()
-#       method seems to be useless.
+#    Abaqus Face object.
 def partition_face_with_sketch(face, edge, sketch, assembly=None, instance=None, part=None):
 # type: (Any, Any, Any, Optional[Any], Optional[Any], Optional[Any]) -> Any
 
     point = face.pointOn
 
     if assembly != None and instance != None:
-        face_array = instance.faces.findAt(point)
-        assembly.PartitionFaceBySketch(face_array, sketch, sketchUpEdge=edge)
+        face_array = instance.faces.findAt(coordinates=point)
+        face_cnt = len(instance.faces)
+        feature = assembly.PartitionFaceBySketch(face_array, sketch, sketchUpEdge=edge)
+        post_partition_face_cnt = len(instance.faces)
+
     elif part != None:
-        face_array = part.faces.findAt(point)
-        part.PartitionFaceBySketch(face_array, sketch, sketchUpEdge=edge)
+        face_array = part.faces.findAt(coordinates=point)
+        face_cnt = len(part.faces)
+        feature = part.PartitionFaceBySketch(face_array, sketch, sketchUpEdge=edge)
+        post_partition_face_cnt = len(part.faces)
+
     else:
         raise RuntimeError("Invalid combination of arguments passed.")
+
+    if post_partition_face_cnt != face_cnt + 1 or feature is None:
+        raise AssertionError("Partitioning didn't work!")
+
+    # Hack! Assumes that the created face is the last face in the array of faces. 
+    if assembly != None and instance != None:
+        new_face = instance.faces[-1]
+    else:
+        new_face = part.faces[-1]
+
+    return new_face
 
 
 
@@ -1748,37 +1778,6 @@ def partition_face_with_sketch(face, edge, sketch, assembly=None, instance=None,
 def find_face_ngon_lives_on(ngon, obj):
 # type: (geom.NGon3D, Any) -> Any
 
-    """
-    DEPRECATED TECHNIQUE!!!
-    # Critical to ensure that the vertices are well-ordered on a per-face basis.
-    vertices = shim.get_all_vertices_ordered(obj)
-
-    face_ngon_belongs_to = None
-
-    # Find the face that the ngon lives on.
-    for idx, vertices_single_face in enumerate(vertices):
-
-        flattened_vertices_single_face = [vertex for vertex_group in vertices_single_face for vertex in vertex_group]
-
-        # Subtle point: If the points which define the vertices of a face are
-        #    not on a plane (i.e. there is a curved surface), then this will
-        #    almost always fail. This is intended behavior. No functionality for
-        #    partitioning a curved face is desired.
-        # TODO: Account for situation where the ngon lives inside two nested
-        #    faces. Right now, the first face that the ngon lives in is the one
-        #    which is identified and used.
-        # TODO: Use the getCurvature() method to check that faces with curvature
-        #    are not considered.
-        if geom.on_plane_of_ngon(flattened_vertices_single_face, ngon):
-            if geom.points_in_ngon_3D(ngon.vertices, geom.NGon3D(vertices_single_face)):
-                face_ngon_belongs_to = shim.get_faces(obj)[idx]
-                break
-
-    if face_ngon_belongs_to == None:
-        raise RuntimeError("Could not identify which face the ngon belongs to. \
-                            Can't continue to do partitioning.")
-    """
-
     # Check that the vertices of the ngon do live on the plane DEFINED by some face.
     # Note that, in general, even if the vertices of the ngon live on a plane 
     #    DEFINED by some face, it does not necessarily mean that the ngon actually
@@ -1790,8 +1789,7 @@ def find_face_ngon_lives_on(ngon, obj):
             on_a_face = True
     
     if not on_a_face:
-        raise RuntimeError("Trying to create a partition with an ngon that doesn't \
-                           live on any plane defined by the object's faces!")
+        raise RuntimeError("Can't determine what face the ngon lives on!")
 
     # Assume that the face closest to points which make up the ngon is the face
     #    that the ngon lives on.
@@ -1839,7 +1837,7 @@ def sketch_ngon(ngon, transform, sketch):
         
         # The Line() method of an Abaqus Sketch object returns None even on
         #    success. Documentation is wrong!
-        sketch.Line(cur_point, next_point)
+        line = sketch.Line(cur_point, next_point)
 
     return sketch
 
@@ -1884,14 +1882,14 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
 
     face_ngon_belongs_to = find_face_ngon_lives_on(ngon, obj)
 
-    # If the face the ngon belongs to has vertices which exactly match the
-    #    ngon, we don't want to try to partition the face and create a new face.
-    #    This will cause partitioning to fail and Abaqus to give up. 
+    # If the face the ngon belongs to has vertices which match the ngon, we don't 
+    #    want to try to partition the face and create a new face. This will cause 
+    #    partitioning to fail and Abaqus to give up. 
     # TODO: The ngon could have redundant vertices, but such a partitioning will
     #    actually succeed because new vertices will be added to the face.
     # TODO: Assuming that the vertices which make up the Abaqus Face object are
     #    not redundant.
-    # If they do share vertices, no partitioning needs to be done at all.
+    # If they do share vertices, no partitioning needs to be done.
     if check_face_ngon_match(ngon, face_ngon_belongs_to, obj):
         return face_ngon_belongs_to 
 
@@ -1906,14 +1904,8 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
 
     # Do the partitioning by using the sketch.
     if part is not None: 
-        partition_face_with_sketch(face_ngon_belongs_to, edge, sketch, part=part)
+        new_face = partition_face_with_sketch(face_ngon_belongs_to, edge, sketch, part=part)
     else:
-        partition_face_with_sketch(face_ngon_belongs_to, edge, sketch, assembly=assembly, instance=instance)
-
-    # Find the face which was just created via partitioning.
-    new_face = get_matching_face(ngon, obj)
-
-    if new_face is None:
-        raise RuntimeError("Failed to find the face which was just created!")
+        new_face = partition_face_with_sketch(face_ngon_belongs_to, edge, sketch, assembly=assembly, instance=instance)
 
     return new_face

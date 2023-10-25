@@ -29,7 +29,7 @@ There needs to be a nice relationship between the residual stress field
       This approach deals with arbitrary cuts in space pretty well. It
       natively removes only overlapping volume. 
 
-A fundumental realization:
+A fundamental realization:
 Cuts are specified as arbitrary paths in space. However, after the first cut
    is made the geometry of the part might change due to deformation. This
    means that the portion of material which is removed for a single cut depends
