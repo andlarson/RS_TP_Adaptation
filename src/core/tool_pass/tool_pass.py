@@ -4,6 +4,8 @@ This file contains code related to tool passes.
 
 import copy
 
+import numpy as np
+
 import util.geom as geom
 from util.debug import *
 
@@ -19,7 +21,7 @@ class ToolPass:
     # Notes:
     #    See notes/toolpath/toolpath_orientation_1.jpg and notes/toolpath/toolpath_
     #       orientation_2.jpg to understand how the toolpath is oriented with
-    #       with to the path.
+    #       respect to the path.
     #    
     # Arguments:
     #    path   - PlanarCubicC2Spline3D object.
@@ -157,3 +159,55 @@ def compare_tool_pass_plans(tpp_1, tpp_2):
         return False
 
     return True
+
+
+
+# Generate bounding box geometry for a tool pass.
+# 
+# Notes:
+#    Computations assume an orientation between the tool and the tool pass path.
+# 
+# Arguments:
+#    x_excess   - Float.
+#                 Amount of excess in the x direction that the user wants for the
+#                    bounding boxes. Expressed in units of the global coordinate
+#                    system.
+#    y_excess   - Float.
+#                 Amount of excess in the y direction that the user wants for the
+#                    bounding boxes. Expressed in units of the global coordinate
+#                    system.
+#    z_excess   - Float.
+#                 Amount of excess in the z direction that the user wants for the
+#                    bounding boxes. Expressed in units of the global coordinate
+#                    system.
+#    tool_pass - ToolPass object.
+#
+# Returns:
+#    SpecRightRectPrism object.
+def create_tool_pass_bounding_box(x_excess, y_excess, z_excess, tool_pass):
+# type: (float, float, float, ToolPass) -> geom.SpecRightRectPrism
+
+    # For this type of path, all the bounding boxes have faces defined by the same
+    #    y values. 
+    assert(type(tool_pass.path) == geom.PlanarCubicC2Spline3D)
+    max_y = tool_pass.path.y + tool_pass.length + y_excess
+    min_y = tool_pass.path.y - y_excess 
+
+    max_x, min_x, _, _, max_z, min_z = geom.find_extrema(tool_pass.path.v_list)
+    max_x = max_x + x_excess
+    min_x = min_x - x_excess
+    max_z = max_z + z_excess
+    min_z = min_z - z_excess
+
+    p1 = geom.Point3D(np.array(max_x, max_y, max_z)) 
+    p2 = geom.Point3D(np.array(max_x, max_y, min_z))
+    p3 = geom.Point3D(np.array(max_x, min_y, max_z))
+    p4 = geom.Point3D(np.array(max_x, min_y, min_z))
+    p5 = geom.Point3D(np.array(min_x, min_y, min_z))
+    p6 = geom.Point3D(np.array(min_x, max_y, min_z))
+    p7 = geom.Point3D(np.array(min_x, max_y, max_z))
+    p8 = geom.Point3D(np.array(min_x, min_y, max_z))
+    bounding_box = geom.SpecRightRectPrism(p1, p2, p3, p4, p5, p6, p7, p8)
+
+    return bounding_box
+      

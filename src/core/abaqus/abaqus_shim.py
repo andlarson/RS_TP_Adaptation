@@ -9,6 +9,7 @@ import odbAccess
 import numpy as np
 
 import core.material_properties.material_properties as material_properties
+import core.tool_pass.tool_pass as tp
 import util.geom as geom
 from util.debug import *
 
@@ -1043,6 +1044,48 @@ def build_part(name, tool_pass, model_name, mdb_metadata, mdb):
     add_tool_pass_caps(tool_pass, name, model_name, mdb)
 
     return part
+
+
+
+# Build bounding box around a tool pass. 
+# 
+# Notes:
+#    None.
+# 
+# Arguments:
+#    part       - String.
+#                 Desired part name.
+#    x_excess   - Float.
+#                 Amount of excess in the x direction that the user wants for the
+#                    bounding boxes. Expressed in units of the global coordinate
+#                    system.
+#    y_excess   - Float.
+#                 Amount of excess in the y direction that the user wants for the
+#                    bounding boxes. Expressed in units of the global coordinate
+#                    system.
+#    z_excess   - Float.
+#                 Amount of excess in the z direction that the user wants for the
+#                    bounding boxes. Expressed in units of the global coordinate
+#                    system.
+#    tool_pass  - ToolPass object.
+#    model_name - String.
+#    mdb        - Abaqus MDB object.
+#
+# Returns:
+#    Abaqus Part object.
+def build_toolpass_bounding_box(name, x_excess, y_excess, z_excess, tool_pass, model_name, mdb):
+# type: (str, float, float, float, tp.ToolPass, str, Any) -> Any 
+
+    bounding_box = tp.create_tool_pass_bounding_box(x_excess, y_excess, z_excess, tool_pass)
+
+    
+
+
+
+    
+
+
+
 
 
 

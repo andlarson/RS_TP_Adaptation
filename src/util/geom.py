@@ -213,7 +213,7 @@ class PlanarCubicC2Spline3D:
     #       derivatives to contruct wire features. For this reason, this is a very
     #       natural geometry.
     #    For simplicity, we force the spline to be planar for now. In particular,
-    #       the points must all have the have y coordinate!
+    #       the points MUST ALL HAVE THE SAME Y COORDINATE!
     #
     # Arguments:
     #    points - List of Point3D objects.
@@ -232,6 +232,7 @@ class PlanarCubicC2Spline3D:
             if not float_equals(y, point.rep[1]):
                 raise AssertionError("Points are not planar!")
 
+        self.y = y
         self.v_list = points
 
 
@@ -239,7 +240,8 @@ class PlanarCubicC2Spline3D:
 # A right rectangular prism is a 3D object which consists of 8 vertices,
 #   all right angles, and opposite faces have equal area.
 # This is not only a right rectangular prism, but also a right rectangular
-#   prism which edges which are parallel to the standard x, y, and z axes.
+#   prism with faces which are parallel to the standard planes of the coordinate
+#   system. 
 class SpecRightRectPrism:
    
     def __init__(self, v1, v2, v3, v4, v5, v6, v7, v8):
@@ -829,3 +831,43 @@ def point_in_ngon_2D(point, ngon):
     # Otherwise, check if it's in the interior. 
     ngon = path.Path(ngon.get_builtin_rep(), closed=True)
     return ngon.contains_point(point.components())
+
+
+
+# Find the extrema (i.e. maximum and minimum) x values, y values, and z values.
+# 
+# Notes:
+#    None.
+# 
+# Arguments:
+#    points - List of Point3D objects.
+#
+# Returns:
+#    6-tuple of floats.
+def find_extrema(points):
+# type: (List[Point3D]) -> Tuple[float, float, float, float, float, float]
+
+    assert(len(points) > 0)
+
+    max_x = points[0].rep[0]
+    min_x = points[0].rep[0] 
+    max_y = points[0].rep[1] 
+    min_y = points[0].rep[1] 
+    max_z = points[0].rep[2] 
+    min_z = points[0].rep[2]
+
+    for point in points:
+        x = point.rep[0]
+        y = point.rep[1]
+        z = point.rep[2]
+
+        max_x = x if x > max_x else max_x 
+        min_x = x if x < min_x else min_x
+
+        max_y = y if y > max_y else max_y 
+        min_y = y if y < min_y else min_y
+
+        max_z = z if z > max_z else max_z 
+        min_z = z if z < min_z else min_z
+
+    return (max_x, min_x, max_y, min_y, max_z, min_z)

@@ -3,20 +3,22 @@
 
 Short Term TODO.
 
-1) Fix shell-to-solid conversion failure.
+1) Add support for variable mesh density. This should help with the shell-to-solid
+      conversion failure, runtime issues, etc. It may still be necessary to do
+      mesh -> geometry conversion outside Abaqus.
 
-2) Fix issue wherein meshing causes loss of geometric fidelity.
+2) Update the tool pass comparison functions.
 
-3) Add C++ support for defining some simple stress profiles.
+2) Add C++ support for defining some simple stress profiles.
    As part of this, account for the case when the user specifies a stress profile
       which is far from equilbirium. 
 
-4) Create a small library of examples illustrating current functionality.
+3) Create a small library of examples illustrating current functionality.
 
-5) Add support for back calculating stress which caused a particular
+4) Add support for back calculating stress which caused a particular
       deformation.
 
-6) If the user supplies their own estimated residual stress profile, it's necessary
+5) If the user supplies their own estimated residual stress profile, it's necessary
       to allow the part, embued by this stress field which may not be in equilibirum, 
       to deform to achieve mechanical equilibrium. This is necessary only in the case
       when the user supplies an estimated stress profile.
@@ -187,3 +189,7 @@ Adding/Modifying Features TODO:
 
     *** SUPPORTING QUADRATIC SPLINES ***
     Can we support quadratic splines for toolpaths? 
+
+    *** SUPPORTING ALTERNATIVE TOOL PASS ORIENTATIONS AND VARIETIES ***
+    Can we support non-canonical tool pass orientations? 
+    Can we support non-planar tool passes? Do we even want to?
