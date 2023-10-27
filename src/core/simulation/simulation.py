@@ -240,38 +240,43 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
     # We need to construct a region for each face on the surface of the part. 
     # Each region is then used to build a geometric face feature associated
     #    with the part.
+
+    # DEBUG
+    start = time.clock()
+
     for elem_face in unique_elem_faces:
         if len(shim.get_mesh_face_elements(elem_face)) == 1:
 
-            """
-            # DEBUG
-            dp("On element face with index " + str(elem_face.label))
-
             # DEBUG
             t1 = time.clock()
-            """
 
             face_reg = shim.build_region_with_elem_face(elem_face, part)
 
-            """
             # DEBUG
             t2 = time.clock()
-            dp("Time for building face region is: " + str(t2 - t1))
 
             # DEBUG
-            t1 = time.clock()
-            """
+            t3 = time.clock()
 
             shim.add_face_from_region(face_reg, part)
 
-            """
             # DEBUG
-            t2 = time.clock()
-            dp("Time for adding face from region is: " + str(t2 - t1))
-            """
+            t4 = time.clock()
+            dp("For element face with index " + str(elem_face.label) + " the wall clock time for building the face region was " + str(t2 - t1) + " and the wall clock time for adding the face from the region was " + str(t4 - t3))
+
+    # DEBUG
+    end = time.clock()
+    dp("The total wall clock time for building the geometric faces from the mesh faces was " + str(end - start))
+
+    # DEBUG
+    start = time.clock()
 
     # Build the solid feature from the face features.
     shim.add_solid_from_faces(part)
+
+    # DEBUG
+    end = time.clock()
+    dp("The total wall clock time for building the solid from the faces was " + str(end - start))
 
     # Remove any dependency on the orphan mesh.
     # Not doing this causes the orphan mesh to still appear in the Assembly

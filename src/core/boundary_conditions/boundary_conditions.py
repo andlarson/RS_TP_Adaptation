@@ -99,7 +99,8 @@ def apply_BCs(BCs, step_name, part_instance, model_name, mdb):
         BC_name = shim.STANDARD_BC_PREFIX + str(BC_cnt)
 
         if isinstance(BC, SurfaceBC):
-            face = shim.partition_face(BC.region, BC_name, model_name, mdb, instance=part_instance) 
+            assembly = mdb.models[model_name].rootAssembly
+            face = shim.partition_face(BC.region, instance=part_instance, assembly=assembly) 
             region = shim.build_region_with_face(face, part_instance)
 
         elif isinstance(BC, VertexBC):

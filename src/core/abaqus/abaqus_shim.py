@@ -116,7 +116,7 @@ def get_step_keyword(kwb):
 # 
 # Arguments:
 #    points - List of Point3D objects.
-#    obj   - An Abaqus Part object or Abaqus PartInstance object.
+#    obj   - Abaqus Part object or Abaqus PartInstance object.
 #
 # Returns:
 #    Abaqus Face object.
@@ -175,7 +175,7 @@ def get_face_normal(face):
 # 
 # Arguments:
 #    face - Abaqus Face object.
-#    obj  - Abaqus Part object or an Abaqus PartInstance 
+#    obj  - Abaqus Part object or Abaqus PartInstance object.
 #           Should be the object to which the face belongs. No check if done 
 #              to ensure that the face actually belongs to this object.
 #
@@ -209,7 +209,7 @@ def get_assembly(model_name, mdb):
 #    None.
 # 
 # Arguments:
-#    obj - An Abaqus Part object or an Abaqus PartInstance object. 
+#    obj - Abaqus Part object or Abaqus PartInstance object. 
 #
 # Returns:
 #    An Abaqus FaceArray object containing all the Abaqus Face object.
@@ -226,7 +226,7 @@ def get_faces(obj):
 #    is really a tuple of tuple of floats, not a simple tuple of floats.
 # 
 # Arguments:
-#    obj - An Abaqus Part object or an Abaqus PartInstance object.
+#    obj - Abaqus Part object or Abaqus PartInstance object.
 #
 # Returns:
 #    A list of lists of Point3D objects. 
@@ -1846,14 +1846,12 @@ def sketch_ngon(ngon, transform, sketch):
 # Partitions the face of an object.
 # 
 # Notes:
-#    Uses distinct part and instance arguments to avoid type checking Abaqus
-#       object types. It's important to know the type of what is being partitioned
-#       because the PartitionFaceBySketch() method is valid for Abaqus Part and
-#       Abaqus Assembly objects.
-#    If the polygon defining the partition does not live on a face of the object,
-#       this may not be detected in general and bad things can happen.
+#    The ngon must live on a face of the object. 
 #    If the ngon exactly matches a face which already exists, no new face is created.
 #       The existing face is returned.
+#    The technique used to create the partition is delicate. In particular,
+#       it assumes that there are no faces which overlap the new partition or are
+#       fully contained inside of it. 
 #
 # Arguments:
 #    ngon          - NGon3D object.
@@ -1865,23 +1863,23 @@ def sketch_ngon(ngon, transform, sketch):
 #
 # Optional Arguments:
 #    part          - Abaqus Part object.
+#    assembly      - Abaqus Assembly object.
 #    instance      - Abaqus PartInstance object.
 # 
 # Optional Arguments Notes:
-#    Either part or instance must be specified.
+#    Either part or instance and assembly must be specified.
 #
 # Returns:
 #    Abaqus Face object.
-def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=None):
-# type: (geom.NGon3D, str, str, Any, Optional[Any], Optional[Any]) -> Any
+def partition_face(ngon, part=None, assembly=None, instance=None):
+# type: (geom.NGon3D, Optional[Any], Optional[Any], Optional[Any]) -> Any
 
-    # TODO: UGLY, just do type checking with Abaqus object types...
-    if (part is None and instance is None) or (part is not None and instance is not None):
-        raise RuntimeError("Bad arguments passed in!")
+    module = part if part else assembly
     obj = part if part else instance
 
     face_ngon_belongs_to = find_face_ngon_lives_on(ngon, obj)
 
+    """ DEPRECATED TECHNIQUE
     # If the face the ngon belongs to has vertices which match the ngon, we don't 
     #    want to try to partition the face and create a new face. This will cause 
     #    partitioning to fail and Abaqus to give up. 
@@ -1907,5 +1905,45 @@ def partition_face(ngon, new_face_name, model_name, mdb, part=None, instance=Non
         new_face = partition_face_with_sketch(face_ngon_belongs_to, edge, sketch, part=part)
     else:
         new_face = partition_face_with_sketch(face_ngon_belongs_to, edge, sketch, assembly=assembly, instance=instance)
+    """
 
-    return new_face
+    pre_partition_face_cnt = len(obj.faces)
+
+    # Create a datum point for each vertex.
+    datums = []
+    for idx in range(len(ngon.vertices)):
+
+        feature = module.DatumPointByCoordinate(ngon.vertices[idx].components())
+        id = feature.id
+        datums.append(module.datums[id])
+
+    # Partition the face using the datum pairs to create edges.
+    # Once all pairs of vertices of the ngon have been created, a new face should
+    #    also be created.
+    for idx in range(len(datums)):
+        if idx == len(datums) - 1:
+            datum_pair = (datums[idx], datums[0])
+        else:
+            datum_pair = (datums[idx], datums[idx + 1])
+
+        try:
+            feature = module.PartitionFaceByShortestPath(face_ngon_belongs_to, datum_pair[0], datum_pair[1])
+        except:
+            # When partitioning, if the edge created matches an edge which already
+            #    exists on the object, Abaqus will throw an exception. This is
+            #    undocumented.
+            pass
+
+    post_partition_face_cnt = len(obj.faces)
+    assert post_partition_face_cnt == pre_partition_face_cnt + 1, "Partitioning failed!!"
+
+    # Find the face that matches the ngon.
+    for face in obj.faces:
+
+        vertex_ids = face.getVertices()
+        vertices = {obj.vertices[id].pointOn[0] for id in vertex_ids}
+
+        if set(ngon.get_builtin_rep()) == vertices:
+            return face
+
+    raise AssertionError("Failed to find new face!")
