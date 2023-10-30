@@ -189,7 +189,7 @@ def create_tool_pass_bounding_box(x_excess, y_excess, z_excess, tool_pass):
 
     # For this type of path, all the bounding boxes have faces defined by the same
     #    y values. 
-    assert(type(tool_pass.path) == geom.PlanarCubicC2Spline3D)
+    assert(isinstance(tool_pass.path, geom.PlanarCubicC2Spline3D))
     max_y = tool_pass.path.y + tool_pass.length + y_excess
     min_y = tool_pass.path.y - y_excess 
 
@@ -199,14 +199,14 @@ def create_tool_pass_bounding_box(x_excess, y_excess, z_excess, tool_pass):
     max_z = max_z + z_excess
     min_z = min_z - z_excess
 
-    p1 = geom.Point3D(np.array(max_x, max_y, max_z)) 
-    p2 = geom.Point3D(np.array(max_x, max_y, min_z))
-    p3 = geom.Point3D(np.array(max_x, min_y, max_z))
-    p4 = geom.Point3D(np.array(max_x, min_y, min_z))
-    p5 = geom.Point3D(np.array(min_x, min_y, min_z))
-    p6 = geom.Point3D(np.array(min_x, max_y, min_z))
-    p7 = geom.Point3D(np.array(min_x, max_y, max_z))
-    p8 = geom.Point3D(np.array(min_x, min_y, max_z))
+    p1 = geom.Point3D(np.array((max_x, max_y, max_z))) 
+    p2 = geom.Point3D(np.array((max_x, max_y, min_z)))
+    p3 = geom.Point3D(np.array((max_x, min_y, max_z)))
+    p4 = geom.Point3D(np.array((max_x, min_y, min_z)))
+    p5 = geom.Point3D(np.array((min_x, min_y, min_z)))
+    p6 = geom.Point3D(np.array((min_x, max_y, min_z)))
+    p7 = geom.Point3D(np.array((min_x, max_y, max_z)))
+    p8 = geom.Point3D(np.array((min_x, min_y, max_z)))
     bounding_box = geom.SpecRightRectPrism(p1, p2, p3, p4, p5, p6, p7, p8)
 
     return bounding_box

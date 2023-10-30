@@ -115,7 +115,6 @@ class Point3D:
 
 
 
-
 class Vec2D:
 
     def __init__(self, arr):
@@ -241,7 +240,7 @@ class PlanarCubicC2Spline3D:
 #   all right angles, and opposite faces have equal area.
 # This is not only a right rectangular prism, but also a right rectangular
 #   prism with faces which are parallel to the standard planes of the coordinate
-#   system. 
+#   system.
 class SpecRightRectPrism:
    
     def __init__(self, v1, v2, v3, v4, v5, v6, v7, v8):

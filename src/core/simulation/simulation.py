@@ -176,13 +176,26 @@ def do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb):
 
     # Instance the initial geometry part.
     initial_geom_part = shim.get_part(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
-    initial_geom_instance = shim.instance_part_into_assembly(names["pre_tool_pass_part_name"], initial_geom_part, True, names["new_model_name"], mdb)  
+    initial_geom_instance = shim.instance_part_into_assembly(names["pre_tool_pass_part_name"], initial_geom_part, False, names["new_model_name"], mdb)  
     
     # Build the next tool pass path as a part.
-    tool_pass_part = shim.build_part(names["tool_pass_part_name"], tool_pass, names["new_model_name"], commit_metadata.per_mdb_metadata[-1], mdb)
+    tool_pass_part = shim.build_tool_pass_part(names["tool_pass_part_name"], tool_pass, names["new_model_name"], commit_metadata.per_mdb_metadata[-1], mdb)
 
     # Instance the tool pass part.
-    tool_pass_part_instance = shim.instance_part_into_assembly(names["tool_pass_part_name"], tool_pass_part, True, names["new_model_name"], mdb)
+    tool_pass_part_instance = shim.instance_part_into_assembly(names["tool_pass_part_name"], tool_pass_part, False, names["new_model_name"], mdb)
+
+    # Build the tool pass bounding box as a part.
+    bounding_box_part = shim.build_bounding_box_part(names["bounding_box_name"], tool_pass, names["new_model_name"], commit_metadata.per_mdb_metadata[-1], mdb)
+
+    # Instance the bounding box part into the assembly.
+    bounding_box_instance = shim.instance_part_into_assembly(names["bounding_box_name"], bounding_box_part, False, names["new_model_name"], mdb)
+
+    # Cut off the portion of the bounding box that lives outside the part.
+    cut_instances = (initial_geom_instance, )
+    bounding_box_excess_part = shim.cut_instances_in_assembly(names["excess_bounding_box_name"], bounding_box_instance, names["new_model_name"], commit_metadata.per_mdb_metadata[-1], mdb)
+
+    # Instance the excess into the assembly.
+
 
     # Create the post tool pass geometry as a part.
     cut_instances = (tool_pass_part_instance, )
@@ -202,8 +215,11 @@ def do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb):
     # Apply the boundary conditions. 
     bc.apply_BCs(commit_metadata.BCs, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_instance, names["new_model_name"], mdb)
 
+    # DEBUG
+    mdb.saveAs("test.cae")
+
     # Then mesh the part in the assembly module.
-    shim.naive_mesh(post_tool_pass_instance, 15, names["new_model_name"], mdb)
+    shim.naive_mesh(post_tool_pass_instance, 20, names["new_model_name"], mdb)
 
     # Add an equilibrium step following the last step on commit_metadata.
     last_step_name = commit_metadata.per_mdb_metadata[-1].models_metadata[names["new_model_name"]].step_names[-1]

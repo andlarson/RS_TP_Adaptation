@@ -27,7 +27,8 @@ STANDARD_MATERIAL_NAME = "Material-1"
 STANDARD_ORPHAN_MESH_FEATURE_NAME = "Orphan mesh-1"
 STANDARD_BC_PREFIX = "Boundary_Condition_"
 STANDARD_JOB_PREFIX = "Job-"
-
+STANDARD_BOUNDING_BOX_PART_NAME = "Bounding_Box"
+STANDARD_EXCESS_BOUNDING_BOX_PART_NAME = "Bounding_Box_Excess"
 
 
 # *****************************************************************************
@@ -799,8 +800,8 @@ def build_constrained_sketch(transform, sketch_name, model_name, mdb):
 
 
 
-# Take the first step towards building a part which is a special right rectangular
-#    prism: put and orient a sketch somewhere in space and draw on it. 
+# Draw a sketch in the context of a part and then extrude the sketch to create
+#    a special right rectangular prism.
 # 
 # Notes:
 #    None.
@@ -808,14 +809,14 @@ def build_constrained_sketch(transform, sketch_name, model_name, mdb):
 # Arguments:
 #    part_name             - String.
 #                            Name of the part. Also used to name the sketch which is created.
-#    spec_right_rect_prism - SpecRightRectangularPrism.
+#    spec_right_rect_prism - SpecRightRectPrism.
 #                            The geometry of the part to create. 
 #    model_name            - String.
 #    mdb                   - Abaqus MDB object.
 #
 # Returns:
-#    Abaqus ConstrainedSketch object.
-def sketch_spec_right_rect_prism(part_name, spec_right_rect_prism, model_name, mdb):
+#    None. 
+def build_spec_right_rect_prism_part(part_name, spec_right_rect_prism, model_name, mdb):
 # type: (str, geom.SpecRightRectPrism, str, Any) -> Any
 
     # The part may be floating in space away from the origin.
@@ -825,22 +826,28 @@ def sketch_spec_right_rect_prism(part_name, spec_right_rect_prism, model_name, m
     centroid = spec_right_rect_prism.get_centroid()
     z_offset = spec_right_rect_prism.get_smaller_z()
 
+    part = mdb.models[model_name].parts[part_name]
+
     # The datum plane is parallel to the x-y plane and offset by z_offset in
     #    the z direction.
-    dp1_id = mdb.models[model_name].parts[part_name].DatumPointByCoordinate((0, 0, z_offset)).id
-    dp2_id = mdb.models[model_name].parts[part_name].DatumPointByCoordinate((1, 0, z_offset)).id
-    dp3_id = mdb.models[model_name].parts[part_name].DatumPointByCoordinate((0, 1, z_offset)).id 
-    dp1 = mdb.models[model_name].parts[part_name].datums[dp1_id]
-    dp2 = mdb.models[model_name].parts[part_name].datums[dp2_id]
-    dp3 = mdb.models[model_name].parts[part_name].datums[dp3_id]
+    dp1_id = part.DatumPointByCoordinate((0, 0, z_offset)).id
+    dp2_id = part.DatumPointByCoordinate((1, 0, z_offset)).id
+    dp3_id = part.DatumPointByCoordinate((0, 1, z_offset)).id 
+    dp1 = part.datums[dp1_id]
+    dp2 = part.datums[dp2_id]
+    dp3 = part.datums[dp3_id]
+
+    # The up direction of the sketch is parallel to Abaqus' global y axis and needs
+    #    to pass through the plane of the sketch.
+    da1_id = part.DatumAxisByTwoPoint(dp1, dp3).id
+    da1 = part.datums[da1_id]
 
     # Create the plane and retrieve the datum object associated with it.
-    sketch_plane_id = mdb.models[model_name].parts[part_name].DatumPlaneByThreePoints(dp1, dp2, dp3).id
-    sketch_plane = mdb.models[model_name].parts[part_name].datums[sketch_plane_id]
+    sketch_plane_id = part.DatumPlaneByThreePoints(dp1, dp2, dp3).id
+    sketch_plane = part.datums[sketch_plane_id]
 
-    # Create a transform object associated with the part.
-    t = mdb.models[model_name].parts[part_name].MakeSketchTransform(sketchPlane=sketch_plane, 
-                                                                    origin=(centroid.rep[0], centroid.rep[1], z_offset))
+    # Create the transform to orient the sketch in space. 
+    t = part.MakeSketchTransform(sketchPlane=sketch_plane, origin=(centroid.rep[0], centroid.rep[1], z_offset), sketchUpEdge=da1)
 
     # Create the sketch using the transform object.
     sketch = build_constrained_sketch(t, part_name, model_name, mdb)
@@ -853,7 +860,11 @@ def sketch_spec_right_rect_prism(part_name, spec_right_rect_prism, model_name, m
     # Don't try to check the return value. This returns None even on success...
     sketch.rectangle(corner_1, corner_2)
 
-    return sketch
+    # Now extrude the sketch to create the solid.
+    # ASSUMPTION HERE: We always select SIDE1 because that happens to work for the
+    #    special right rectangular prism.  
+    depth = spec_right_rect_prism.get_dims()[2] 
+    part.SolidExtrude(sketch_plane, SIDE1, da1, sketch, depth=depth)
 
 
 
@@ -1020,7 +1031,7 @@ def build_cap(name, tool_pass, face, part_name, model_name, mdb):
 
 
 
-def build_part(name, tool_pass, model_name, mdb_metadata, mdb):
+def build_tool_pass_part(name, tool_pass, model_name, mdb_metadata, mdb):
 # type: (str, tool_pass.ToolPass, str, abq_md.AbaqusMdbMetadata, Any) -> Any
 
     # Create the part in the model. 
@@ -1047,14 +1058,29 @@ def build_part(name, tool_pass, model_name, mdb_metadata, mdb):
 
 
 
+def build_bounding_box_part(name, tool_pass, model_name, mdb_metadata, mdb):
+# type: (str, tp.ToolPass, str, abq_md.AbaqusMdbMetadata, Any) -> Any
+
+    # Create the part in the model. 
+    part = mdb.models[model_name].Part(name=name, dimensionality=THREE_D, type=DEFORMABLE_BODY)
+
+    # Update metadata for bookkeeping. 
+    mdb_metadata.models_metadata[model_name].part_names.append(name)
+
+    build_tool_pass_bounding_box(name, 10, 10, 10, tool_pass, model_name, mdb)
+
+    return part
+
+
+
 # Build bounding box around a tool pass. 
 # 
 # Notes:
-#    None.
+#    The part should be created before this function is called.
 # 
 # Arguments:
-#    part       - String.
-#                 Desired part name.
+#    name       - String.
+#                 Part name. 
 #    x_excess   - Float.
 #                 Amount of excess in the x direction that the user wants for the
 #                    bounding boxes. Expressed in units of the global coordinate
@@ -1072,20 +1098,13 @@ def build_part(name, tool_pass, model_name, mdb_metadata, mdb):
 #    mdb        - Abaqus MDB object.
 #
 # Returns:
-#    Abaqus Part object.
-def build_toolpass_bounding_box(name, x_excess, y_excess, z_excess, tool_pass, model_name, mdb):
-# type: (str, float, float, float, tp.ToolPass, str, Any) -> Any 
+#    None 
+def build_tool_pass_bounding_box(name, x_excess, y_excess, z_excess, tool_pass, model_name, mdb):
+# type: (str, float, float, float, tp.ToolPass, str, Any) -> None
 
     bounding_box = tp.create_tool_pass_bounding_box(x_excess, y_excess, z_excess, tool_pass)
 
-    
-
-
-
-    
-
-
-
+    build_spec_right_rect_prism_part(name, bounding_box, model_name, mdb)    
 
 
 
