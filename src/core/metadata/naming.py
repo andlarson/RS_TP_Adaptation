@@ -35,6 +35,8 @@ def new_model_names(mdb_metadata, is_initial):
     names["equil_step_name"] = shim.STANDARD_EQUIL_STEP_PREFIX + str(step_cnt + 1)
     names["bounding_box_name"] = shim.STANDARD_BOUNDING_BOX_PART_NAME
     names["excess_bounding_box_name"] = shim.STANDARD_EXCESS_BOUNDING_BOX_PART_NAME
+    names["merged_bbox_geom_name"] = shim.STANDARD_BOUNDING_BOX_INIT_GEOM_PART_NAME
+    names["init_geom_with_bbox_name"] = shim.STANDARD_INIT_GEOM_WITH_BBOX_NAME
     
     if is_initial:
 

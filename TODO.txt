@@ -129,6 +129,10 @@ Adding/Modifying Features TODO:
     Make meshing more robust. Currently we just try some parameters (seed density,
       mesh shape, etc.) and if those parameters don't work we try some other
       parameters.
+    Use a bounding splien based on the tool pass geometry instead of a bounding
+       box. One potential approach is to trace the centroid of the tool along
+       the spline, then simply using a larger radius for the bounding spline will 
+       do the trick.    
 
     *** MAPPING ORPHAN MESH TO GEOEMTRY ***
     There is an awful lot of runtime spent mapping an orphan mesh to a new geometry.

@@ -29,6 +29,8 @@ STANDARD_BC_PREFIX = "Boundary_Condition_"
 STANDARD_JOB_PREFIX = "Job-"
 STANDARD_BOUNDING_BOX_PART_NAME = "Bounding_Box"
 STANDARD_EXCESS_BOUNDING_BOX_PART_NAME = "Bounding_Box_Excess"
+STANDARD_BOUNDING_BOX_INIT_GEOM_PART_NAME = "Bounding_Box_And_Initial_Geometry"
+STANDARD_INIT_GEOM_WITH_BBOX_NAME = "Initial_Geometry_With_Bounding_Box"
 
 
 # *****************************************************************************
@@ -524,6 +526,7 @@ def clear_instances(model_name, mdb):
     mdb.models[model_name].rootAssembly.instances.clear()
 
 
+
 # Create a MDB and open it. 
 # This function does not automatically save the MDB. However, the path used
 #   here is the location of save when a save (not save as) does happen.
@@ -709,6 +712,13 @@ def suppress_feature(name, part):
 # type: (str, Any) -> None
 
     part.suppressFeatures((name, ))
+
+
+
+def resume_all_assembly_features(model_name, mdb):
+# type: (str, Any) -> None
+
+    mdb.models[model_name].rootAssembly.resumeAllFeatures()
 
 
 
@@ -1067,7 +1077,7 @@ def build_bounding_box_part(name, tool_pass, model_name, mdb_metadata, mdb):
     # Update metadata for bookkeeping. 
     mdb_metadata.models_metadata[model_name].part_names.append(name)
 
-    build_tool_pass_bounding_box(name, 10, 10, 10, tool_pass, model_name, mdb)
+    build_tool_pass_bounding_box(name, 3, 3, 3, tool_pass, model_name, mdb)
 
     return part
 
@@ -1180,26 +1190,84 @@ def instance_part_into_assembly(instance_name, part, dependent, model_name, mdb)
     
 
 
-# Cut a single part instance via multiple other part instances. 
-# The result is a new part in the model.
-# Remember to instance the resulting part!
+# Cut instances to create a new part. 
+#
+# Notes:
+#    Creates a new Abaqus Part object. 
+#    Causes the instances to be suppressed.
+#
+# Arguments:
+#    name               - String.
+#                         The name of the resulting part.
+#    instance_to_be_cut - Abaqus PartInstance object.
+#    cutting_instances  - Tuple of Abaqus PArtInstance objects.
+#                         The instances that do the cutting.
+#    model_name         - String.
+#    mdb_metadata       - CommittedToolPassPlanMetadata object.
+#    mdb                - Abaqus MDB object.
+#
+# Returns:
+#    Abaqus Part object. 
 def cut_instances_in_assembly(name, instance_to_be_cut, cutting_instances, model_name, mdb_metadata, mdb):
 # type: (str, Any, tuple[Any], str, abq_md.AbaqusMdbMetadata, Any) -> Any
 
-    # Beware, the argument list ordering in the documentation for PartFrom
-    #    BooleanCut() appears to be incorrect.
-    part = mdb.models[model_name].rootAssembly.PartFromBooleanCut(name=name, instanceToBeCut=instance_to_be_cut, cuttingInstances=cutting_instances)
-    mdb_metadata.models_metadata[model_name].part_names.append(name)
+    try:
+        # Beware, the argument list ordering in the documentation for PartFrom
+        #    BooleanCut() appears to be incorrect.
+        part = mdb.models[model_name].rootAssembly.PartFromBooleanCut(name=name, instanceToBeCut=instance_to_be_cut, cuttingInstances=cutting_instances)
+        mdb_metadata.models_metadata[model_name].part_names.append(name)
+    except AbaqusException as e:
+        dp("Failed to do cut operation.")
+        dp("The exception message is " + str(e.args))
+        raise
 
     return part
 
+
+
+# Merge instances to create a new part.
+#
+# Notes:
+#    Creates a new Abaqus Part object. 
+#    Natively, this operation does not cause the instances to be merged. To
+#       standardize the behavior, this function explicitly suppresses the instances.
+#
+# Arguments:
+#    name               - String.
+#                         The name of the resulting part.
+#    instance_to_merge  - Tuple of Abaqus PartInstance objects.
+#                         The instances to be merged.
+#    keep_intersections - Boolean.
+#                         Should the intersecting boundaries be kept after the merge?
+#    model_name         - String.
+#    mdb_metadata       - CommittedToolPassPlanMetadata object.
+#    mdb                - Abaqus MDB object.
+#
+# Returns:
+#    Abaqus Part object. 
+def merge_instances_in_assembly(name, instances_to_merge, keep_intersections, model_name, mdb_metadata, mdb):
+
+    try:
+        part = mdb.models[model_name].rootAssembly.PartFromBooleanMerge(name, instances_to_merge, keepIntersections=keep_intersections)
+        mdb_metadata.models_metadata[model_name].part_names.append(name)
+
+        # Suppress the features used in the merge. 
+        for instance in instances_to_merge:
+            name = (instance.name, )
+            mdb.models[model_name].rootAssembly.suppressFeatures(name)
+
+    except AbaqusException as e:
+        dp("Failed to do merge operation.")
+        dp("The exception message is " + str(e.args))
+        raise
+
+    return part
 
 
 
 def naive_mesh(part_instance, size, model_name, mdb):
 # type: (Any, float, str, Any) -> None
 
-    # Tetrahedrons seem to be able to mesh the widest variety of geometries. 
     mdb.models[model_name].rootAssembly.setMeshControls(part_instance.cells, elemShape=TET, technique=FREE)
 
     seq = (part_instance, )
@@ -1307,8 +1375,7 @@ def print_job_messages(job):
     
 
 
-# Create a new model with a single deformed part represented by an orphan mesh.
-#    The orphan mesh comes from an ODB.
+# Create a new model with a single deformed part represented by an orphan mesh.  #    The orphan mesh comes from an ODB.
 #
 # Notes:
 #    Assumes that the deformed part resulted from the last frame of the last
