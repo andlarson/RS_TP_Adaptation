@@ -1271,7 +1271,7 @@ def naive_mesh(part_instance, size, model_name, mdb):
     mdb.models[model_name].rootAssembly.setMeshControls(part_instance.cells, elemShape=TET, technique=FREE)
 
     seq = (part_instance, )
-    mdb.models[model_name].rootAssembly.seedPartInstance(seq, size)
+    mdb.models[model_name].rootAssembly.seedPartInstance(seq, size, deviationFactor=.03, minSizeFactor=.0001, constraint=FREE)
     mdb.models[model_name].rootAssembly.generateMesh(regions=seq)
 
     while mdb.models[model_name].rootAssembly.getUnmeshedRegions() != None:
@@ -1282,9 +1282,11 @@ def naive_mesh(part_instance, size, model_name, mdb):
 
         dp("An attempt at meshing failed. Decreasing global element size to " + str(size) + " and giving it another go.") 
         mdb.models[model_name].rootAssembly.deleteSeeds(seq)
-        mdb.models[model_name].rootAssembly.seedPartInstance(seq, size)
+        mdb.models[model_name].rootAssembly.seedPartInstance(seq, size, deviationFactor=.03, minSizeFactor=.0001, constraint=FREE)
         mdb.models[model_name].rootAssembly.generateMesh(regions=seq)
 
+    mesh_stats = mdb.models[model_name].rootAssembly.getMeshStats(regions=seq)
+    dp("Meshing succeeded. The total number of tetrahedral elements is " + str(mesh_stats.numTetElems))
 
 
 # Add a material to a model.

@@ -1,12 +1,14 @@
 import os
+import time
+
+from abaqus import *
+from abaqusConstants import * 
 
 import core.abaqus.abaqus_shim as shim
 import core.tool_pass.tool_pass as tp
 import core.boundary_conditions.boundary_conditions as bc
 import core.metadata.metadata as md
 import core.metadata.naming as naming
-
-import time
 from util.debug import *        
 
 
@@ -292,7 +294,15 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
     start = time.clock()
 
     # Build the solid feature from the face features.
-    shim.add_solid_from_faces(part)
+    # THIS OFTEN FAILS!
+    try:
+        shim.add_solid_from_faces(part)
+    except AbaqusException as e:
+        dp("Shell to Solid conversion failure!")
+        dp("Saving off the MDB as failed_shell_to_solid.cae")
+        mdb.saveAs("failed_shell_to_solid.cae")
+        dp("The arguments associated with the exception are " + str(e.args))
+        raise
 
     # DEBUG
     end = time.clock()

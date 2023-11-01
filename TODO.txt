@@ -197,3 +197,8 @@ Adding/Modifying Features TODO:
     *** SUPPORTING ALTERNATIVE TOOL PASS ORIENTATIONS AND VARIETIES ***
     Can we support non-canonical tool pass orientations? 
     Can we support non-planar tool passes? Do we even want to?
+
+    *** DEAL WITH EXCEPTIONS IN UNIFORM MANNER ***
+    Don't catch all exceptions, only those that are expected (i.e. those of type
+       AbaqusException). And when an exception is caught, emit information about
+       it and re-raise it. 
