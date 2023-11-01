@@ -7,6 +7,9 @@ import matplotlib.path as path
 from debug import *
 
 
+FLOATING_POINT_TOLERANCE = 10**(-6)
+
+
 class Basis3D:
 
     # By definition, a basis consists of three vectors which must have unit length
@@ -563,11 +566,41 @@ def point_in_box(point, box_points):
 def float_equals(a, b):
 # type: (float, float) -> bool
 
-    if abs(a - b) <= 10**(-6):
+    if abs(a - b) <= FLOATING_POINT_TOLERANCE:
         return True
 
     return False
 
+
+
+# Compare the equality of two sequences which contain floats. 
+# 
+# Notes:
+#    Order does not matter. 
+# 
+# Arguments:
+#    s1 - Sequence. 
+#    s2 - Sequence. 
+#
+# Returns:
+#    Bool. 
+def seq_floats_equals(s1, s2):
+
+    if len(s1) != len(s2):
+        return False
+
+    found_matches = [False] * len(s2)
+    for e1 in s1:
+        for index, e2 in enumerate(s2):
+            if float_equals(e1, e2) and found_matches[index] == False:
+                found_matches[index] = False
+                break
+
+    if False not in found_matches:
+        return True
+    else:
+        return False
+                
 
 
 # Check if two points are identical. 

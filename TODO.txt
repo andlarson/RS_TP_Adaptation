@@ -116,7 +116,10 @@ Code Organization / Structure TODO:
     Use the PEP8 conventions for naming externally visible vs internally visible
        stuff. In particular, a leading underscore should be used when necessary.    
 
-
+    *** DEAL WITH EXCEPTIONS IN UNIFORM MANNER ***
+    Don't catch all exceptions, only those that are expected (i.e. those of type
+       AbaqusException). And when an exception is caught, emit information about
+       it and re-raise it. 
 
 
 Adding/Modifying Features TODO:
@@ -162,9 +165,6 @@ Adding/Modifying Features TODO:
     Also might be possible to speed things up by using my current approach but
       doing things outside of Abaqus.
 
-    *** VARIABLE MESH DENSITY ***
-    Write routine which increases mesh density near the cut.
-
     *** VERTEX-BASED BOUNDARY CONDITIONS ***
     Add vertex-based boundary conditions.
 
@@ -198,7 +198,7 @@ Adding/Modifying Features TODO:
     Can we support non-canonical tool pass orientations? 
     Can we support non-planar tool passes? Do we even want to?
 
-    *** DEAL WITH EXCEPTIONS IN UNIFORM MANNER ***
-    Don't catch all exceptions, only those that are expected (i.e. those of type
-       AbaqusException). And when an exception is caught, emit information about
-       it and re-raise it. 
+    *** VIRTUAL TOPOLOGY ASSUMPTIONS ***
+    If we allow a virtual topology to be created that causes faces to be merged,
+       does this cause us to lose the geometric fidelity? How does the underlying
+       representation of the part change when we do this?

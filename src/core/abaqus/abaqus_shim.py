@@ -1,5 +1,4 @@
-import os
-import time
+import tempfile
 
 from abaqus import *
 from abaqusConstants import * 
@@ -1217,8 +1216,10 @@ def cut_instances_in_assembly(name, instance_to_be_cut, cutting_instances, model
         part = mdb.models[model_name].rootAssembly.PartFromBooleanCut(name=name, instanceToBeCut=instance_to_be_cut, cuttingInstances=cutting_instances)
         mdb_metadata.models_metadata[model_name].part_names.append(name)
     except AbaqusException as e:
+        dp("")
         dp("Failed to do cut operation.")
         dp("The exception message is " + str(e.args))
+        dp("")
         raise
 
     return part
@@ -1257,15 +1258,17 @@ def merge_instances_in_assembly(name, instances_to_merge, keep_intersections, mo
             mdb.models[model_name].rootAssembly.suppressFeatures(name)
 
     except AbaqusException as e:
+        dp("")
         dp("Failed to do merge operation.")
         dp("The exception message is " + str(e.args))
+        dp("")
         raise
 
     return part
 
 
 
-def naive_mesh(part_instance, size, model_name, mdb):
+def mesh(part_instance, size, model_name, mdb):
 # type: (Any, float, str, Any) -> None
 
     mdb.models[model_name].rootAssembly.setMeshControls(part_instance.cells, elemShape=TET, technique=FREE)
@@ -1287,6 +1290,7 @@ def naive_mesh(part_instance, size, model_name, mdb):
 
     mesh_stats = mdb.models[model_name].rootAssembly.getMeshStats(regions=seq)
     dp("Meshing succeeded. The total number of tetrahedral elements is " + str(mesh_stats.numTetElems))
+
 
 
 # Add a material to a model.
@@ -1377,7 +1381,8 @@ def print_job_messages(job):
     
 
 
-# Create a new model with a single deformed part represented by an orphan mesh.  #    The orphan mesh comes from an ODB.
+# Create a new model with a single deformed part represented by an orphan mesh.  
+#    The orphan mesh comes from an ODB.
 #
 # Notes:
 #    Assumes that the deformed part resulted from the last frame of the last
@@ -1439,6 +1444,9 @@ def create_part_from_odb(part_name, model_name, path_to_odb, mdb_metadata, mdb):
 
 
 
+"""
+# ***** DEPRECATED DUE TO ODB ISSUES *****
+
 # Update all ODBs open in the current session. 
 #
 # Notes:
@@ -1461,10 +1469,13 @@ def update_session_odbs():
         name = session.odbs.keys()[i]
         session.odbs[name].close()
         odbAccess.openOdb(name)
+"""
 
 
 
+"""
 # ***** DEPRECATED DUE TO ODB ISSUES *****
+
 # Propagate the material definition from an ODB into a model.
 #
 # Notes:
@@ -1504,6 +1515,7 @@ def create_material_from_odb(path_to_odb, odb_model_name, new_model_name, mdb):
     new_material.Elastic(((youngs_modulus), (poissons_ratio)))
 
     odb.close()
+"""
 
 
 
@@ -1530,7 +1542,9 @@ def check_material_properties(material):
 
 
 
+"""
 # ***** DEPRECATED DUE TO ODB ISSUES *****
+
 # Propagate the section from an ODB into a model. 
 #
 # Notes:
@@ -1572,6 +1586,7 @@ def create_section_from_odb(path_to_odb, odb_model_name, new_model_name, mdb):
     mdb.models[new_model_name].HomogeneousSolidSection(STANDARD_SECTION_NAME, STANDARD_MATERIAL_NAME)
 
     odb.close()
+"""
 
 
 
@@ -1616,7 +1631,6 @@ def assign_section_to_whole_part(part_name, model_name, mdb):
     set = mdb.models[model_name].parts[part_name].Set("entire_part", cells=all_cells)
 
     # Assign the section to that whole part.
-
     mdb.models[model_name].parts[part_name].SectionAssignment(region=set, sectionName=STANDARD_SECTION_NAME)
 
 
@@ -1741,8 +1755,8 @@ def add_face_from_region(region, part):
     #    Region Object, whenever a command accepts a named set or surface, it
     #    will also accept an Abaqus Region object. However, the converse does not seem
     #    to be true. Therefore a Abaqus Region object really is required.
-    # Set associateFace=FALSE to speed this up.
-    return part.FaceFromElementFaces(region, stitch=TRUE, stitchTolerance=.05, associateFace=FALSE)
+    # Set associateFace=FALSE and stitch=False to speed this up.
+    return part.FaceFromElementFaces(region, stitch=False, associateFace=FALSE)
 
 
 
@@ -1765,14 +1779,12 @@ def add_solid_from_faces(part):
 # Notes:
 #    In general, it can be useful to call createVirtualTopology recursively on
 #       a part. Each call may eliminate more geometric features.
-#    Creating a virtual topology is dangerous because the geometry of the part
-#       may be degraded. We could try to remove faces which lie on planes which
-#       are subtended by an angle very near 180 degrees, but this can lead to
-#       wierd stuff.
 #    Note that Abaqus > Abaqus/CAE > Using Toolsets > The Virtual Topology Toolset >
 #       Creating virtual topology based on geometric features says that the
 #       ignoreRedundantEntities removes edges that separate an otherwise planar
-#       or curved surface. This is a very conservative approach.
+#       or curved surface. 
+#    In general, introducing a virtual geometry can change the geometry significantly!
+#       Beware!
 # 
 # Arguments:
 #    part - Abaqus Part object.
@@ -1782,14 +1794,83 @@ def add_solid_from_faces(part):
 def add_virtual_topology(part):
 # type: (Any) -> None
 
-    # The documentation says that createVirtualTopology() will not issue exceptions.
-    # I found that if createVirtualTopology() does not eliminate any features,
-    #    then it issues an exception! 
     try:
-        part.createVirtualTopology(ignoreRedundantEntities=True, mergeSmallFaces=True, smallFaceAreaThreshold=10000, cornerAngleTolerance=10.0)
-    except:
-       dp("No excess features were removed by creating a virtual topology! This does not necessarily indicate that there is a bug.") 
 
+        ARBITRARY_LARGE_THRESHOLD = 1000
+
+        # Very liberal!
+        part.createVirtualTopology(ignoreRedundantEntities=True, mergeShortEdges=True, 
+                                   shortEdgeThreshold=ARBITRARY_LARGE_THRESHOLD, 
+                                   mergeSmallFaces=True, smallFaceAreaThreshold=ARBITRARY_LARGE_THRESHOLD)
+
+        # Somewhat conservative!
+        # part.createVirtualTopology(ignoreRedundantEntities=True, mergeSmallAngleFaces=True, smallFaceCornerAngleThreshold=.5)
+
+        # Very conservative!
+        # part.createVirtualTopology(ignoreRedundantEntities=True)
+
+    except AbaqusException as e:
+        # If a virtual topology does not remove any entities, then an exception
+        #    is sometimes issued!
+        dp("")
+        dp("AbaqusException raised when trying to create a virtual topology!")
+        dp("The exception has arguments: " + str(e.args))
+        dp("Continuing without the virtual topology...")
+        dp("")
+
+
+
+# Convert a shell geometry to a solid geometry.
+# 
+# Notes:
+#    Does not use Abaqus' built in shell to solid conversion utility, which isn't
+#       very effective.
+#    Assumes that the part is a well formed shell geometry and that the result is
+#       is a solid. Note the checkGeometry() method is useless.  
+# 
+# Arguments:
+#    part - Abaqus Part object.
+#
+# Returns:
+#    None. 
+def convert_shell_to_solid(part):
+
+    LARGE_STITCH_TOLERANCE = 10
+
+    assert(len(part.cells) == 0)
+    part.Stitch(edgeList=part.edges, stitchTolerance=LARGE_STITCH_TOLERANCE)
+    assert(len(part.cells) == 1)
+
+
+
+"""
+# SADLY checkGeometry() DOES NOT PRINT TO STDOUT OR STDERR...IT PRINTS TO SOME FILE
+#    THAT HOOKS INTO ABAQUS' GUI. THERE IS NO WAY OF KNOWING WHAT FILE THIS IS.
+
+# Check that a part is a shell.
+# 
+# Notes:
+#    Even if a part is a shell, there is no guarantee that the shell forms a
+#       closed solid.
+# 
+# Arguments:
+#    part - Abaqus Part object.
+#
+# Returns:
+#    Boolean. 
+def check_shell_geometry(part):
+
+    old = sys.stdout
+    with tempfile.TemporaryFile() as f:
+        sys.stdout = f
+
+        part.checkGeometry(detailed=ON)
+
+        info = f.readlines()
+        dp(str(info))
+
+    sys.stdout = old
+"""
 
 
 
@@ -2051,6 +2132,7 @@ def partition_face(ngon, part=None, assembly=None, instance=None):
     # Partition the face using the datum pairs to create edges.
     # Once all pairs of vertices of the ngon have been created, a new face should
     #    also be created.
+    redundant_edge_cnt = 0
     for idx in range(len(datums)):
         if idx == len(datums) - 1:
             datum_pair = (datums[idx], datums[0])
@@ -2059,22 +2141,31 @@ def partition_face(ngon, part=None, assembly=None, instance=None):
 
         try:
             feature = module.PartitionFaceByShortestPath(face_ngon_belongs_to, datum_pair[0], datum_pair[1])
-        except:
+        except AbaqusException as e:
             # When partitioning, if the edge created matches an edge which already
-            #    exists on the object, Abaqus will throw an exception. This is
-            #    undocumented.
-            pass
+            #    exists on the object, Abaqus will throw an exception. 
+            redundant_edge_cnt += 1
 
+            dp("")
+            dp("Failed to create an edge during face partitioning. This may not be a bug.")
+            dp("The arguments of the exception are " + str(e.args))
+            dp("")
+            
     post_partition_face_cnt = len(obj.faces)
-    assert post_partition_face_cnt == pre_partition_face_cnt + 1, "Partitioning failed!!"
+    assert (post_partition_face_cnt == pre_partition_face_cnt + 1) or (redundant_edge_cnt == len(ngon.vertices)), "Partitioning failed horribly!!"
 
     # Find the face that matches the ngon.
     for face in obj.faces:
 
         vertex_ids = face.getVertices()
-        vertices = {obj.vertices[id].pointOn[0] for id in vertex_ids}
+        vertices = [obj.vertices[id].pointOn[0] for id in vertex_ids]
 
-        if set(ngon.get_builtin_rep()) == vertices:
+        dp("")
+        dp(str(vertices))
+        dp(str(ngon.get_builtin_rep()))
+        dp("")
+
+        if geom.seq_floats_equals(ngon.get_builtin_rep(), vertices):
             return face
 
     raise AssertionError("Failed to find new face!")

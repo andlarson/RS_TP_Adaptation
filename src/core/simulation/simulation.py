@@ -178,7 +178,8 @@ def do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb):
     # Instance the initial geometry part.
     initial_geom_part = shim.get_part(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
     initial_geom_instance = shim.instance_part_into_assembly(names["pre_tool_pass_part_name"], initial_geom_part, False, names["new_model_name"], mdb)  
-    
+
+    """    
     # Build the tool pass bounding box as a part.
     bounding_box_part = shim.build_bounding_box_part(names["bounding_box_name"], tool_pass, names["new_model_name"], commit_metadata.per_mdb_metadata[-1], mdb)
     bounding_box_instance = shim.instance_part_into_assembly(names["bounding_box_name"], bounding_box_part, False, names["new_model_name"], mdb)
@@ -200,14 +201,15 @@ def do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb):
     cutting_instances = (bounding_box_excess_part_instance, )
     initial_geom_with_bbox_part = shim.cut_instances_in_assembly(names["init_geom_with_bbox_name"], merged_instance, cutting_instances, names["new_model_name"], commit_metadata.per_mdb_metadata[-1], mdb)
     initial_geom_with_bbox_instance = shim.instance_part_into_assembly(names["init_geom_with_bbox_name"], initial_geom_with_bbox_part, False, names["new_model_name"], mdb)
-
+    """
+    
     # Build the next tool pass path as a part.
     tool_pass_part = shim.build_tool_pass_part(names["tool_pass_part_name"], tool_pass, names["new_model_name"], commit_metadata.per_mdb_metadata[-1], mdb)
     tool_pass_part_instance = shim.instance_part_into_assembly(names["tool_pass_part_name"], tool_pass_part, False, names["new_model_name"], mdb)
 
     # Create the post tool pass geometry as a part.
     cutting_instances = (tool_pass_part_instance, )
-    post_tool_pass_part = shim.cut_instances_in_assembly(names["post_tool_pass_part_name"], initial_geom_with_bbox_instance, cutting_instances, names["new_model_name"], commit_metadata.per_mdb_metadata[-1], mdb)
+    post_tool_pass_part = shim.cut_instances_in_assembly(names["post_tool_pass_part_name"], initial_geom_instance, cutting_instances, names["new_model_name"], commit_metadata.per_mdb_metadata[-1], mdb)
 
     # Assign a section to the part.
     shim.assign_only_section_to_part(post_tool_pass_part, names["new_model_name"], mdb)
@@ -225,7 +227,7 @@ def do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb):
     bc.apply_BCs(commit_metadata.BCs, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_instance, names["new_model_name"], mdb)
 
     # Then mesh the part in the assembly module.
-    shim.naive_mesh(post_tool_pass_instance, 20, names["new_model_name"], mdb)
+    shim.mesh(post_tool_pass_instance, 20, names["new_model_name"], mdb)
 
     # Add an equilibrium step following the last step on commit_metadata.
     last_step_name = commit_metadata.per_mdb_metadata[-1].models_metadata[names["new_model_name"]].step_names[-1]
@@ -266,6 +268,7 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
     # DEBUG
     start = time.clock()
 
+    cnt = 0
     for elem_face in unique_elem_faces:
         if len(shim.get_mesh_face_elements(elem_face)) == 1:
 
@@ -286,10 +289,16 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
             t4 = time.clock()
             dp("For element face with index " + str(elem_face.label) + " the wall clock time for building the face region was " + str(t2 - t1) + " and the wall clock time for adding the face from the region was " + str(t4 - t3))
 
+            # Potential speedup.
+            cnt += 1
+            if cnt % 50 == 0:
+                part.clearGeometryCache()
+
     # DEBUG
     end = time.clock()
     dp("The total wall clock time for building the geometric faces from the mesh faces was " + str(end - start))
 
+    """
     # DEBUG
     start = time.clock()
 
@@ -307,7 +316,10 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
     # DEBUG
     end = time.clock()
     dp("The total wall clock time for building the solid from the faces was " + str(end - start))
+    """
 
+    shim.convert_shell_to_solid(part)
+    
     # Remove any dependency on the orphan mesh.
     # Not doing this causes the orphan mesh to still appear in the Assembly
     #    module, which can make appearence confusing. 
