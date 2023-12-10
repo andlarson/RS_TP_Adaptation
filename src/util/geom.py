@@ -573,30 +573,31 @@ def float_equals(a, b):
 
 
 
-# Compare the equality of two sequences which contain floats. 
+# Compare the equality of two sequences of points. 
 # 
 # Notes:
-#    Order does not matter. 
+#    Order does not matter. If for every point in one sequence there is an equivalent 
+#       point in the other list, and vice versa, the two sequences are equal.
 # 
 # Arguments:
-#    s1 - Sequence. 
-#    s2 - Sequence. 
+#    s1 - Sequence of Point3D objects. 
+#    s2 - Sequence of Point3D objects. 
 #
 # Returns:
 #    Bool. 
-def seq_floats_equals(s1, s2):
+def seq_points_equal(s1, s2):
 
     if len(s1) != len(s2):
         return False
 
-    found_matches = [False] * len(s2)
-    for e1 in s1:
-        for index, e2 in enumerate(s2):
-            if float_equals(e1, e2) and found_matches[index] == False:
-                found_matches[index] = False
+    found_match = [False] * len(s2)
+    for p1 in s1:
+        for index, p2 in enumerate(s2):
+            if identical_points(p1, p2) and found_match[index] == False:
+                found_match[index] = True 
                 break
 
-    if False not in found_matches:
+    if False not in found_match:
         return True
     else:
         return False
@@ -653,7 +654,6 @@ def find_non_identical_points(points):
 def robust_float_div(a, b):
 # type: (numbers.Real, numbers.Real) -> float
 
-    # Convert to Python's float.
     a = float(a)
     b = float(b)
 
@@ -903,3 +903,31 @@ def find_extrema(points):
         min_z = z if z < min_z else min_z
 
     return (max_x, min_x, max_y, min_y, max_z, min_z)
+
+
+
+# Convert a sequence of tuples representing points to a list of points.
+# 
+# Notes:
+#    None.
+# 
+# Arguments:
+#    points - Sequence of 2-tuples or 3-tuples that represent points.
+#
+# Returns:
+#    List of Point3D or Point2D objects. 
+def seq_points(points):
+
+    assert(len(points) > 0)
+    is_3d = True if len(points[0]) == 3 else False
+    is_2d = True if len(points[0]) == 2 else False
+    assert(is_3d or is_2d)
+
+    l = []
+    for point in points:
+        if is_3d:
+            l.append(Point3D(np.array(point)))
+        else:
+            l.append(Point2D(np.array(point)))
+
+    return l

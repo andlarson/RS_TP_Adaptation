@@ -1837,9 +1837,9 @@ def convert_shell_to_solid(part):
 
     LARGE_STITCH_TOLERANCE = 10
 
-    assert(len(part.cells) == 0)
+    assert len(part.cells) == 0, "Not a shell!"
     part.Stitch(edgeList=part.edges, stitchTolerance=LARGE_STITCH_TOLERANCE)
-    assert(len(part.cells) == 1)
+    assert len(part.cells) == 1, "Not a solid!"
 
 
 
@@ -2152,20 +2152,17 @@ def partition_face(ngon, part=None, assembly=None, instance=None):
             dp("")
             
     post_partition_face_cnt = len(obj.faces)
-    assert (post_partition_face_cnt == pre_partition_face_cnt + 1) or (redundant_edge_cnt == len(ngon.vertices)), "Partitioning failed horribly!!"
+    if not (post_partition_face_cnt == pre_partition_face_cnt + 1 or redundant_edge_cnt == len(ngon.vertices)):
+        raise AssertionError("Partitioning failed horribly!!")
 
     # Find the face that matches the ngon.
     for face in obj.faces:
 
         vertex_ids = face.getVertices()
         vertices = [obj.vertices[id].pointOn[0] for id in vertex_ids]
+        points = geom.seq_points(vertices)
 
-        dp("")
-        dp(str(vertices))
-        dp(str(ngon.get_builtin_rep()))
-        dp("")
-
-        if geom.seq_floats_equals(ngon.get_builtin_rep(), vertices):
+        if geom.seq_points_equal(ngon.vertices, points):
             return face
 
     raise AssertionError("Failed to find new face!")
