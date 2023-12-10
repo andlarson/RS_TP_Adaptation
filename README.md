@@ -30,8 +30,8 @@ the residual stress profile of a part given measurements of the part's deformati
    should not intersect itself. Furthermore, the tool orientation with respect 
    to the toolpath is currently fixed and unchangeable. For all toolpaths, the 
    axis of rotational symmetry of the cylindrical tool is fixed and positioned 
-   parallel to the y axis. See notes/toolpath/toolpath_orientation_1.jpg and 
-   toolpath_orientation_2.jpg for more information.
+   parallel to the y axis. See `notes/toolpath/toolpath_orientation_1.jpg` and 
+   `notes/toolpath/toolpath_orientation_2.jpg` for more information.
    
 2. Meshes are always constructed with tetrahedrons and the Free meshing technique. 
    Starting from some heuristically chosen density, the mesh is made more dense 
