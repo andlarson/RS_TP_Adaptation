@@ -266,28 +266,36 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
     #    with the part.
 
     # DEBUG
-    start = time.clock()
+    debug = False
+
+    # DEBUG
+    if debug:
+        start = time.clock()
 
     cnt = 0
     for elem_face in unique_elem_faces:
         if len(shim.get_mesh_face_elements(elem_face)) == 1:
 
             # DEBUG
-            t1 = time.clock()
+            if debug:
+                t1 = time.clock()
 
             face_reg = shim.build_region_with_elem_face(elem_face, part)
 
             # DEBUG
-            t2 = time.clock()
+            if debug:
+                t2 = time.clock()
 
             # DEBUG
-            t3 = time.clock()
+            if debug:
+                t3 = time.clock()
 
             shim.add_face_from_region(face_reg, part)
 
             # DEBUG
-            t4 = time.clock()
-            dp("For element face with index " + str(elem_face.label) + " the wall clock time for building the face region was " + str(t2 - t1) + " and the wall clock time for adding the face from the region was " + str(t4 - t3))
+            if debug:
+                t4 = time.clock()
+                dp("For element face with index " + str(elem_face.label) + " the wall clock time for building the face region was " + str(t2 - t1) + " and the wall clock time for adding the face from the region was " + str(t4 - t3))
 
             # Potential speedup.
             cnt += 1
@@ -295,8 +303,9 @@ def orphan_mesh_to_geometry(part_name, model_name, mdb):
                 part.clearGeometryCache()
 
     # DEBUG
-    end = time.clock()
-    dp("The total wall clock time for building the geometric faces from the mesh faces was " + str(end - start))
+    if debug:
+        end = time.clock()
+        dp("The total wall clock time for building the geometric faces from the mesh faces was " + str(end - start))
 
     """
     # DEBUG

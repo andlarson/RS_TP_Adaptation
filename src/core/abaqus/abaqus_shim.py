@@ -1278,10 +1278,16 @@ def mesh(part_instance, size, model_name, mdb):
     mdb.models[model_name].rootAssembly.generateMesh(regions=seq)
 
     while mdb.models[model_name].rootAssembly.getUnmeshedRegions() != None:
-        size = size - 1
+        if size > 1:
+            size = size - 1
+        else:
+            size = float(size) / 2
+            
+            # DEBUG
+            mdb.saveAs("/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/test_initial_geometry_cae/small_mesh_necessary.cae")
 
-        if size <= 0:
-            raise RuntimeError("There is no global element size that allows meshing for this particular mesh technique.")
+        if size <= .1:
+            raise AssertionError("Even with a miniscule global element size of " + str(size) + ", the mesh still failed to be generated!")
 
         dp("An attempt at meshing failed. Decreasing global element size to " + str(size) + " and giving it another go.") 
         mdb.models[model_name].rootAssembly.deleteSeeds(seq)

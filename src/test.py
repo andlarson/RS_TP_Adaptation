@@ -18,13 +18,10 @@ import core.material_properties.material_properties as mp
 
 if __name__ == "__main__":
 
-
     # ----- Specifying the initial geometry -----
-
     material = mp.ElasticMaterial(.3, 10**(9))
     path_to_cae = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/test_initial_geometry_cae/test_initial_geometry.cae" 
     abaqus_part = part.AbaqusDefinedPart("an_example_part", path_to_cae, material)
-
 
     # ----- Specifying the clamping setup (aka the boundary conditions) -----
 
@@ -52,11 +49,8 @@ if __name__ == "__main__":
 
     BCs = [BC1, BC2]
 
-
     # ----- Building the top-level machining object -----
-
     machining_process = mach.MachiningProcess(abaqus_part, BCs)
-
 
     # ----- Specifying the stress profile for the first commitment phase -----
 
@@ -68,10 +62,7 @@ if __name__ == "__main__":
     path_to_subroutine = "/home/andlars/Desktop/RS_TP_Adaptation/src/core/user_subroutines/def_stress-std.o"
     machining_process.record_estimated_stress_profile(path_to_subroutine)
 
-
-    """
     # ----- First tool pass plan -----
-
     p1 = geom.Point3D(np.array((-10, 5, 100)))
     p2 = geom.Point3D(np.array((0, 5, 90)))
     p3 = geom.Point3D(np.array((10, 5, 120)))
@@ -82,10 +73,8 @@ if __name__ == "__main__":
     plan = tp.ToolPassPlan([tp1])
 
     machining_process.sim_potential_tool_passes(plan, "first_test")
-    """
 
     # ----- Second tool pass plan -----
-
     p1 = geom.Point3D(np.array((5, 5, 300)))
     p2 = geom.Point3D(np.array((5, 5, 200)))
     path = geom.PlanarCubicC2Spline3D([p1, p2])
@@ -101,6 +90,11 @@ if __name__ == "__main__":
     path = geom.PlanarCubicC2Spline3D([p1, p2])
     tp3 = tp.ToolPass(path, 2, 10)
 
+    plan = tp.ToolPassPlan([tp1, tp2, tp3])
+
+    machining_process.sim_potential_tool_passes(plan, "second_test")
+
+    """
     p1 = geom.Point3D(np.array((5, 5, 200)))
     p2 = geom.Point3D(np.array((35, 5, 200)))
     path = geom.PlanarCubicC2Spline3D([p1, p2])
@@ -110,7 +104,4 @@ if __name__ == "__main__":
     p2 = geom.Point3D(np.array((35, 5, 300)))
     path = geom.PlanarCubicC2Spline3D([p1, p2])
     tp5 = tp.ToolPass(path, 2, 10)
-
-    plan = tp.ToolPassPlan([tp1, tp2, tp3, tp4, tp5])
-
-    machining_process.sim_potential_tool_passes(plan, "second_test")
+    """
