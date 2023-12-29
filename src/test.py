@@ -23,7 +23,7 @@ if __name__ == "__main__":
     path_to_cae = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/test_initial_geometry_cae/test_initial_geometry.cae" 
     abaqus_part = part.AbaqusDefinedPart("an_example_part", path_to_cae, material)
 
-    # ----- Specifying the clamping setup (aka the boundary conditions) -----
+    # ----- Specifying the clamping setup (aka the boundary conditions) ----- 
 
     # Clamp on one side of bar.
     v1 = geom.Point3D(np.array([0, 10, 0]))
