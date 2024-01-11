@@ -1371,7 +1371,7 @@ def run_job(job):
     if job.status == ABORTED:
         raise RuntimeError("The job with name " + job.name + " was aborted!")
 
-    print_job_messages(job)
+    # print_job_messages(job)
 
 
 
@@ -1383,8 +1383,19 @@ def print_job_messages(job):
         dp("The job with name " + job.name + " ran and some messages were received!")
 
     for message in job.messages:
-        dp("A message of type " + str(message.type) + " was received when the job ran!")
+        print_message_info(message)
     
+
+
+# Dump the message information.
+# Assumes an Abaqus Message object is passed to it.
+def print_message_info(message):
+# type: (Any) -> None
+
+    dp("A message of type " + str(message.type) + " was received when the job ran!")
+    for key in message.data:
+        dp("For the key " + str(key) + " the associated value is " + str(message.data[key]))
+
 
 
 # Create a new model with a single deformed part represented by an orphan mesh.  
@@ -1688,7 +1699,7 @@ def build_region_with_face(face, obj):
     # Also, note that the findAt() method for a FaceArray object always returns 
     #    an Abaqus FaceArray object, even though the documentation says that 
     #    if it only finds a single Face object, then a single Face object is
-    #    returned.
+    #    returned. ACTUALLY, I'M NOT SURE IF THIS IS TRUE...
     point_on_face = face.pointOn
     face_seq = obj.faces.findAt(coordinates=point_on_face)
     region = regionToolset.Region(faces=face_seq)

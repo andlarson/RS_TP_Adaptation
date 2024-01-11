@@ -1,13 +1,20 @@
 
+Recovering Residual Stress - Short Term TODO:
+
+1) TBD
 
 
-Short Term TODO.
 
-1) Add support for variable mesh density. This should help with the shell-to-solid
-      conversion failure, runtime issues, etc. It may still be necessary to do
-      mesh -> geometry conversion outside Abaqus.
+Simulating Material Removal - Short Term TODO:
 
-2) Update the tool pass comparison functions.
+1) Test hypothesis r.e. reasons for geometry reconstruction. Main observation 
+      right now is that, when a part is meshed and some regions of it are very
+      fine, this causes geometric reconstruction issues for the next simulation.
+      Current hypothesis is that, regions of very fine meshing, the nodes of the
+      mesh may be displaced in a way that makes it difficult or impossible to
+      construct planar faces.
+
+1) Update the tool pass comparison functions.
 
 2) Add C++ support for defining some simple stress profiles.
    As part of this, account for the case when the user specifies a stress profile

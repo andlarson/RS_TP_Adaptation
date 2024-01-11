@@ -188,6 +188,14 @@ class MachiningProcess:
 
 
 
+    #
+    #     
+    # Notes:
+    #    
+    # Arguments:
+    #    
+    # Return:
+    # 
     def estimate_stress_via_last_tool_pass(self):
     # type: (None) -> None
         
