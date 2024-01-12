@@ -31,6 +31,14 @@ from util.debug import *
 # Modify an MDB so that a traction of a particular magnitude in a particular 
 #    direction is applied. Then run the job.
 # The direction is expected to be a 1D numpy array of length 3 which is normalized.
+# This function expects that a datum exists on the face of a part. It is this face
+#    that the traction is created on.
+# *****
+# WARNING FOR FUTURE ANDREW: When creating the surface traction, the region must
+#    be a region of the Assembly. And when the region is constructed, it must be
+#    built from entities in the Asssembly. Not doing this leads to highly cryptic
+#    errors...
+# *****
 def apply_force(mdb, mag, direction, step_name, job_name):
 
     # Delete all pre-existing loads.

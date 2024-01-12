@@ -97,3 +97,15 @@ Using the noGUI option to invoke an Abaqus script is dangerous. In particular, i
    is useless. This is dangerous if jobs are chained. If waitForCompletion() does
    not work, then an access to an ODB that is still being written to might happen.
    This can cause a segfault.
+
+
+
+The user subroutine SIGINI should be used to define a custom stress profile. The
+   "Abaqus make" program can be used to compile the user subroutine code. However,
+   the only way to actually use the user subroutine is to insert the line "*Initial
+   Conditions, Type=Stress, User" in the .inp file. There is no way to include a
+   custom stress state via the GUI! A convenient workflow is to set up everything
+   but the initial stress state in the GUI, produce the .inp file via the GUI,
+   use the "Abaqus make" program to produce the .o object file, and then run the
+   job by issuing the command "abaqus job=job.inp interactive user=path/to/object/file.o" 
+   at the command line.
