@@ -1,8 +1,4 @@
-
-
-
-# Prevent future simulation results from being tracked.
-# The simulation files can be very big and take up too much space.
+# Abaqus
 *.mtx
 *.com
 *.dat
@@ -11,28 +7,23 @@
 *.odb
 *.cae
 *.sta
-# *.inp --> Actually, let's include these
 *.ipm
 *.prt
 *.jnl
 *.sim
-
-# Also prevent stored numpy arrays from being tracked.
-# This specifically prevents stiffness matrices from being tracked.
-*.npz
-*.npy
-
-# We don't care about the cache files.
-*.pyc
-
-# And the record / replay files.
 *.rpy.*
 *.rpy
 *.rec
+*.SMABulk
+*.env
 
-# We don't want the tags file to pollute the repo.
+# Python
+*.pyc        # Don't care about cache files.
+__pycache__/ # Don't care about cache directories. 
+*.npz        # Prevent stored numpy arrays from being tracked.
+*.npy
+
+# Vim
+tags/  # No tags directories or files. 
 tags
-
-# We also don't want pesky vim recovery files to crowd the repo.
-*.swp
-
+*.swp  # No vim recovery files. 
