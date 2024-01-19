@@ -1,19 +1,17 @@
-import sys
-
-# DEBUG
-# For Abaqus PDB and allows main.py to be run from any directory.
-# Imperfect solution, but good enough for now. Every time this file is imported,
-#    this line runs. This pollutes the sys.path list.
-sys.path.append("/home/andlars/Desktop/RS_TP_Adaptation/src")
+"""
+This file is a testbed for the library in development. If you wish to use the
+   library, this file demonstrates how to use it. 
+"""
 
 import numpy as np
 
-import core.machining.machining as mach
-import util.geom as geom
-import core.part.part as part
-import core.tool_pass.tool_pass as tp
-import core.boundary_conditions.boundary_conditions as bc
-import core.material_properties.material_properties as mp
+import src.core.machining.machining as mach
+import src.util.geom as geom
+import src.core.part as part
+import src.core.tool_pass.tool_pass as tp
+import src.core.boundary_conditions.boundary_conditions as bc
+import src.core.material_properties.material_properties as mp
+
 
 
 if __name__ == "__main__":

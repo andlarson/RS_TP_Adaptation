@@ -6,8 +6,9 @@ import copy
 
 import numpy as np
 
-import util.geom as geom
-from util.debug import *
+import src.util.geom as geom
+
+from src.util.debug import *
 
 
 

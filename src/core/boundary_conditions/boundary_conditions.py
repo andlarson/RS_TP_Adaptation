@@ -1,8 +1,9 @@
 import numpy as np
 
-import util.geom as geom
-import core.abaqus.abaqus_shim as shim
-from util.debug import *
+import src.util.geom as geom
+import src.core.abaqus.abaqus_shim as shim
+
+from src.util.debug import *
 
 
 

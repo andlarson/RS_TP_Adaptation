@@ -38,7 +38,7 @@ extern "C" void FOR_NAME(sigini, SIGINI) (double *sigma, double *coords, int *nt
                                           char **names)
 {
     // sigma[0] = coords[0] * coords[0];
-    sigma[0] = 10^8;
+    sigma[3] = 10^8;
 
     // Calling a Fortran subroutine.
     // Doing things this way doesn't quite work. It appears as though the lop

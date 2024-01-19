@@ -1,4 +1,23 @@
-import tempfile
+"""
+This module offers functions which, generally, are wrappers for Abaqus Python
+    API calls. It is desirable to wrap the Abaqus Python API calls for a
+    couple reasons:
+       1) Some of the Abaqus Python API documentation is wrong or misleading.
+             It's therefore helpful to centralize clear and correct behavior
+             in a single wrapper function.
+       2) There are common sequences of code which surround some Abaqus API
+              calls. Encapsulating these common sequences reduces code
+              duplication.
+       3) From an architectural point of view, it's helpful to separate the
+              functionality that Abaqus provides from other functionality.
+
+While all of the above is true, it's completely fine to use the Abaqus API 
+    outside of this file. For example, it's often necessary to get an Abaqus 
+    Model object by using an Abaqus MDB object, etc. The idea is to encapsulate
+    complex and commonly used accesses to Abaqus' API into this file.
+"""
+
+from typing import Any
 
 from abaqus import *
 from abaqusConstants import * 
@@ -7,11 +26,11 @@ import part
 import odbAccess
 import numpy as np
 
-import core.material_properties.material_properties as material_properties
-import core.tool_pass.tool_pass as tp
-import util.geom as geom
-from util.debug import *
+import src.core.material_properties.material_properties as mp
+import src.core.tool_pass.tool_pass as tp
+import src.util.geom as geom
 
+from src.util.debug import *
 
 
 STANDARD_MODEL_NAME = "Model-1"
@@ -38,93 +57,89 @@ STANDARD_INIT_GEOM_WITH_BBOX_NAME = "Initial_Geometry_With_Bounding_Box"
 # *****************************************************************************
 
 
-# Get the number of models in an MDB.
-#
-# Notes:
-#    None.
-#
-# Arguments:
-#    mdb - Abaqus MDB object.
-#
-# Returns:
-#    Int. Number of models. 
-def get_model_cnt(mdb):
-# type: (Any) -> int
+def get_model_cnt(mdb: Any) -> int:
+    """Gets the number of models in an Abaqus MDB.
+    
+       Args:
+           mdb: Abaqus MDB object.
+
+       Returns:
+           Number of models in the MDB.
+
+       Raises:
+           None.
+    """
 
     return len(mdb.models)
 
 
 
-# In a model with only a single part, get the name of the part. 
-#
-# Notes:
-#    None.
-#
-# Arguments:
-#    model_name - String.
-#    mdb        - Abaqus MDB object.
-#
-# Returns:
-#    String.
-def get_only_part_name(model_name, mdb):
+def get_only_part_name(model_name: str, mdb: Any) -> str:
+    """In a model with only a single part, gets the name of the part.
 
-    assert(len(mdb.models[model_name].parts.keys()) == 1) 
+       Args:
+           model_name: The name of the model in the Abaqus MDB.
+           mdb: Abaqus MDB object.
+
+       Returns:
+           Name of the part.
+
+       Raises:
+           None. 
+    """
+    
+    if len(mdb.models[model_name].parts.keys() != 1):
+        raise ValueError("There should only be a single part in the model.")
 
     return mdb.models[model_name].parts.keys()[0]
 
 
 
-# Change the name of the only part which exists in a model in an MDB. 
-#
-# Notes:
-#    None.
-#
-# Arguments:
-#    new_name   - String.
-#    model_name - String.
-#    mdb        - Abaqus MDB object.
-#
-# Returns:
-#    None. 
-def change_only_part_name(new_name, model_name, mdb):
+def get_step_keyword(kwb: Any) -> int:
+    """Finds the first occurence of the "Step" keyword in an input file. 
 
-    assert(len(mdb.models[model_name].parts.keys()) == 1) 
+       Args:
+           kwb: Abaqus KeywordBlock object.
 
-    old_name = mdb.models[model_name].parts.keys()[0]
+       Returns:
+           The index of the "Step" keyword in the Abaqus KeywordBlock object. 
 
-    mdb.models[model_name].parts.changeKey(fromName=old_name, toName=new_name)
-
-
-
-def get_step_keyword(kwb):
-# type: (Any) -> int
+       Raises:
+           RuntimeError: The "Step" keyword was not found. 
+    """
     
     for index, string in enumerate(kwb.sieBlocks):
         if "Step" in string:
             return index
 
-    raise RuntimeError("Failed to find step keyword!")
+    raise RuntimeError("Failed to find Step keyword!")
 
 
 
-# Find the face closest to the centroid of a group of points.
-# 
-# Notes:
-#    This function is a workaround to writing/calling nasty geometric routines. In
-#       particular, it was introduced to avoid writing a routine which checks if
-#       a three dimensional polygon is entirely inside a three dimensional polygon
-#       which may have holes in it.
-#    The default search tolerance is used.
-#    Throws an exception if no face can be found. 
-# 
-# Arguments:
-#    points - List of Point3D objects.
-#    obj   - Abaqus Part object or Abaqus PartInstance object.
-#
-# Returns:
-#    Abaqus Face object.
-def get_closest_face(points, obj):
-# type: (List[geom.Point3D], Any) -> Any
+def get_closest_face(points: list[geom.Point3D], obj: Any) -> Any:
+    """Gets the face closest to the centroid of some points.
+
+       This function is a workaround to writing/calling nasty geometric routines. 
+           In particular, it was introduced to avoid writing a routine which 
+           checks if a three dimensional polygon is entirely inside a three 
+           dimensional polygon which may have holes in it.
+       The default search tolerance is used.
+       Note that the Abaqus routines called in this function may throw an
+           exception if no face is found.
+
+       Args:
+           points: A nonzero number of points. 
+           obj: Abaqus Part object or Abaqus PartInstance object.
+
+       Returns:
+           Abaqus Face object.
+
+       Raises:
+           None.
+    """
+
+    if len(points) == 0:
+        raise ValueError("There should be a nonzero number of points.")
 
     centroid = geom.find_centroid(points)
     face_and_point = obj.faces.getClosest([centroid.components()])
@@ -135,108 +150,86 @@ def get_closest_face(points, obj):
     
 
 
-# Returns all the unique element faces which exist in the part. Unique in this 
-#    context means that, even if two elements are next to one another and share
-#    a face, the shared face will only be listed once in the returned sequence
-#    of MeshFace objects.
-def get_unique_element_faces(orphan_mesh_part):
-# type: (Any) -> Any  
+def get_unique_element_faces(part: Any) -> Any:
+    """Gets the unique element faces in a part.
 
-    return orphan_mesh_part.elementFaces
+       Unique in this context means that, even if two elements are next to 
+           one another and share a face, the shared face will only be listed 
+           once in the returned sequence. 
+
+       If the part is neither meshed nor an orphan, there are no elements
+           associated with it so this function is meaningless.
+
+       Args:
+           part: Abaqus Part object.
+
+       Returns:
+           Abaqus MeshFaceArray object.
+
+       Raises:
+           None.
+    """
+
+    return part.elementFaces
 
 
 
-# Get the elements associated with a particular MeshFace object.
-# A MeshFace object corresponds to a face which lives in a mesh.
-def get_mesh_face_elements(mesh_face):
-# type: (Any) -> Any
+def get_mesh_face_elements(mesh_face: Any) -> tuple[Any, ...]:
+    """Gets the elements associated with a single mesh face.
+
+       Args:
+           mesh_face: Abaqus MeshFace object.
+
+       Returns:
+           Tuple of Abaqus MeshElement objects. 
+
+       Raises:
+           None.
+    """
     
     return mesh_face.getElements()
 
 
 
-# Documentation for getCentroid() is slightly incorrect. A tuple of tuple of
-#    floats is returned, instead of a tuple of floats.
-def get_face_centroid(face):
-# type: (Any) -> Tuple[float, float, float]
+def get_any_edge_on_face(face: Any, obj: Any) -> Any:
+    """Gets an arbitrary edge on a face.
 
-    return tuple(face.getCentroid()[0])
+       Args:
+           face: Abaqus Face object.
+           obj: Abaqus Part object or Abaqus Partinstance object.
 
+       Returns:
+           Abaqus Edge object.
 
-
-def get_face_normal(face):
-# type: (Any) -> Tuple[float, float, float] 
-
-    return tuple(face.getNormal())
-
-
-
-# Get an edge associated with a face. 
-# 
-# Notes:
-# The edge is chosen arbitrarily.
-# 
-# Arguments:
-#    face - Abaqus Face object.
-#    obj  - Abaqus Part object or Abaqus PartInstance object.
-#           Should be the object to which the face belongs. No check if done 
-#              to ensure that the face actually belongs to this object.
-#
-# Returns:
-#    Abaqus Edge object.
-def get_any_edge_on_face(face, obj):
-# type: (Any, Any) -> Any
+       Raises:
+           None.
+    """
     
     edge_id = face.getEdges()[0]
     return obj.edges[edge_id]
 
 
 
-def get_part(part_name, model_name, mdb):
-# type: (str, str, Any) -> Any    
-    
-    return mdb.models[model_name].parts[part_name]
+def get_all_vertices(obj: Any) -> list[list[geom.Point3D]]:
+    """Gets all the vertices of an object.
+       
+       The documentation for the pointOn member of the Vertex object is 
+           incorrect. It is really a tuple of tuple of floats, not a simple 
+           tuple of floats.
 
+       Args:
+           obj: Abaqus Part object or Abaqus PartInstance object.
 
+       Returns:
+           The vertices of an object. Note that each inner list of vertices
+               contains the vertices which are on a single face of the
+               object.
 
-def get_assembly(model_name, mdb):
-# type: (str, Any) -> Any
-    
-    return mdb.models[model_name].rootAssembly
+       Raises:
+           None.
+    """
 
-
-
-# Get the faces associated with any object which has faces.
-# 
-# Notes:
-#    None.
-# 
-# Arguments:
-#    obj - Abaqus Part object or Abaqus PartInstance object. 
-#
-# Returns:
-#    An Abaqus FaceArray object containing all the Abaqus Face object.
-def get_faces(obj):
-# type: (Any) -> Any
-
-    return obj.faces
-
-
-# Get all the vertices associated with an object.
-# 
-# Notes:
-# The documentation for the pointOn member of the Vertex object is incorrect. It
-#    is really a tuple of tuple of floats, not a simple tuple of floats.
-# 
-# Arguments:
-#    obj - Abaqus Part object or Abaqus PartInstance object.
-#
-# Returns:
-#    A list of lists of Point3D objects. 
-def get_all_vertices(obj):
-# type: (Any) -> List[List[geom.Point3D]]
-
-    faces = get_faces(obj) 
+    faces = obj.faces 
 
     vertices = []
     for face in faces:
@@ -251,182 +244,6 @@ def get_all_vertices(obj):
 
     return vertices 
 
-
-
-# Get all the vertices associated with an object. This function ensures that, on
-#    a per-face basis, the vertices are well-ordered. That is, the ordering of
-#    the vertices mirrors the connectivity of the vertices.
-# 
-# Notes:
-# The documentation for the pointOn member of the Vertex object is incorrect. It
-#    is really a tuple of tuple of floats, not a simple tuple of floats.
-# Consider the square face defined by the vertices: (0, 0), (1, 0), (0, 1), (1, 1).
-#    The vertices are not well-ordered when the list of vertices is [(0, 0), (1, 0),
-#    (0, 1), (1, 1)] because if you draw a line from (0, 0) to (1, 0), a line from
-#    (1, 0) to (0, 1), and a line from (0, 1) to (1, 1) you don't get a square.
-# There can be multiple groups of vertices on a single face. This is relevant
-#    when there are holes within a face. Each group of vertices lives in its own
-#    list. The lists are ordered arbitrarily. It might be the case that a list of
-#    vertices which outlines a hole in a face is the first list of vertices for
-#    that face.
-# 
-# Arguments:
-#    obj - Abaqus Part object or Abaqus PartInstance object.
-#
-# Returns:
-#    A list of lists of lists of vertices. 
-def get_all_vertices_ordered(obj):
-# type: (Any) -> List[List[List[geom.Point3D]]]
-
-    vertices = []
-
-    faces = get_faces(obj) 
-    for face in faces:
-        vertices.append([])
-
-        vertex_ids = face.getVertices()
-        vertices_on_face = [obj.vertices[vertex_id] for vertex_id in vertex_ids]
-
-        ordered_vertices_on_face = get_face_ordered_vertices(vertices_on_face, face, obj) 
-
-        for vertex_group in ordered_vertices_on_face:
-            vertices[-1].append([geom.Point3D(np.array(vertex.pointOn[0])) for vertex in vertex_group])
-
-    return vertices 
-
-
-
-# Orders the vertices of a face to reflect the edge connectivity of the face.
-#    In the resulting list of Abaqus Vertex objects, the first vertex is connected
-#    to the second vertex on the face, the second vertex is connected to the
-#    third on the face, etc.
-# A face could contain holes in it. In this case, this function groups the vertices
-#    into per-boundary groups. Then, all the points which are connected on the
-#    face are in the same group. Within a particular group, the vertices are
-#    ordered to reflect connectivity. 
-#
-# Notes:
-#    No lists are circular. 
-#    This function does not care whether the face is convex or non-convex.
-#
-# Arguments:
-#    vertices - List of Abaqus Vertex objects.
-#    face     - Abaqus Face object.
-#               The face on which the vertices lives.
-#    obj      - Abaqus Part or Abaqus PartInstance.
-#               The vertices and face belong to this.
-#
-# Returns:
-#    List of lists of Abaqus Vertex objects. The order of per-boundary lists is
-#       arbitrary.
-def get_face_ordered_vertices(vertices, face, obj):
-# type: (List[Any], Any, Any) -> List[List[Any]]
-
-    per_group_vertices = []
-    vertices_used = [False] * len(vertices) 
-
-    while False in vertices_used:
-
-        for i, vertex in enumerate(vertices):
-            
-            if vertices_used[i] == False:
-              
-                # Starting from an unvisited vertex, find all the other connected 
-                #    vertices on the face.
-                vertex_group = traverse_connected_vertices_on_face(vertices[i], face, obj)
-                per_group_vertices.append(vertex_group)
-
-                # Mark all the visited vertices as visited.
-                for j, vertex in enumerate(vertices):
-                    if vertex in vertex_group:
-                        vertices_used[j] = True
-
-    return per_group_vertices 
-
-
-
-# Traverses a group of vertices via connections between the vertices, starting
-#    from any vertex on a face.
-#
-# Notes:
-#    None.
-# 
-# Arguments:
-#    vertex - Abaqus Vertex object.
-#    face   - Abaqus Face object.
-#             The face on which the vertex lives.
-#    obj    - Abaqus Part or Abaqus PartInstance.
-#
-# Returns:
-#    List of Abaqus Vertex objects.
-def traverse_connected_vertices_on_face(vertex, face, obj):
-# type: (Any, Any, Any) -> List[Any]
-
-    first_vertex = vertex
-    prev_vertex = first_vertex 
-    first_neighbors = get_neighbor_vertices(first_vertex, face, obj)
-    current_vertex = first_neighbors[0]
-    
-    well_ordered_vertices = [first_vertex]    
-    while current_vertex.index != first_vertex.index:
-        
-        well_ordered_vertices.append(current_vertex)
-    
-        current_neighbors = get_neighbor_vertices(current_vertex, face, obj)
-    
-        if current_neighbors[0].index != prev_vertex.index:
-            prev_vertex = current_vertex
-            current_vertex = current_neighbors[0]
-        else:
-            prev_vertex = current_vertex
-            current_vertex = current_neighbors[1]
-
-    return well_ordered_vertices
-
-
-
-# Find the other vertices that a vertex is connected to on a face.
-#
-# Notes:
-#    None.
-#
-# Arguments:
-#    vertex - Abaqus Vertex object.
-#    face   - Abaqus Face object.
-#             The face on which the vertex lives.
-#    obj    - Abaqus Part or Abaqus PartInstance.
-#             The vertex and face belong to this.
-#
-# Returns:
-#    List of exactly two Abaqus Vertex objects.
-def get_neighbor_vertices(vertex, face, obj):
-# type: (Any, Any, Any) -> List[Any, Any]
-
-    face_edge_ids = face.getEdges()
-    face_edges = [obj.edges[edge_id] for edge_id in face_edge_ids] 
-
-    # Find the edges on the face connected to the vertex of interest.
-    connected_vertices = []
-    for edge in face_edges:
-        if vertex.index == edge.getVertices()[0]:
-            connected_vertices.append(obj.vertices[edge.getVertices()[1]]) 
-        elif vertex.index == edge.getVertices()[1]:
-            connected_vertices.append(obj.vertices[edge.getVertices()[0]]) 
-
-    assert(len(connected_vertices) == 2)
-
-    return connected_vertices
-
-
-
-# Error in documentation of pointOn member.
-def get_edge_vertices(edge, part):
-# type: (Any, Any) -> Tuple[Tuple[float, float, float], Tuple[float, float, float]]
-
-    vertex_ids = edge.getVertices()
-    vertices = [part.vertices[vertex_id].pointOn[0] for vertex_id in vertex_ids]
-    return tuple(vertices)
-   
 
 
 # Get the vertices of a face.
@@ -523,6 +340,30 @@ def check_face_ngon_match(ngon, face, obj):
 def clear_instances(model_name, mdb):
 
     mdb.models[model_name].rootAssembly.instances.clear()
+
+
+
+def change_only_part_name(new_name: str, model_name: str, mdb: Any) -> None:
+    """In a model with only a single part, changes the name of the part.
+
+       Args:
+           new_name: The desired new name of the model.
+           model_name: The current name of the model.
+           mdb: Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
+
+    if len(mdb.models[model_name].parts.keys() != 1):
+        raise ValueError("There should only be a single part in the model.")
+
+    old_name = mdb.models[model_name].parts.keys()[0]
+
+    mdb.models[model_name].parts.changeKey(fromName=old_name, toName=new_name)
 
 
 
@@ -1301,9 +1142,9 @@ def mesh(part_instance, size, model_name, mdb):
 
 # Add a material to a model.
 def create_material(material, model_name, mdb):
-# type: (material_properties.Material, str, Any) -> None
+# type: (mp.Material, str, Any) -> None
 
-    if isinstance(material, material_properties.ElasticMaterial):
+    if isinstance(material, mp.ElasticMaterial):
         poissons_ratio = material.poissons_ratio
         youngs_modulus = material.youngs_modulus
         material = mdb.models[model_name].Material(STANDARD_MATERIAL_NAME)
@@ -2183,3 +2024,192 @@ def partition_face(ngon, part=None, assembly=None, instance=None):
             return face
 
     raise AssertionError("Failed to find new face!")
+
+
+
+# *****************************************************************************
+#                             DEPRECATED Functions. 
+# *****************************************************************************
+
+
+def get_all_vertices_ordered(obj: Any) -> list[list[list[geom.Point3D]]]:
+    """DEPRECATED in deference to the get_closest_face() approach.
+
+       Gets all the vertices of an object and ensures that the vertices are
+           well-ordered.
+
+       The documentation for the pointOn member of the Vertex object is 
+           incorrect. It is really a tuple of tuple of floats, not a simple 
+           tuple of floats.
+
+       Consider the square face defined by the vertices: (0, 0), (1, 0), (0, 1), 
+           (1, 1). The vertices are not well-ordered when the list of vertices 
+           is [(0, 0), (1, 0), (0, 1), (1, 1)] because if you draw a line from 
+           (0, 0) to (1, 0), a line from (1, 0) to (0, 1), and a line from (0, 1) 
+           to (1, 1) you don't get a square.
+
+       Args:
+           obj: Abaqus Part object or Abaqus PartInstance object.
+
+       Returns:
+           All the vertices of the object. The outer list contains lists 
+               that correspond to a single face. The inner lists contain
+               list of vertices.
+           The reason for this nesting is that faces can have holes. A single
+               face might have an outer edge with some vertices and two
+               holes defined by some other vertices. In this case, each of
+               these groups of vertices is included in a single list.
+
+       Raises:
+           None.
+    """
+
+    vertices = []
+
+    faces = obj.faces 
+    for face in faces:
+        vertices.append([])
+
+        vertex_ids = face.getVertices()
+        vertices_on_face = [obj.vertices[vertex_id] for vertex_id in vertex_ids]
+
+        ordered_vertices_on_face = get_face_ordered_vertices(vertices_on_face, face, obj) 
+
+        for vertex_group in ordered_vertices_on_face:
+            vertices[-1].append([geom.Point3D(np.array(vertex.pointOn[0])) for vertex in vertex_group])
+
+    return vertices 
+
+
+
+def get_face_ordered_vertices(vertices: list[Any], face: Any, obj: Any) -> list[list[Any]]:
+    """DEPRECATED in deference to the get_closest_face() approach.
+    
+       Orders the vertices of a face.
+
+       A well ordered set of vertices reflects the actual connectivity of
+          the lines which connect the vertices. For example, if a square is
+          built by connecting a line between v1 and v2, another line from v2
+          to v3, another line from v3 to v4, and a final line from v4 to v1,
+          then the vertices must be ordered like (v1, v2, v3, v4), or any
+          shifted version of this, to be considered well ordered.
+       
+       This function works regardless of the face being convex or non-convex.
+
+       Args:
+           vertices: List of Abaqus Vertex objects. The vertices to be ordered.
+           face:     Abaqus Face object. The face to which the vertices belong.
+           obj:      Abaqus Part object or Abaqus Part Instance object. The
+                         object to which the vertices and the face belong.
+
+       Returns:
+           Nested lists of Abaqus Vertex objects. The outer list contains lists
+               which each correspond to a single boundary. The inner lists
+               contain Abaqus vertex objects. The ordering of the inner lists
+               is arbitrary.
+
+       Raises:
+           None.
+    """
+
+    per_group_vertices = []
+    vertices_used = [False] * len(vertices) 
+
+    while False in vertices_used:
+
+        for i, vertex in enumerate(vertices):
+            
+            if vertices_used[i] == False:
+              
+                # Starting from an unvisited vertex, find all the other connected 
+                #    vertices on the face.
+                vertex_group = traverse_connected_vertices_on_face(vertices[i], face, obj)
+                per_group_vertices.append(vertex_group)
+
+                # Mark all the visited vertices as visited.
+                for j, vertex in enumerate(vertices):
+                    if vertex in vertex_group:
+                        vertices_used[j] = True
+
+    return per_group_vertices 
+
+
+
+def traverse_connected_vertices_on_face(vertex: Any, face: Any, obj: Any) -> list[Any]:
+    """DEPRECATED in deference to the get_closest_face() approach.
+    
+       Traverses vertices on a face via the geometrical connections between
+           the vertices.
+
+       Args:
+           vertex: Abaqus Vertex object. The vertex from which to start the
+                       traversal.
+           face:   Abaqus Face object. The face on which the vertex lives.
+           obj:    Abaqus Part object or Abaqus PartInstance object. The object
+                       to which the face and vertex belong.
+
+       Returns:
+           List of Abaqus Vertex objects.
+
+       Raises:
+           None.
+    """
+
+    first_vertex = vertex
+    prev_vertex = first_vertex 
+    first_neighbors = get_neighbor_vertices(first_vertex, face, obj)
+    current_vertex = first_neighbors[0]
+    
+    well_ordered_vertices = [first_vertex]    
+    while current_vertex.index != first_vertex.index:
+        
+        well_ordered_vertices.append(current_vertex)
+    
+        current_neighbors = get_neighbor_vertices(current_vertex, face, obj)
+    
+        if current_neighbors[0].index != prev_vertex.index:
+            prev_vertex = current_vertex
+            current_vertex = current_neighbors[0]
+        else:
+            prev_vertex = current_vertex
+            current_vertex = current_neighbors[1]
+
+    return well_ordered_vertices
+
+
+
+def get_neighbor_vertices(vertex, face, obj):
+    """DEPRECATED in deference to the get_closest_face() approach.
+    
+       Gets the vertices connected to a single vertex on a face.
+
+       Args:
+           vertex: Abaqus Vertex object. The vertex of interest.
+           face:   Abaqus Face object. The face that the vertex of interest
+                       lies on.
+           obj:    Abaqus Part object or Abaqus PartInstance object. The part
+                       that the vertex and face belong to.
+
+       Returns:
+           List of two Abaqus Vertex objects.
+
+       Raises:
+           None.
+    """
+
+    face_edge_ids = face.getEdges()
+    face_edges = [obj.edges[edge_id] for edge_id in face_edge_ids] 
+
+    # Find the edges on the face connected to the vertex of interest.
+    connected_vertices = []
+    for edge in face_edges:
+        if vertex.index == edge.getVertices()[0]:
+            connected_vertices.append(obj.vertices[edge.getVertices()[1]]) 
+        elif vertex.index == edge.getVertices()[1]:
+            connected_vertices.append(obj.vertices[edge.getVertices()[0]]) 
+
+    assert(len(connected_vertices) == 2)
+
+    return connected_vertices
+
+

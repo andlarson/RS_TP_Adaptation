@@ -18,12 +18,12 @@
 *.env
 
 # Python
-*.pyc        # Don't care about cache files.
-__pycache__/ # Don't care about cache directories. 
-*.npz        # Prevent stored numpy arrays from being tracked.
+__pycache__/ 
+*.pyc        
+*.npz        
 *.npy
 
 # Vim
-tags/  # No tags directories or files. 
+tags/  
 tags
-*.swp  # No vim recovery files. 
+*.swp  

@@ -1,6 +1,6 @@
-import util.geom as geom
-import core.material_properties.material_properties as mat_props 
-import core.abaqus.abaqus_shim as shim
+import src.util.geom as geom
+import src.core.material_properties.material_properties as mat_props 
+import src.core.abaqus.abaqus_shim as shim
 
 
 

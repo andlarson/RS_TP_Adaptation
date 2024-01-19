@@ -3,7 +3,7 @@ This module contains code which can be used to keep track of and supplement the
    state saved in Abaqus.
 """
 
-import core.abaqus.abaqus_shim as shim
+import src.core.abaqus.abaqus_shim as shim
 
 
 

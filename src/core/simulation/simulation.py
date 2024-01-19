@@ -4,12 +4,13 @@ import time
 from abaqus import *
 from abaqusConstants import * 
 
-import core.abaqus.abaqus_shim as shim
-import core.tool_pass.tool_pass as tp
-import core.boundary_conditions.boundary_conditions as bc
-import core.metadata.metadata as md
-import core.metadata.naming as naming
-from util.debug import *        
+import src.core.abaqus.abaqus_shim as shim
+import src.core.tool_pass.tool_pass as tp
+import src.core.boundary_conditions.boundary_conditions as bc
+import src.core.metadata.metadata as md
+import src.core.metadata.naming as naming
+
+from src.util.debug import *        
 
 
 # Simulate consecutive tool passes and save off the results.
@@ -176,7 +177,7 @@ def do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb):
 # type: (tp.ToolPass, dict[str, str], md.CommittedToolPassPlanMetadata, Any) -> None
 
     # Instance the initial geometry part.
-    initial_geom_part = shim.get_part(names["pre_tool_pass_part_name"], names["new_model_name"], mdb)
+    initial_geom_part = mdb.models[names["new_model_name"]].parts[names["pre_tool_pass_part_name"]]
     initial_geom_instance = shim.instance_part_into_assembly(names["pre_tool_pass_part_name"], initial_geom_part, False, names["new_model_name"], mdb)  
 
     """    
@@ -255,7 +256,7 @@ def do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb):
 def orphan_mesh_to_geometry(part_name, model_name, mdb):
 # type: (str, str, Any) -> None 
 
-    part = shim.get_part(part_name, model_name, mdb) 
+    part = mdb.models[model_name].parts[part_name]
 
     unique_elem_faces = shim.get_unique_element_faces(part)
 

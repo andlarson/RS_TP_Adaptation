@@ -1,0 +1,6 @@
+# Overriding some defaults for this project.
+
+[tool.pylint.main]
+
+jobs=1
+py-version=3.10

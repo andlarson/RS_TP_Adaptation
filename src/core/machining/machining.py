@@ -1,16 +1,17 @@
 import shutil
 import os
 
-import core.part.part as part
-import core.simulation.simulation as sim
-import core.boundary_conditions.boundary_conditions as bc
-import core.metadata.metadata as md 
-import core.metadata.abaqus_metadata as abq_md
-import core.metadata.naming as naming
-import core.tool_pass.tool_pass as tp
-import core.abaqus.abaqus_shim as shim
-import core.material_properties.material_properties as mp
-from util.debug import *
+import src.core.part.part as part
+import src.core.simulation.simulation as sim
+import src.core.boundary_conditions.boundary_conditions as bc
+import src.core.metadata.metadata as md 
+import src.core.metadata.abaqus_metadata as abq_md
+import src.core.metadata.naming as naming
+import src.core.tool_pass.tool_pass as tp
+import src.core.abaqus.abaqus_shim as shim
+import src.core.material_properties.material_properties as mp
+
+from src.util.debug import *
 
 
 STANDARD_POST_COMMIT_FILE_NAME_PREFIX = "Post_Commit_"

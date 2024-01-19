@@ -4,10 +4,12 @@ import numpy as np
 import numpy.linalg as linalg
 import matplotlib.path as path
 
-from debug import *
+from src.util.debug import *
+
 
 
 FLOATING_POINT_TOLERANCE = 10**(-6)
+
 
 
 class Basis3D:
