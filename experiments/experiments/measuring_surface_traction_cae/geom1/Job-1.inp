@@ -2358,8 +2358,6 @@
 **  
 *Nset, nset=Set-1, instance=Part-1-1, generate
     1,  1331,     1
-*Elset, elset=Set-1, instance=Part-1-1, generate
-    1,  1000,     1
 *Elset, elset=_Surf-1_S1, internal, instance=Part-1-1, generate
   901,  1000,     1
 *Surface, type=ELEMENT, name=Surf-1
@@ -2423,17 +2421,17 @@ Set-1, 6, 6
 ** 
 *Output, history
 *Integrated Output, section=I-Section-1
-SOF, 
+SOF, SOM
 ** 
 ** HISTORY OUTPUT: H-Output-3
 ** 
 *Integrated Output, section=I-Section-2
-SOF, 
+SOF, SOM
 ** 
 ** HISTORY OUTPUT: H-Output-4
 ** 
 *Integrated Output, section=I-Section-3
-SOF, 
+SOF, SOM
 ** 
 ** HISTORY OUTPUT: H-Output-1
 ** 

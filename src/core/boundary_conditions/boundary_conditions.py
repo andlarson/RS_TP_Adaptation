@@ -96,7 +96,7 @@ def apply_BCs(BCs, step_name, part_instance, model_name, mdb):
 
     for BC in BCs:
 
-        BC_cnt = shim.get_BC_cnt(model_name, mdb)
+        BC_cnt = shim.get_bc_cnt(model_name, mdb)
         BC_name = shim.STANDARD_BC_PREFIX + str(BC_cnt)
 
         if isinstance(BC, SurfaceBC):

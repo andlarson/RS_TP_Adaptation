@@ -17,7 +17,7 @@ While all of the above is true, it's completely fine to use the Abaqus API
     complex and commonly used accesses to Abaqus' API into this file.
 """
 
-from typing import Any
+from typing import Any, Optional
 
 from abaqus import *
 from abaqusConstants import * 
@@ -33,18 +33,21 @@ import src.util.geom as geom
 from src.util.debug import *
 
 
+# Built-in names in Abaqus.
 STANDARD_MODEL_NAME = "Model-1"
-STANDARD_MODEL_NAME_PREFIX = "Model-"
 STANDARD_INIT_GEOM_PART_NAME = "Initial_Geometry"
-STANDARD_TOOL_PASS_PART_PREFIX = "Tool_Pass_"
-STANDARD_POST_TOOL_PASS_PART_PREFIX = "Post_Tool_Pass_"
 STANDARD_INITIAL_STEP_NAME = "Initial"
-STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
 STANDARD_SECTION_NAME = "Section-1"
 STANDARD_MATERIAL_NAME = "Material-1"
-STANDARD_ORPHAN_MESH_FEATURE_NAME = "Orphan mesh-1"
-STANDARD_BC_PREFIX = "Boundary_Condition_"
 STANDARD_JOB_PREFIX = "Job-"
+STANDARD_ORPHAN_MESH_FEATURE_NAME = "Orphan mesh-1"
+
+# Custom names.
+STANDARD_MODEL_NAME_PREFIX = "Model-"
+STANDARD_TOOL_PASS_PART_PREFIX = "Tool_Pass_"
+STANDARD_POST_TOOL_PASS_PART_PREFIX = "Post_Tool_Pass_"
+STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
+STANDARD_BC_PREFIX = "Boundary_Condition_"
 STANDARD_BOUNDING_BOX_PART_NAME = "Bounding_Box"
 STANDARD_EXCESS_BOUNDING_BOX_PART_NAME = "Bounding_Box_Excess"
 STANDARD_BOUNDING_BOX_INIT_GEOM_PART_NAME = "Bounding_Box_And_Initial_Geometry"
@@ -79,7 +82,7 @@ def get_only_part_name(model_name: str, mdb: Any) -> str:
 
        Args:
            model_name: The name of the model in the Abaqus MDB.
-           mdb: Abaqus MDB object.
+           mdb:        Abaqus MDB object. MDB in which the model lives.
 
        Returns:
            Name of the part.
@@ -129,7 +132,7 @@ def get_closest_face(points: list[geom.Point3D], obj: Any) -> Any:
 
        Args:
            points: A nonzero number of points. 
-           obj: Abaqus Part object or Abaqus PartInstance object.
+           obj:    Abaqus Part object or Abaqus PartInstance object.
 
        Returns:
            Abaqus Face object.
@@ -196,7 +199,7 @@ def get_any_edge_on_face(face: Any, obj: Any) -> Any:
 
        Args:
            face: Abaqus Face object.
-           obj: Abaqus Part object or Abaqus Partinstance object.
+           obj:  Abaqus Part object or Abaqus Partinstance object.
 
        Returns:
            Abaqus Edge object.
@@ -246,87 +249,48 @@ def get_all_vertices(obj: Any) -> list[list[geom.Point3D]]:
 
 
 
-# Get the vertices of a face.
-# 
-# Notes:
-#    Error in documentation of pointOn member.
-#    The Abaqus Face object can belong to an Abaqus Part object or an Abaqus 
-#       PartInstance object. If the Abaqus Face object belongs to an Abaqus Part
-#       object, the caller is obligated to pass the Abaqus Part object. The same
-#       rule applies if the Abaqus Face object belongs to an Abaqus PartInstance
-#       object.
-#
-# Arguments:
-#    face - Abaqus Face object. 
-#
-# Optional Arguments:
-#    part          - Abaqus Part object.
-#    assembly      - Abaqus Assembly object.
-#    part_instance - Abaqus PartInstance object.
-#
-# Optional Arguments Notes:
-#    Either the part argument or the assembly and part_instance arguments must be 
-#       passed.
-#
-# Returns:
-#    List of tuples containing 3 entries. 
-def get_face_vertices(face, part=None, assembly=None, part_instance=None):
-# type: (Any, Optional[Any], Optional[Any], Optional[Any]) -> List[Tuple[float, float, float], ...]
+def get_face_vertices(face: Any, part: Optional[Any] = None, 
+                      assembly: Optional[Any] = None, 
+                      part_instance: Optional[Any] = None
+                     ) -> list[tuple[float, float, float], ...]:
+    """Gets the vertices of a face.
+
+       Error in documentation of pointOn member.
+
+       Args:
+           face:          Abaqus Face object. The face of interest.
+           part:          Abaqus Part object. The part to which the face belongs.
+           part_instance: Abaqus PartInstance object. The assembly to which the
+                              face belongs.
+           assembly:      Abaqus Assembly object. The assembly to which the face 
+                              and part instance belong.
+           
+           Note that either the part argument or the part_instance and the
+               assembly objects must be passed.
+
+       Returns:
+           List of vertices on the face. 
+
+       Raises:
+           None.
+    """
 
     vertex_ids = face.getVertices()
-    if assembly != None and part_instance != None:
+    if assembly is not None and part_instance is not None:
         vertices = [part_instance.vertices[vertex_id].pointOn[0] for vertex_id in vertex_ids]
-    elif part != None:
+    elif part is not None:
         vertices = [part.vertices[vertex_id].pointOn[0] for vertex_id in vertex_ids]
     else:
-        raise AssertionError("Incorrect arguments passed!")
+        raise RuntimeError("Invalid combination of arguments passed!")
 
     return vertices 
 
 
 
-def get_step_cnt(model_name, mdb):
-# type: (str, Any) -> None
-
-    return len(mdb.models[model_name].steps)
-
-
-
-def get_BC_cnt(model_name, mdb):
-# type: (Any, Any) -> Int 
+def get_bc_cnt(model_name: str, mdb: Any) -> int:
+    """Gets the number of boundary conditions present in a model."""
 
     return len(mdb.models[model_name].boundaryConditions)
-
-
-
-# Check if the face and the ngon have matching vertices. 
-# 
-# Notes:
-#    A face and an ngon could have matching vertices, but could look very different.
-#       The face could be curved....
-#    This function checks for an EXACT match, floating point issues are not taken
-#       into account.
-#
-# Arguments:
-#    ngon - NGon3D object.
-#    face - Abaqus Face object.
-#    obj  - Abaqus Part or Abaqus PartInstance object.
-#
-# Returns:
-#    Boolean. 
-def check_face_ngon_match(ngon, face, obj):
-
-    face_vertices = get_face_vertices(face, obj)
-    ngon_vertices = ngon.get_builtin_rep()
-    ngon_face_share_vertices = True 
-    if len(face_vertices) == len(ngon_vertices):
-        for face_vertex in face_vertices:
-            if face_vertex not in ngon_vertices:
-                ngon_face_share_vertices = False
-    else:
-        ngon_face_share_vertices = False
-
-    return ngon_face_share_vertices
 
 
 
@@ -336,20 +300,36 @@ def check_face_ngon_match(ngon, face, obj):
 # *****************************************************************************
 
 
-# Remove all instances in the root assembly.
-def clear_instances(model_name, mdb):
-
-    mdb.models[model_name].rootAssembly.instances.clear()
-
-
-
-def change_only_part_name(new_name: str, model_name: str, mdb: Any) -> None:
-    """In a model with only a single part, changes the name of the part.
+def create_mdb(name: str, path: str) -> Any:
+    """Creates an MDB and opens it.
+    
+       Does not automatically save the MDB.
 
        Args:
-           new_name: The desired new name of the model.
-           model_name: The current name of the model.
-           mdb: Abaqus MDB object.
+           name: Name of the new MDB.
+           path: Location of where a save (not a save as!) will occur.
+
+       Returns:
+           Abaqus MDB object.
+
+       Raises:
+           None.
+    """
+
+    return Mdb(path + name)
+
+
+
+# Assign the only section in the model to the whole part.
+def assign_only_section_to_part(part: Any, model_name: str, mdb: Any) -> None:
+    """Assigns the only section in a model to the entirety of a part.
+
+       This function creates a set which encompasses the whole part.
+
+       Args:
+           part:       Abaqus Part object.
+           model_name: Name of the model.
+           mdb:        MDB in which the model lives.
 
        Returns:
            None.
@@ -358,79 +338,87 @@ def change_only_part_name(new_name: str, model_name: str, mdb: Any) -> None:
            None.
     """
 
-    if len(mdb.models[model_name].parts.keys() != 1):
-        raise ValueError("There should only be a single part in the model.")
-
-    old_name = mdb.models[model_name].parts.keys()[0]
-
-    mdb.models[model_name].parts.changeKey(fromName=old_name, toName=new_name)
-
-
-
-# Create a MDB and open it. 
-# This function does not automatically save the MDB. However, the path used
-#   here is the location of save when a save (not save as) does happen.
-def create_mdb(name, path):
-# type: (str, str) -> Any
-
-    return Mdb(path + name)
-
-
-
-# Assign the only section in the model to the whole part.
-def assign_only_section_to_part(part, model_name, mdb):
-# type: (Any, str, Any) -> Any
-
     model = mdb.models[model_name]
 
-    # There better be only a single section.
-    assert(len(model.sections) == 1)
+    if len(model.sections) != 1:
+        raise RuntimeError("There isn't exactly one section in the model!")
 
     section_name = model.sections.keys()[0]
 
     full_set = part.Set(name="simple_set", cells=part.cells)
     
-    return part.SectionAssignment(full_set, section_name)
+    part.SectionAssignment(full_set, section_name)
+    
+    return
 
 
 
-# Get a MDB object from the path to a .cae file.
-# Treat opening an MDB like opening a file. Only open it in one place at one time
-#    and close it as soon as it is no longer needed.
-def use_mdb(path_to_mdb):
-# type: (str) -> Any
+def use_mdb(path_to_mdb: str) -> Any:
+    """Opens an MDB.
+       
+       Treat opening an MDB like opening a file. Only open it in one place at 
+           one time and close it as soon as it is no longer needed.
+
+       Args:
+           path_to_mdb: Path to the MDB of interest.
+
+       Returns:
+           Abaqus MDB object.
+
+       Raises:
+           None.
+    """
     
     return openMdb(path_to_mdb)
 
 
 
-# Close an MDB which is open.
-def close_mdb(mdb):
-# type: (Any) -> None
+def close_mdb(mdb: Any) -> None:
+    """Closes an MDB."""
 
     mdb.close()
 
 
 
-# Use an absolute path to save off the MDB.
-def save_mdb_as(save_path, mdb):
-# type: (str, Any) -> None
+def save_mdb_as(save_path: str, mdb: Any) -> None:
+    """Saves an MDB somewhere.
+     
+       Args:
+           save_path: Absolute path of desired save location. This should end
+                         with a file with suffix ".cae".
+           mdb:       Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
 
     mdb.saveAs(save_path)    
     dp("The mdb was saved to: " + mdb.pathName)
 
 
 
-# Save MDB based on location it was created at.
-def save_mdb(mdb):
-# type: (Any) -> None
+def check_basic_geom(should_print: bool, mdb: Any) -> bool:
+    """Checks, non-exhaustively, that an MDB contains the basic specification of
+           a part geometry.
 
-    mdb.save()
+       Does not check every detail of the contents of the MDB.
 
+       Args:
+           should_print: Indicates if failures (i.e. the MDB contains stuff
+                             which is unexpected) should cause debug information
+                             to being printed.
+           mdb:          Abaqus MDB object.
 
+       Returns:
+           False if the MDB does not contain a basic specification of a part
+               geometry, True otherwise.
 
-def check_basic_geom(should_print, mdb):
-# type: (bool, Any) -> bool
+       Raises:
+           None.
+    """
 
     if not check_standard_model_and_part(should_print, mdb):
         return False 
@@ -443,22 +431,8 @@ def check_basic_geom(should_print, mdb):
 
 
 
-def check_ready_for_toolpasses(should_print, mdb):    
-# type: (bool, Any) -> bool
-
-    if not check_standard_model_and_part(should_print, mdb):
-        return False 
-
-    if not check_material_and_section(should_print, mdb) or \
-       not check_steps_loads_assembly(should_print, mdb):
-        return False
-
-    return True
-
-
-    
-def check_multiple_steps(should_print, model_name, mdb):
-# type: (bool, str, Any) -> bool
+def check_multiple_steps(should_print: bool, model_name: bool, mdb: Any) -> bool:
+    """Checks that a model contains multiple steps."""
 
     if model_name not in mdb.models:
         if should_print:
@@ -474,8 +448,9 @@ def check_multiple_steps(should_print, model_name, mdb):
 
 
 
-def check_standard_model_and_part(should_print, mdb):
-# type: (bool, Any) -> bool
+def check_standard_model_and_part(should_print: bool, mdb: Any):
+    """Checks that an MDB was just initialized and contains the default post-
+           initialization objects."""
 
     if STANDARD_MODEL_NAME not in mdb.models or \
        len(mdb.models[STANDARD_MODEL_NAME].parts) != 1:
@@ -494,8 +469,9 @@ def check_standard_model_and_part(should_print, mdb):
 
 
 
-def check_no_material_and_section(should_print, mdb):
-# type: (bool, mdb) -> bool
+def check_no_material_and_section(should_print: bool, mdb: Any) -> bool:
+    """Checks that the default model does not have a material, a section, or a
+           section assignment."""
 
     model = mdb.models[STANDARD_MODEL_NAME]
     part = model.parts[STANDARD_INIT_GEOM_PART_NAME]
@@ -511,25 +487,9 @@ def check_no_material_and_section(should_print, mdb):
 
 
 
-def check_material_and_section(should_print, mdb):
-# type: (bool, Any) -> bool
-
-    model = mdb.models[STANDARD_MODEL_NAME]
-    part = model.parts[STANDARD_INIT_GEOM_PART_NAME]
-
-    if len(model.materials) != 1 or \
-       len(model.sections) != 1 or \
-       len(part.sectionAssignments) != 1: 
-        if should_print:
-            dp("failure 1")
-        return False
-    
-    return True
-
-
-
-def check_steps_loads_assembly(should_print, mdb):
-# type: (bool, Any) -> bool
+def check_steps_loads_assembly(should_print: bool, mdb: Any) -> bool:
+    """Checks that the default model has exactly one step, no loads, and that
+          the assembly has no instances."""
 
     model = mdb.models[STANDARD_MODEL_NAME]
 
@@ -548,62 +508,72 @@ def check_steps_loads_assembly(should_print, mdb):
 
 
 
-def suppress_feature(name, part):
-# type: (str, Any) -> None
+def suppress_feature(name: str, part: Any) -> None:
+    """Suppresses a feature associated with a part.
+
+       Args:
+           name: The name of the feature.
+           part: Abaqus Part object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
 
     part.suppressFeatures((name, ))
 
 
 
-def resume_all_assembly_features(model_name, mdb):
-# type: (str, Any) -> None
+def build_sketch_transform_from_face(face: Any, edge: Any, obj: Any) -> Any:
+    """Specifies the location and orientation of a sketch (basically a plane of
+           finite size) in space.
+     
+       It appears that when the MakeSketchTransform() method is called and an
+           Abaqus Face object is passed in, the sketchUpEdge argument is required
+           even though the documentation says otherwise.  
 
-    mdb.models[model_name].rootAssembly.resumeAllFeatures()
+       Args:
+           face: Abaqus Face object. Locates the sketch in space.
+           edge: Abaqus Edge object or Abaqus DatumAxis object. Orients the 
+                     sketch in space. This edge specifies the 
+           obj:  Abaqus Part object or Abaqus Assembly object. The object that 
+                     the transform is associated with.
 
+       Returns:
+           Abaqus Transform object which specifies the orientation.
 
+           Note that an Abaqus Transform object has a single method called 
+               matrix() that returns the matrix which contains the translation 
+               and orientation of the sketch in space. Extracting this information 
+               can be useful to map points in the global coordinate system into 
+               the coordinate system of this sketch.
 
-# Build a matrix which specifies the location and orientation of a sketch in 
-#    space.
-#
-# Notes:
-#    It appears that when the MakeSketchTransform() method is called and an
-#       Abaqus Face object is passed in, the sketchUpEdge argument is required
-#       even though the documentation says otherwise.
-#    An Abaqus Transform object has a single method called matrix() that returns
-#       the matrix which contains the translation and orientation of the sketch
-#       in space. Extracting this information can be useful to map points in the
-#       global coordinate system into the coordinate system of this sketch.
-#
-# Arguments:
-#    face - Abaqus Face object. 
-#           Locates the sketch in space.
-#    edge - Abaqus Edge object or Abaqus DatumAxis object.
-#           Orients the sketch in space.
-#    obj  - Abaqus Part object or Abaqus Assembly object. 
-#           The object that the transform is associated with.
-#
-# Returns:
-#    Abaqus Transform object.
-def build_sketch_transform_from_face(face, edge, obj):
-# type: (Any, Any, Any) -> Any
+       Raises:
+           None. 
+    """
 
     return obj.MakeSketchTransform(face, sketchUpEdge=edge)
 
 
 
-# Extract the necessary information from the an Abaqus Transform object to
-#    orient the coordinate system of the sketch in the global coordinate system.
-#
-# Notes:
-#    The .matrix() method of the Abaqus Transform object is undocumented. 
-#
-# Arguments:
-#    transform - Abaqus Transform object. 
-#
-# Returns:
-#    CSys3D object.  
-def extract_global_csys_to_sketch_csys(transform):
-# type: (Any) -> geom.CSys3D 
+def extract_global_csys_to_sketch_csys(transform: Any) -> geom.CSys3D:
+    """Converts the information associated with a transform to a custom format
+           for a coordinate system.
+
+       The format of the return value of the matrix() method for an Abaqus
+           Transform object is undocumented.
+
+       Args:
+           transform: Abaqus Transform object.
+
+       Returns:
+           Custom format for a coordinate system.
+
+       Raises:
+           None.
+    """
 
     rot_and_trans = transform.matrix()
    
@@ -618,25 +588,30 @@ def extract_global_csys_to_sketch_csys(transform):
 
 
 
-# Build and orient a sketch somewhere in space.
-# 
-# Notes:
-#    The sheetSize argument doesn't matter when the sketch is not being drawn
-#       by hand via a UI.
-#    Sketches are only associated with whole models.
-#
-# Arguments:
-#    transform   - Abaqus Transform object. 
-#                  Specifies the location and orientation of the sketch in space.
-#    sketch_name - String. 
-#                  Name of the new sketch.
-#    model_name  - String.
-#    mdb         - Abaqus MDB object.
-#
-# Returns:
-#    Abaqus ConstrainedSketch object.
-def build_constrained_sketch(transform, sketch_name, model_name, mdb):
-# type: (Any, str, str, Any) -> None
+def build_constrained_sketch(transform: Any, sketch_name: str, model_name: str, 
+                             mdb: Any) -> Any:
+    """Builds and orients a sketch somewhere in space.
+
+       The sheetSize argument doesn't matter when the sketch is not being drawn
+           by hand via a UI.
+       Sketches are only associated with whole models.
+
+       Args:
+           transform:   Abaqus Transform object. Specifies the location and 
+                            orientation of the sketch in space.
+           sketch_name: String. Name of the new sketch.
+           model_name:  String.
+           mdb:         Abaqus MDB object.
+
+       Returns:
+           Abaqus ConstrainedSketch object.
+
+       Raises:
+           RuntimeError: The sketch failed to be constructed for some reason. An
+                             exception is raised because at this level because
+                             Abaqus will not raise an exception if the sketch
+                             is not created.
+    """
 
     if transform is not None:
         sketch = mdb.models[model_name].ConstrainedSketch(sketch_name, sheetSize=1, transform=transform)
@@ -647,74 +622,6 @@ def build_constrained_sketch(transform, sketch_name, model_name, mdb):
         raise RuntimeError("Failed to build sketch!!")
 
     return sketch
-
-
-
-# Draw a sketch in the context of a part and then extrude the sketch to create
-#    a special right rectangular prism.
-# 
-# Notes:
-#    None.
-#
-# Arguments:
-#    part_name             - String.
-#                            Name of the part. Also used to name the sketch which is created.
-#    spec_right_rect_prism - SpecRightRectPrism.
-#                            The geometry of the part to create. 
-#    model_name            - String.
-#    mdb                   - Abaqus MDB object.
-#
-# Returns:
-#    None. 
-def build_spec_right_rect_prism_part(part_name, spec_right_rect_prism, model_name, mdb):
-# type: (str, geom.SpecRightRectPrism, str, Any) -> Any
-
-    # The part may be floating in space away from the origin.
-    # This necessitates re-centering the sketch origin.
-    # We want to re-center in terms of the x-y centroid and the z plane which
-    #    is closer to z=0.
-    centroid = spec_right_rect_prism.get_centroid()
-    z_offset = spec_right_rect_prism.get_smaller_z()
-
-    part = mdb.models[model_name].parts[part_name]
-
-    # The datum plane is parallel to the x-y plane and offset by z_offset in
-    #    the z direction.
-    dp1_id = part.DatumPointByCoordinate((0, 0, z_offset)).id
-    dp2_id = part.DatumPointByCoordinate((1, 0, z_offset)).id
-    dp3_id = part.DatumPointByCoordinate((0, 1, z_offset)).id 
-    dp1 = part.datums[dp1_id]
-    dp2 = part.datums[dp2_id]
-    dp3 = part.datums[dp3_id]
-
-    # The up direction of the sketch is parallel to Abaqus' global y axis and needs
-    #    to pass through the plane of the sketch.
-    da1_id = part.DatumAxisByTwoPoint(dp1, dp3).id
-    da1 = part.datums[da1_id]
-
-    # Create the plane and retrieve the datum object associated with it.
-    sketch_plane_id = part.DatumPlaneByThreePoints(dp1, dp2, dp3).id
-    sketch_plane = part.datums[sketch_plane_id]
-
-    # Create the transform to orient the sketch in space. 
-    t = part.MakeSketchTransform(sketchPlane=sketch_plane, origin=(centroid.rep[0], centroid.rep[1], z_offset), sketchUpEdge=da1)
-
-    # Create the sketch using the transform object.
-    sketch = build_constrained_sketch(t, part_name, model_name, mdb)
-
-    # Draw the rectangle accounting for the translated origin.
-    v1, v2 = spec_right_rect_prism.get_rect_corners() 
-    corner_1 = (v1.proj_xy().rep[0] - centroid.rep[0], v1.proj_xy().rep[1] - centroid.rep[1])
-    corner_2 = (v2.proj_xy().rep[0] - centroid.rep[0], v2.proj_xy().rep[1] - centroid.rep[1])
-
-    # Don't try to check the return value. This returns None even on success...
-    sketch.rectangle(corner_1, corner_2)
-
-    # Now extrude the sketch to create the solid.
-    # ASSUMPTION HERE: We always select SIDE1 because that happens to work for the
-    #    special right rectangular prism.  
-    depth = spec_right_rect_prism.get_dims()[2] 
-    part.SolidExtrude(sketch_plane, SIDE1, da1, sketch, depth=depth)
 
 
 
@@ -2211,5 +2118,196 @@ def get_neighbor_vertices(vertex, face, obj):
     assert(len(connected_vertices) == 2)
 
     return connected_vertices
+
+
+
+def check_face_ngon_match(ngon: geom.NGon3D, face: Any, obj: Any) -> bool:
+    """DEPRECATED. This function was previously used in the process of partitioning
+           a face. In particular, it was used to check if a face of the exact same
+           geometry already existed. In the new approach, it does not matter if
+           a face of the exact same geometry already exists.
+    
+       Checks if a face and a polygon have vertices which match exactly.
+
+       Beware. A face and a polygon could have matching vertices but, due to
+           curvature, they might look very different.
+       Also, this function checks for an EXACT match without taking into
+           account small dicrepencies due to floating point issues. 
+
+       Args:
+           ngon: NGon3D object. The polygon of interest.
+           face: Abaqus Face object.
+           obj:  Abaqus Part object or Abaqus PartInstance object. The object
+                     to which the face belongs.
+
+       Returns:
+           True if a match, false otherwise.
+
+       Raises:
+           None.
+    """
+
+    face_vertices = get_face_vertices(face, obj)
+    ngon_vertices = ngon.get_builtin_rep()
+    ngon_face_share_vertices = True 
+    if len(face_vertices) == len(ngon_vertices):
+        for face_vertex in face_vertices:
+            if face_vertex not in ngon_vertices:
+                ngon_face_share_vertices = False
+    else:
+        ngon_face_share_vertices = False
+
+    return ngon_face_share_vertices
+
+
+
+def change_only_part_name(new_name: str, model_name: str, mdb: Any) -> None:
+    """DEPRECATED. Not sure where this was ever used.
+       
+       In a model with only a single part, changes the name of the part.
+
+       Args:
+           new_name:   The desired new name of the model.
+           model_name: The current name of the model.
+           mdb:        Abaqus MDB object. The MDB that the model belongs to.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
+
+    if len(mdb.models[model_name].parts.keys() != 1):
+        raise ValueError("There should only be a single part in the model.")
+
+    old_name = mdb.models[model_name].parts.keys()[0]
+
+    mdb.models[model_name].parts.changeKey(fromName=old_name, toName=new_name)
+
+
+
+
+def check_ready_for_toolpasses(should_print: bool, mdb: Any) -> bool:    
+    """DEPRECATED. Other MDB state checker functions are now being used. 
+       
+       Checks, non-exhaustively, that an MDB is ready to have tool passes
+          simulated in it.
+
+       Does not check every detail of the contents of the MDB.
+
+       Args:
+           should_print: Indicates if failures (i.e. the MDB contains stuff
+                             which is unexpected) should cause debug information
+                             to being printed.
+           mdb:          Abaqus MDB object.
+
+       Returns:
+           False if the MDB is not ready, True if it is.
+
+       Raises:
+           None.
+    """
+
+    if not check_standard_model_and_part(should_print, mdb):
+        return False 
+
+    if not check_material_and_section(should_print, mdb) or \
+       not check_steps_loads_assembly(should_print, mdb):
+        return False
+
+    return True
+
+
+
+def check_material_and_section(should_print: str, mdb: Any) -> bool:
+    """DEPRECATED. Helper for another deprecated function.
+
+       Checks that the MDB contains exactly one material, one section, and that
+           the section has been assigned."""
+
+    model = mdb.models[STANDARD_MODEL_NAME]
+    part = model.parts[STANDARD_INIT_GEOM_PART_NAME]
+
+    if len(model.materials) != 1 or \
+       len(model.sections) != 1 or \
+       len(part.sectionAssignments) != 1: 
+        if should_print:
+            dp("failure 1")
+        return False
+    
+    return True
+
+
+
+def build_spec_right_rect_prism_part(part_name: str, spec_right_rect_prism: geom.SpecRightRectPrism, 
+                                     model_name: str, mdb: Any) -> None:
+    """DEPRECRATED. Was used to construct very simple tool pass geometries and
+           bounding boxes.
+    
+       Builds a right rectangular prism with special characteristics.
+
+       Args:
+           part_name:             Name of the part. Also used to name the sketch 
+                                      which is created.
+           spec_right_rect_prism: The geometry of the part to create. 
+           model_name:            The model in which to create the part.
+           mdb:                   Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
+
+    # The part may be floating in space away from the origin.
+    # This necessitates re-centering the sketch origin.
+    # We want to re-center in terms of the x-y centroid and the z plane which
+    #    is closer to z=0.
+    centroid = spec_right_rect_prism.get_centroid()
+    z_offset = spec_right_rect_prism.get_smaller_z()
+
+    part = mdb.models[model_name].parts[part_name]
+
+    # The datum plane is parallel to the x-y plane and offset by z_offset in
+    #    the z direction.
+    dp1_id = part.DatumPointByCoordinate((0, 0, z_offset)).id
+    dp2_id = part.DatumPointByCoordinate((1, 0, z_offset)).id
+    dp3_id = part.DatumPointByCoordinate((0, 1, z_offset)).id 
+    dp1 = part.datums[dp1_id]
+    dp2 = part.datums[dp2_id]
+    dp3 = part.datums[dp3_id]
+
+    # The up direction of the sketch is parallel to Abaqus' global y axis and needs
+    #    to pass through the plane of the sketch.
+    da1_id = part.DatumAxisByTwoPoint(dp1, dp3).id
+    da1 = part.datums[da1_id]
+
+    # Create the plane and retrieve the datum object associated with it.
+    sketch_plane_id = part.DatumPlaneByThreePoints(dp1, dp2, dp3).id
+    sketch_plane = part.datums[sketch_plane_id]
+
+    # Create the transform to orient the sketch in space. 
+    t = part.MakeSketchTransform(sketchPlane=sketch_plane, origin=(centroid.rep[0], centroid.rep[1], z_offset), sketchUpEdge=da1)
+
+    # Create the sketch using the transform object.
+    sketch = build_constrained_sketch(t, part_name, model_name, mdb)
+
+    # Draw the rectangle accounting for the translated origin.
+    v1, v2 = spec_right_rect_prism.get_rect_corners() 
+    corner_1 = (v1.proj_xy().rep[0] - centroid.rep[0], v1.proj_xy().rep[1] - centroid.rep[1])
+    corner_2 = (v2.proj_xy().rep[0] - centroid.rep[0], v2.proj_xy().rep[1] - centroid.rep[1])
+
+    # Don't try to check the return value. This returns None even on success...
+    sketch.rectangle(corner_1, corner_2)
+
+    # Now extrude the sketch to create the solid.
+    # ASSUMPTION HERE: We always select SIDE1 because that happens to work for the
+    #    special right rectangular prism.  
+    depth = spec_right_rect_prism.get_dims()[2] 
+    part.SolidExtrude(sketch_plane, SIDE1, da1, sketch, depth=depth)
+
+
 
 
