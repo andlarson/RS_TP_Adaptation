@@ -8,13 +8,33 @@ This module offers functions which, generally, are wrappers for Abaqus Python
        2) There are common sequences of code which surround some Abaqus API
               calls. Encapsulating these common sequences reduces code
               duplication.
-       3) From an architectural point of view, it's helpful to separate the
+       3) It's often necessary to track the state of the Abaqus MDB at a level
+              which Abaqus does not natively provide. For example, Abaqus'
+              API maintains lots of repository (aka dictionary) data structures
+              about the state of the MDB. For example, there is a repository
+              of models which belong to a single MDB, a repository of steps that
+              belong to a single model, etc. However, these repository (aka
+              dictionary) data structures do not record any information about
+              ordering. For example, it's very useful to know the order of the
+              steps in a model. It's therefore necessary to maintain custom data
+              structures which record information about the state of the MDB.
+              These data structures need to be updated when the state of the MDB
+              changes. By funneling all uses of the Abaqus API through calls to
+              functions in this file, and writing the functions in this file
+              so that they require the custom data structures which maintain
+              additional state to be passed in, the programmer need not remember
+              to update the custom data structures when they interact with
+              Abaqus' API.
+       4) From an architectural point of view, it's helpful to separate the
               functionality that Abaqus provides from other functionality.
 
 While all of the above is true, it's completely fine to use the Abaqus API 
     outside of this file. For example, it's often necessary to get an Abaqus 
     Model object by using an Abaqus MDB object, etc. The idea is to encapsulate
-    complex and commonly used accesses to Abaqus' API into this file.
+    complex and commonly used accesses to Abaqus' API into this file. However,
+    note (3) above when doing so. Manipulating the state of an MDB outside
+    of this file is dangerous. Reading the state of an MDB outside this file
+    is fine.
 """
 
 from typing import Any, Optional
@@ -29,6 +49,7 @@ import numpy as np
 import src.core.material_properties.material_properties as mp
 import src.core.tool_pass.tool_pass as tp
 import src.util.geom as geom
+import src.core.metadata.abaqus_metadata as abq_md
 
 from src.util.debug import *
 
@@ -320,7 +341,6 @@ def create_mdb(name: str, path: str) -> Any:
 
 
 
-# Assign the only section in the model to the whole part.
 def assign_only_section_to_part(part: Any, model_name: str, mdb: Any) -> None:
     """Assigns the only section in a model to the entirety of a part.
 
@@ -608,7 +628,7 @@ def build_constrained_sketch(transform: Any, sketch_name: str, model_name: str,
 
        Raises:
            RuntimeError: The sketch failed to be constructed for some reason. An
-                             exception is raised because at this level because
+                             exception is raised in this function because
                              Abaqus will not raise an exception if the sketch
                              is not created.
     """
@@ -618,31 +638,37 @@ def build_constrained_sketch(transform: Any, sketch_name: str, model_name: str,
     else:
         sketch = mdb.models[model_name].ConstrainedSketch(sketch_name, sheetSize=1)
 
-    if sketch == None:
+    if sketch is None:
         raise RuntimeError("Failed to build sketch!!")
 
     return sketch
 
 
 
-# Build wire feature. 
-# 
-# Notes:
-#    When a wire feature is created in Abaqus and the spline option is chosen to
-#       connect the points, by default, a cubic polynomial with continuous first
-#       and second derivatives is used. No other splines can be used.
-#    Assumes that the spline is not self-connecting.
-#
-# Arguments:
-#    spline     - PlanarCubicC2Spline3D object.
-#    part_name  - String.
-#    model_name - String.
-#    mdb        - Abaqus MDB object.
-#
-# Returns:
-#    Abaqus Feature object associated with the newly created wire. 
-def build_wire(spline, part_name, model_name, mdb):
-# type: (geom.PlanarCubicC2Spline3D, str, str, Any) -> Any
+def build_wire(spline: geom.PlanarCubicC2Spline3D, part_name: str, model_name: str, 
+               mdb: Any) -> Any:
+    """Builds a wire feature.
+
+       When a wire feature is created in Abaqus and the spline option is chosen to
+           connect the points, by default, a cubic polynomial with continuous first
+           and second derivatives is used. No other splines can be used.
+
+       The wire cannot be self-intersecting.
+
+       Args:
+           spline:     The spline which defines the geometry of the wire.
+           part_name:  The name of the pre-existing part which the wire will be 
+                           associated with.
+           model_name: The name of the pre-existing model which the wire will be 
+                           associated with.
+           mdb:        Abaqus MDB object.
+
+       Returns:
+           Abaqus Feature object associated with the newly created wire. 
+
+       Raises:
+           None.
+    """
 
     part = mdb.models[model_name].parts[part_name]
 
@@ -657,34 +683,47 @@ def build_wire(spline, part_name, model_name, mdb):
 
 
 
-# Sweep a tool cross section along a wire to create a solid feature.
-#
-# Notes:
-#    The primary failure mode of this function is self-intersection. If the
-#       path of the tool pass has sufficiently sharp turns and the cross section
-#       is too large, the resulting solid would have self-intersections. However,
-#       if the feature were to have a self-intersection, Abaqus will fail to
-#       create it.
-# 
-# Arguments:
-#    tool_pass  - ToolPass object.
-#    edge_array - Abaqus EdgeArray object.
-#                 The sequence of edges along which to sweep the tool.
-#    part_name  - String.
-#    model_name - String.
-#    mdb        - Abaqus MDB object.
-#
-# Return:
-#    Abaqus Feature object that corresponds to the newly created solid. 
-def sweep_tool_along_wire(tool_pass, edge_array, part_name, model_name, mdb):
-# type: (tp.ToolPass, Any, str, str, Any) -> Any
+def sweep_tool_along_wire(tool_pass: tp.ToolPass, edge_array: Any, part_name: str, 
+                          model_name: str, mdb: Any) -> Any:
+    """Sweeps a tool cross section along a wire to create a solid feature.
+       
+       The primary failure mode of this function is self-intersection. If the
+           path of the tool pass has sufficiently sharp turns and the cross section
+           is too large, the resulting solid would have self-intersections. However,
+           if the feature were to have a self-intersection, Abaqus will fail to
+           create it.
+       
+       Currently, this function sweeps the tool along the wire such that the tool
+           always sits above the spline of the wire (where above is in the +y
+           direction).
+
+       Args:
+           tool_pass:  A representation of the tool pass which will be swept 
+                           along the edges in the edge_array.
+           edge_array: Abaqus EdgeArray object. The sequence of edges along 
+                           which to sweep the tool. When a wire feature is created 
+                           in a part, an edge is created which mirrors the wire. 
+                           This single edge (which may be curved) is then often 
+                           used by this function.
+           part_name:  The name of the pre-existing part which the tool pass will 
+                           be associated with.
+           model_name: The name of the pre-exisitng mdoel which the tool pass will 
+                           be associated with.
+           mdb:        Abaqus MDB object.
+
+       Returns:
+           Abaqus Feature object assocaited with the newly created solid.
+
+       Raises:
+           None.
+    """
 
     part = mdb.models[model_name].parts[part_name]
 
     # This datum axis defines the orientation of the tool with respect to the
     #    path that it follows.
-    # For now, the datum axis is parallel to the principal y axis. This guarantees
-    #    that it is easy to orient the tool so that it sits on top of the path.
+    # For now, the datum axis is parallel to the principal y axis. This makes
+    #    it easy to orient the tool so that it sits on top of the path.
     start_point = tool_pass.path.v_list[0].components()
     above_start_point = (start_point[0], start_point[1] + 1, start_point[2])
     feature = part.DatumAxisByTwoPoint(start_point, above_start_point)
@@ -702,25 +741,32 @@ def sweep_tool_along_wire(tool_pass, edge_array, part_name, model_name, mdb):
 
 
 
-# Add the caps at both ends of the tool pass.
-# 
-# Notes:
-#    This function adds features to a part which already exists.
-#    This function assumes that the cross section of the tool has already been
-#       extruded along the path that the tool takes.
-#    This function assumes the orientation of the tool pass with respect to the
-#       path that the tool takes.
-# 
-# Arguments:
-#    tool_pass  - ToolPass object.
-#    part_name  - String.
-#    model_name - String.
-#    mdb        - Abaqus MDB object.
-#
-# Returns:
-#    None.
-def add_tool_pass_caps(tool_pass, part_name, model_name, mdb):
-# type: (tp.ToolPass, str, str, Any) -> None
+def add_tool_pass_caps(tool_pass: tp.ToolPass, part_name: str, model_name: str, 
+                       mdb: Any) -> None:
+    """Adds caps at both ends of a tool pass.
+       
+       A cap is just a half cylinder.
+
+       This function adds features to a part which already exists.
+       This function assumes that the cross section of the tool has already been
+           extruded along the path that the tool takes.
+       This function assumes the orientation of the tool pass with respect to the
+           path that the tool takes.
+
+       Args:
+           tool_pass: The tool pass for which caps need to be added.
+           part_name:  The name of the pre-existing part which the caps will 
+                           be associated with.
+           model_name: The name of the pre-exisitng model which the caps will 
+                           be associated with.
+           mdb:        Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
 
     part = mdb.models[model_name].parts[part_name]
 
@@ -734,29 +780,32 @@ def add_tool_pass_caps(tool_pass, part_name, model_name, mdb):
 
 
 
-# Add a cap to the face of a part.
-# 
-# Notes:
-#    This function assumes a toolpath orientation with respect to the toolpass
-#       path.
-#    Adds a feature to the part.
-# 
-# Arguments:
-#    name       - String.
-#                 Name of the sketch created for the cap.
-#    tool_pass  - ToolPass object.
-#                 Dictates the geometry of the cap.
-#    face       - Abaqus Face object.
-#                 The face on which the cap will be created.
-#                 This face should be planar.
-#    part_name  - String.
-#    model_name - String.
-#    mdb        - Abaqus MDB object. 
-#
-# Returns:
-#    None. 
-def build_cap(name, tool_pass, face, part_name, model_name, mdb):
-# type: (str, Any, Any, str, str, Any) -> None
+def build_cap(name: str, tool_pass: Any, face: Any, part_name: str, model_name: str, 
+              mdb: Any) -> None:
+    """Adds a cap (aka a half cylinder) to the face of a part.
+    
+       This function assumes a toolpath orientation with respect to the toolpass
+           path.
+       Adds a feature to the part.
+
+       Args:
+           name:       Name of the sketch created for the cap.
+           tool_pass:  Dictates the geometry of the cap.
+           face:       Abaqus Face object. The face on which the cap will be 
+                           created. This face should be planar. If it is not
+                           planar, the behavior of thsi function is undefined.
+           part_name:  The name of the pre-existing part which the cap will 
+                           be associated with.
+           model_name: The name of the pre-exisitng model which the cap will 
+                           be associated with.
+           mdb:        Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
 
     part = mdb.models[model_name].parts[part_name]
 
@@ -783,13 +832,30 @@ def build_cap(name, tool_pass, face, part_name, model_name, mdb):
     sketch.rectangle((tool_pass.radius, tool_pass.length/2), (0, -tool_pass.length/2))
 
     # Do the revolving.
-    part.SolidRevolve(sketchPlane=face, sketchPlaneSide=SIDE1, sketchUpEdge=datum_axis, sketch=sketch, angle=180.0, 
-                      sketchOrientation=RIGHT, flipRevolveDirection=OFF)
+    part.SolidRevolve(sketchPlane=face, sketchPlaneSide=SIDE1, sketchUpEdge=datum_axis, 
+                      sketch=sketch, angle=180.0, sketchOrientation=RIGHT, 
+                      flipRevolveDirection=OFF)
 
 
 
-def build_tool_pass_part(name, tool_pass, model_name, mdb_metadata, mdb):
-# type: (str, tool_pass.ToolPass, str, abq_md.AbaqusMdbMetadata, Any) -> Any
+def build_tool_pass_part(name: str, tool_pass: tp.ToolPass, model_name: str, 
+                         mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
+                        ) -> Any:
+    """Builds the part associated with a tool pass.
+
+       Args:
+           name:         The name of the part this function creates. 
+           tool_pass:    The tool pass that this function creates.
+           model_name:   The model that the tool pass part is created in.
+           mdb_metadata: The metadata associated with the MDB.
+           mdb:          Abaqus MDB object.
+
+       Returns:
+           Abaqus Part object. 
+
+       Raises:
+           None.
+    """
 
     # Create the part in the model. 
     part = mdb.models[model_name].Part(name=name, dimensionality=THREE_D, type=DEFORMABLE_BODY)
@@ -815,61 +881,22 @@ def build_tool_pass_part(name, tool_pass, model_name, mdb_metadata, mdb):
 
 
 
-def build_bounding_box_part(name, tool_pass, model_name, mdb_metadata, mdb):
-# type: (str, tp.ToolPass, str, abq_md.AbaqusMdbMetadata, Any) -> Any
+def inp_add_stress_subroutine(model_name: str, mdb: Any) -> None:
+    """Modies a .inp file so that a stress subroutine is included.
 
-    # Create the part in the model. 
-    part = mdb.models[model_name].Part(name=name, dimensionality=THREE_D, type=DEFORMABLE_BODY)
+       Note that the stress subroutine must also be associated with the job.
+           This is done elsewhere.
 
-    # Update metadata for bookkeeping. 
-    mdb_metadata.models_metadata[model_name].part_names.append(name)
+       Args:
+           model_name: The name of the model for which to use the .inp file.
+           mdb:        Abaqus MDB object.
 
-    build_tool_pass_bounding_box(name, 3, 3, 3, tool_pass, model_name, mdb)
+       Returns:
+           None.
 
-    return part
-
-
-
-# Build bounding box around a tool pass. 
-# 
-# Notes:
-#    The part should be created before this function is called.
-# 
-# Arguments:
-#    name       - String.
-#                 Part name. 
-#    x_excess   - Float.
-#                 Amount of excess in the x direction that the user wants for the
-#                    bounding boxes. Expressed in units of the global coordinate
-#                    system.
-#    y_excess   - Float.
-#                 Amount of excess in the y direction that the user wants for the
-#                    bounding boxes. Expressed in units of the global coordinate
-#                    system.
-#    z_excess   - Float.
-#                 Amount of excess in the z direction that the user wants for the
-#                    bounding boxes. Expressed in units of the global coordinate
-#                    system.
-#    tool_pass  - ToolPass object.
-#    model_name - String.
-#    mdb        - Abaqus MDB object.
-#
-# Returns:
-#    None 
-def build_tool_pass_bounding_box(name, x_excess, y_excess, z_excess, tool_pass, model_name, mdb):
-# type: (str, float, float, float, tp.ToolPass, str, Any) -> None
-
-    bounding_box = tp.create_tool_pass_bounding_box(x_excess, y_excess, z_excess, tool_pass)
-
-    build_spec_right_rect_prism_part(name, bounding_box, model_name, mdb)    
-
-
-
-# Modify the input file so that a stress subroutine is included.
-# The stress subroutine must also be associated with the job. This is done
-#    elsewhere.
-def inp_add_stress_subroutine(model_name, mdb):
-# type: (str, Any) -> None
+       Raises:
+           None.
+    """
 
     # Synchronize the kwb to the current state of the model.
     # This must happen even if there have been no previous modifications to the
@@ -885,10 +912,22 @@ def inp_add_stress_subroutine(model_name, mdb):
 
 
 
-# Modify the input file so that the stress state of the part is initialized
-#    and mapped from the result of some other simulation. 
-def inp_map_stress(path_sim_file, model_name, mdb):
-# type: (str, str, Any) -> None
+def inp_map_stress(path_sim_file: str, model_name: str, mdb: Any) -> None:
+    """Modifies the input file so that the stress state of the part is initialized
+           and mapped from the result of some other simulation.
+
+       Args:
+           path_sim_file: Absolute path to the simulation.
+           model_name:    The name of the model with stress state which needs
+                              to be modified.
+           mdb:           Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
 
     # There is some subtlety here.
     # It seems like there are two ways to import a stress field which was 
@@ -929,34 +968,64 @@ def inp_map_stress(path_sim_file, model_name, mdb):
 
 
 
-# Create part instance in the root assembly. 
-def instance_part_into_assembly(instance_name, part, dependent, model_name, mdb):
-# type: (str, Any, bool, str, Any) -> Any 
+def instance_part_into_assembly(instance_name: str, part: Any, dependent: bool, 
+                                model_name: str, mdb: Any) -> Any:
+    """Instances a part into the root assembly of a model.
+
+       Args:
+           instance_name: The name of the new instance.
+           part:          Abaqus Part object. The part to be instanced.
+           dependent:     Specifies if the instance should be dependent or
+                              independent.
+           model_name:    The name of the model in which the root assembly will
+                              be used. Unclear if the part must also come from
+                              this same model.
+           mdb:           Abaqus MDB object.
+
+       Returns:
+           Abaqus PartInstance object.
+
+       Raises:
+           None.
+    """
     
     return mdb.models[model_name].rootAssembly.Instance(instance_name, part, dependent=dependent)
     
 
 
-# Cut instances to create a new part. 
-#
-# Notes:
-#    Creates a new Abaqus Part object. 
-#    Causes the instances to be suppressed.
-#
-# Arguments:
-#    name               - String.
-#                         The name of the resulting part.
-#    instance_to_be_cut - Abaqus PartInstance object.
-#    cutting_instances  - Tuple of Abaqus PArtInstance objects.
-#                         The instances that do the cutting.
-#    model_name         - String.
-#    mdb_metadata       - CommittedToolPassPlanMetadata object.
-#    mdb                - Abaqus MDB object.
-#
-# Returns:
-#    Abaqus Part object. 
-def cut_instances_in_assembly(name, instance_to_be_cut, cutting_instances, model_name, mdb_metadata, mdb):
-# type: (str, Any, tuple[Any], str, abq_md.AbaqusMdbMetadata, Any) -> Any
+def cut_instances_in_assembly(name: str, instance_to_be_cut: Any, cutting_instances: tuple[Any, ...], 
+                              model_name: str, mdb_metadata: abq_md.AbaqusMdbMetadata, 
+                              mdb: Any) -> Any:
+    """Cuts instances (via boolean removal) to create a new part.
+
+       Note that this function causes the instances used by it to be suppressed.
+
+       Also, this function does not create an instance. It creates a new part.
+
+       Args:
+           name:               The desired name of the resulting part.
+           instance_to_be_cut: Abaqus PartInstance object. The instance which 
+                                   will be cut (aka have material removed from 
+                                   it).
+           cutting_instances:  Tuple of Abaqus PartInstance objects. The instances 
+                                   which will do the cutting. These instances define 
+                                   where material should be removed from the 
+                                   instance_to_be_cut.
+           model_name:         The name of the model to which all the instances 
+                                   should belong.
+           mdb_metadata:       The metadata associated with this MDB.
+           mdb:                Abaqus MDB object.
+
+       Returns:
+           Abaqus Part object.
+
+       Raises:
+           This function re-raises exceptions of type AbaqusException which
+               may be raised when the cut operation occurs. The most common
+               reason for the cut operation to fail and an AbaqusException
+               to be raised is that the cutting instances do not overlap
+               with the instance to be cut in any way.
+    """
 
     try:
         # Beware, the argument list ordering in the documentation for PartFrom
@@ -2308,6 +2377,80 @@ def build_spec_right_rect_prism_part(part_name: str, spec_right_rect_prism: geom
     depth = spec_right_rect_prism.get_dims()[2] 
     part.SolidExtrude(sketch_plane, SIDE1, da1, sketch, depth=depth)
 
+
+
+def build_bounding_box_part(name: str, tool_pass: tp.ToolPass, model_name: str, 
+                            mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
+                           ) -> Any:
+
+    """DEPRECATED. Was used to build bounding boxes around parts to introduce
+           variable mesh density before variable mesh densities were realized
+           from the built-in mesh functionalities.
+
+       Builds a bounding box part around a tool pass. The tolerances around the
+           tool pass are chosen heuristically.
+
+       Args:
+           name:         The name of the new part.
+           tool_pass:    The tool pass around which the bounding box should be 
+                             built.
+           model_name:   The pre-existing model in which the bounding box part 
+                             should be built.
+           mdb_metadata: The metadata for this MDB.
+           mdb:          Abaqus MDB object.
+
+       Returns:
+           Abaqus Part object.
+
+       Raises:
+           None.
+    """
+
+    # Create the part in the model. 
+    part = mdb.models[model_name].Part(name=name, dimensionality=THREE_D, type=DEFORMABLE_BODY)
+
+    # Update metadata for bookkeeping. 
+    mdb_metadata.models_metadata[model_name].part_names.append(name)
+
+    build_tool_pass_bounding_box(name, 3, 3, 3, tool_pass, model_name, mdb)
+
+    return part
+
+
+
+def build_tool_pass_bounding_box(name: str, x_excess: float, y_excess: float, 
+                                 z_excess: float, tool_pass: tp.ToolPass, model_name: str, 
+                                 mdb: Any) -> None:
+    """DEPRECATED. Was used as a helper function for creating bounding boxes
+           around tool passes.
+       
+       Builds bounding box around a tool pass.
+
+       Args:
+           name:       The name of the new part.
+           x_excess:   Amount of excess in the x direction that the user wants 
+                           for the bounding boxes. Expressed in units of the 
+                           global coordinate system.
+           y_excess:   Amount of excess in the y direction that the user wants 
+                           for the bounding boxes. Expressed in units of the 
+                           global coordinate system.
+           z_excess:   Amount of excess in the z direction that the user wants 
+                           for the bounding boxes. Expressed in units of the 
+                           global coordinate system.
+           tool_pass:  The tool pass around which to create the bounding box.
+           model_name: The name of the model that the part should be created in.
+           mdb:        Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
+
+    bounding_box = tp.create_tool_pass_bounding_box(x_excess, y_excess, z_excess, tool_pass)
+
+    build_spec_right_rect_prism_part(name, bounding_box, model_name, mdb)    
 
 
 
