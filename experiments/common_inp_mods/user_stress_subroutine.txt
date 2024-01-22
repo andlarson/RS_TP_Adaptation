@@ -1,0 +1,13 @@
+
+
+** ----------------------------------------------------------------------------
+**
+** Indicate that a user stress subroutine will be passed with the job. 
+**
+** Note that this does not actually specify the user stress subroutine - it must
+**    be passed with the job!
+**
+**
+*Initial Conditions, Type=Stres, User
+** ----------------------------------------------------------------------------
+
