@@ -1,0 +1,72 @@
+
+
+*******************************************************************************
+                              Simulation Purpose 
+*******************************************************************************
+
+Studying what tractions develop on the surfaces when the stress is not constant.
+
+
+
+*******************************************************************************
+                              Simulation Setup
+*******************************************************************************
+
+A couple different stress profiles were used:
+    1) The sigma22 stress is set to x-value**2 * 10**8. All other entries in the 
+           tensor are set to 0. 
+    2) The sigma22 stress is set to 1/(x-value**2 + 10**(-6)) * 10**8. All other
+           entries in the stress tensor are set to 0.
+Note that x goes from -10 -> 10, y goes from -10 -> 10, z goes from 0 -> 20.
+
+The cube has dimensions 20 x 20 x 20.
+
+All nodes in the mesh can neither displace nor rotate.
+
+Young's Modulus = 10**9 and Poisson's Ratio = .3.
+
+Surface 1 is normal to the X-axis.
+Surface 2 is normal to the Z-axis.
+Surface 3 is normal to the Y-axis.
+
+
+
+*******************************************************************************
+                             Simulation Results 
+*******************************************************************************
+
+Case 1:
+The force vector on Surface 1 is [0, 0, 0].
+The force vector on Surface 2 is [0, 0, 0].
+The force vector on Surface 3 is [0, 1.33E12, 0].
+
+Case 2:
+The force vector on Surface 1 is [0, 0, 0].
+The force vector on Surface 2 is [0, 0, 0].
+The force vector on Surface 3 is [0, 39.1E9, 0].
+
+
+
+*******************************************************************************
+                                  Computations
+*******************************************************************************
+
+Case 1:
+In this case, the force vector can be found analytically by:
+    1) Integrating to find the average value of the stress in the cube. This
+           average value is easily found to be 1/3 * 10**10.
+    2) Doing F/A * A = 1/3 * 10**10 * 400 = 4/3 * 10**12. This matches the
+           force vector found in simulation.
+
+Case 2:
+In this case, I cannot figure out how to recover the force vectors via analytical
+    means.
+
+
+
+
+*******************************************************************************
+                                  Conclusion 
+*******************************************************************************
+
+

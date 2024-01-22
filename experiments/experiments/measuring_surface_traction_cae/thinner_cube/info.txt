@@ -1,0 +1,49 @@
+
+*******************************************************************************
+                              Simulation Purpose 
+*******************************************************************************
+
+Study effect thickness on resulting force vector for constant stress.
+
+
+
+*******************************************************************************
+                              Simulation Setup
+*******************************************************************************
+
+The sigma33 stress is set to 10**8 everywhere. All other entries in the tensor 
+    are set to 0.
+
+The thinner cube is 20 x 20 x 5.
+
+All nodes in the mesh can neither displace nor rotate.
+
+Young's Modulus = 10**9 and Poisson's Ratio = .3.
+
+The total force and total moment on three surfaces is requested on three planar
+    surfaces which are parallel each normal to one of the global coordinate
+    axes.
+Surface 1 is normal to the X-axis.
+Surface 2 is normal to the Z-axis.
+Surface 3 is normal to the Y-axis.
+
+
+
+*******************************************************************************
+                             Simulation Results 
+*******************************************************************************
+
+The total moment on all three surfaces is 0.
+
+The force vector on Surface 1 is [0, 0, 0].
+The force vector on Surface 2 is [0, 0, 40E9].
+The force vector on Surface 3 is [0, 0, 0].
+
+
+
+*******************************************************************************
+                                  Computations 
+*******************************************************************************
+
+Easy: 10**8 N/m^2 * (20 * 20) m^2 = 40E9
+
