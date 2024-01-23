@@ -1020,11 +1020,13 @@ def cut_instances_in_assembly(name: str, instance_to_be_cut: Any, cutting_instan
            Abaqus Part object.
 
        Raises:
-           This function re-raises exceptions of type AbaqusException which
-               may be raised when the cut operation occurs. The most common
-               reason for the cut operation to fail and an AbaqusException
-               to be raised is that the cutting instances do not overlap
-               with the instance to be cut in any way.
+           AbaqusException: This function re-raises exceptions of type 
+                                AbaqusException which may be raised when the 
+                                cut operation occurs. The most common
+                                reason for the cut operation to fail and an 
+                                AbaqusException to be raised is that the cutting 
+                                instances do not overlap with the instance to be 
+                                cut in any way.
     """
 
     try:
@@ -1043,50 +1045,35 @@ def cut_instances_in_assembly(name: str, instance_to_be_cut: Any, cutting_instan
 
 
 
-# Merge instances to create a new part.
-#
-# Notes:
-#    Creates a new Abaqus Part object. 
-#    Natively, this operation does not cause the instances to be merged. To
-#       standardize the behavior, this function explicitly suppresses the instances.
-#
-# Arguments:
-#    name               - String.
-#                         The name of the resulting part.
-#    instance_to_merge  - Tuple of Abaqus PartInstance objects.
-#                         The instances to be merged.
-#    keep_intersections - Boolean.
-#                         Should the intersecting boundaries be kept after the merge?
-#    model_name         - String.
-#    mdb_metadata       - CommittedToolPassPlanMetadata object.
-#    mdb                - Abaqus MDB object.
-#
-# Returns:
-#    Abaqus Part object. 
-def merge_instances_in_assembly(name, instances_to_merge, keep_intersections, model_name, mdb_metadata, mdb):
+def mesh(part_instance: Any, size: int, model_name: str, mdb: Any) -> None:
+    """Meshes an indepedent part instance in the context of the root Assembly.
 
-    try:
-        part = mdb.models[model_name].rootAssembly.PartFromBooleanMerge(name, instances_to_merge, keepIntersections=keep_intersections)
-        mdb_metadata.models_metadata[model_name].part_names.append(name)
+       Uses a simple algorithm to do meshing: Starts by trying to mesh with
+           the passed seed size. If that fails, the seed size is decreased
+           and meshing is given another go. The seed size is continually shrunk
+           until meshing succeeds or it becomes smaller than some heuristically
+           chosen quantity - at which point an exception is raised.
 
-        # Suppress the features used in the merge. 
-        for instance in instances_to_merge:
-            name = (instance.name, )
-            mdb.models[model_name].rootAssembly.suppressFeatures(name)
+       Right now, tetrehedrons and the free meshing algorithm are being used.
+           This combination yields the best chance at success for an arbitrary
+           geometry.
 
-    except AbaqusException as e:
-        dp("")
-        dp("Failed to do merge operation.")
-        dp("The exception message is " + str(e.args))
-        dp("")
-        raise
+       Args:
+           part_instance: Abaqus PartInstance object. The instance to be meshed. 
+                              Must be an independent instance.
+           size:          The desired starting seed size. Approximately the target element 
+                              size.
+           model_name:    The model in which the part instance lives.
+           mdb:           Abaqus MDB object.
 
-    return part
+       Returns:
+           None.
 
-
-
-def mesh(part_instance, size, model_name, mdb):
-# type: (Any, float, str, Any) -> None
+       Raises:
+           RuntimeError: If meshing continuously fails until the size becomes
+                             smaller then .1, an exception is issued to prevent
+                             exceeedingly dense meshes from being used.
+    """
 
     mdb.models[model_name].rootAssembly.setMeshControls(part_instance.cells, elemShape=TET, technique=FREE)
 
@@ -1094,17 +1081,14 @@ def mesh(part_instance, size, model_name, mdb):
     mdb.models[model_name].rootAssembly.seedPartInstance(seq, size, deviationFactor=.03, minSizeFactor=.0001, constraint=FREE)
     mdb.models[model_name].rootAssembly.generateMesh(regions=seq)
 
-    while mdb.models[model_name].rootAssembly.getUnmeshedRegions() != None:
+    while mdb.models[model_name].rootAssembly.getUnmeshedRegions() is not None:
         if size > 1:
             size = size - 1
         else:
             size = float(size) / 2
             
-            # DEBUG
-            mdb.saveAs("/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/test_initial_geometry_cae/small_mesh_necessary.cae")
-
         if size <= .1:
-            raise AssertionError("Even with a miniscule global element size of " + str(size) + ", the mesh still failed to be generated!")
+            raise RuntimeError("Even with a miniscule global element size of " + str(size) + ", the mesh still failed to be generated!")
 
         dp("An attempt at meshing failed. Decreasing global element size to " + str(size) + " and giving it another go.") 
         mdb.models[model_name].rootAssembly.deleteSeeds(seq)
@@ -1116,9 +1100,23 @@ def mesh(part_instance, size, model_name, mdb):
 
 
 
-# Add a material to a model.
-def create_material(material, model_name, mdb):
-# type: (mp.Material, str, Any) -> None
+def create_material(material: mp.Material, model_name: str, mdb: Any):
+    """Adds a material to a model.
+
+       Right now, only some material types are acceptable. 
+
+       Args:
+           material:   The material to be added.
+           model_name: The model to which the material should be added.
+           mdb:        Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           RuntimeError: Does not support the particular variety of material
+                             passed.
+    """
 
     if isinstance(material, mp.ElasticMaterial):
         poissons_ratio = material.poissons_ratio
@@ -1126,24 +1124,57 @@ def create_material(material, model_name, mdb):
         material = mdb.models[model_name].Material(STANDARD_MATERIAL_NAME)
         material.Elastic(((youngs_modulus, poissons_ratio), ), type=ISOTROPIC)
     else:
-        raise AssertionError("No support for this type of material.")
+        raise RuntimeError("No support for this type of material.")
 
 
 
-# Create section based on default material name.
-def create_section(model_name, mdb):
-# type: (str, Any) -> None
+def create_section(model_name: str, mdb: Any) -> None:
+    """Creates section of material.
+
+       Uses the default material name to pick out the material.
+
+       Args:
+           model_name: Name of the model in which to create the section.
+           mdb:        Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           RuntimeError: Some sections already exist or there is not exactly
+                             one material that already exists.
+    """
 
     section_repo = mdb.models[model_name].sections
-    assert(len(section_repo) == 0)
+    if len(section_repo) != 0:
+        raise RuntimeError("Nonzero number of sections already exist!")
+
+    material_repo = mdb.models[model_name].materials
+    if len(material_repo) != 1:
+        raise RuntimeError("A single material should already exist!")
 
     mdb.models[model_name].HomogeneousSolidSection(STANDARD_SECTION_NAME, STANDARD_MATERIAL_NAME)
 
 
 
-# Create an equilibrium step after another specified step.
-def create_equilibrium_step(name, name_step_to_follow, model_name, mdb_metadata, mdb):
-# type: (str, str, str, abq_md.AbaqusMdbMetadata, Any) -> None
+def create_equilibrium_step(name: str, name_step_to_follow: str, model_name: str, 
+                            mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
+                           ) -> None:
+    """Creates an equilibirium step after some other step.
+
+       Args:
+           name:                Name of the new step.
+           name_step_to_follow: Name of the step to follow.
+           model_name:          Model in which to create the step.
+           mdb_metadata:        Metadata for this MDB.
+           mdb:                 Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
 
     step = mdb.models[model_name].StaticStep(name, name_step_to_follow)
     
@@ -1153,10 +1184,27 @@ def create_equilibrium_step(name, name_step_to_follow, model_name, mdb_metadata,
 
 
 
-# Note that the name of the job matches the name of the various files produced
-#    by the job when it is run (the .odb, .dat, etc. files).
-def create_job(model_name, mdb_metadata, mdb):
-# type: (str, abq_md.AbaqusMdbMetadata, Any) -> None 
+def create_job(model_name: str, mdb_metadata: abq_md.AbaqusMdbMetadata, 
+               mdb: Any) -> Any:
+    """Creates a job via a standard naming scheme.
+
+       Note that the name of a job dictates the names of the various files
+           (.odb, .dat, etc.) produced by the job when it runs.
+    
+       Configures the job to emit a .sim file, in addition to the standard
+           .odb file, when it runs.
+
+       Args:
+           model_name:   Name of the model in which to create the job.
+           mdb_metadata: Metadata for this MDB.
+           mdb:          Abaqus MDB object.
+
+       Returns:
+           Abaqus ModelJob object.
+
+       Raises:
+           None.
+    """
 
     job_name = STANDARD_JOB_PREFIX + str(get_model_cnt(mdb))
 
@@ -1171,71 +1219,102 @@ def create_job(model_name, mdb_metadata, mdb):
 
 
 
-def add_user_subroutine(job, path_to_subroutine):
-# type: (Any, str) -> None
+def add_user_subroutine(job: Any, path_to_subroutine: str) -> None:
+    """Associates a user subroutine with a job.
 
-    assert(job.userSubroutine == "")
+       Running a user subroutine requires that a user subroutine is associated
+           with a job and that the user subroutine is invoked via a command 
+           in the .inp file.
+
+       Args:
+           job:                Abaqus ModelJob object. The job to associate 
+                                   the user subroutine.
+           path_to_subroutine: An absolute path to the object (.o) file which
+                                   contains the compiled user subroutine code.
+
+       Returns:
+           None.
+
+       Raises:
+           RuntimeError: Overwriting a user subroutine file which was previously
+                             specified. There should only ever be a single user
+                             subroutine file for a particular job!
+    """
+
+    if job.userSubroutine != "":
+        raise RuntimeError("Overwriting a previous user subroutine file...")
+
     job.setValues(userSubroutine=path_to_subroutine)
 
 
 
-def run_job(job):
-# type: (Any) -> None
+def run_job(job: Any) -> None:
+    """Runs a job and waits for it to complete.
+
+       By default, prints messages received about the job. Note that when a
+           script is run without the GUI, no job messages are ever returned.
+           But Abaqus' technique for waiting for job completion relies on
+           a completion message being returned by the job. What this means is
+           that, when a script is run without the GUI, it is not possible
+           to wait for the completion of a job submission. This is dangerous
+           because, if a job is not completed and some output from the job
+           is accessed, the behavior is undefined.
+
+       Args:
+           job: Abaqus ModelJob object. The job to run.
+
+       Returns:
+           None.
+
+       Raises:
+           RuntimeError: Job was aborted.        
+    """
 
     job.submit()
     job.waitForCompletion()
 
+    print_job_messages(job)
+
     if job.status == ABORTED:
         raise RuntimeError("The job with name " + job.name + " was aborted!")
 
-    # print_job_messages(job)
 
 
-
-# Check the messages produced by an analysis job.
-def print_job_messages(job):
-# type: (Any) -> None
+def print_job_messages(job: Any) -> None:
+    """Prints all the messages received during the analysis of a job."""
 
     if len(job.messages) != 0:
         dp("The job with name " + job.name + " ran and some messages were received!")
 
     for message in job.messages:
-        print_message_info(message)
+        dp("A message of type " + str(message.type) + " was received when the job ran!")
+        for key in message.data:
+            dp("For the key " + str(key) + " the associated value is " + str(message.data[key]))
     
 
 
-# Dump the message information.
-# Assumes an Abaqus Message object is passed to it.
-def print_message_info(message):
-# type: (Any) -> None
+def create_model_and_part_from_odb(part_name: str, model_name: str, path_to_odb: str,  
+                                   mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
+                                  ) -> None:
+    """Creates a new model with a single deformed part represented by an orphan mesh. 
+           The orphan mesh comes from an ODB.
 
-    dp("A message of type " + str(message.type) + " was received when the job ran!")
-    for key in message.data:
-        dp("For the key " + str(key) + " the associated value is " + str(message.data[key]))
+       Assumes that the deformed part resulted from the last frame of the last
+           step of the simulation which generated the ODB.
 
+       Args:
+           part_name:    Desired new part name.
+           model_name:   Desired new model name.
+           path_to_odb:  Absolute path to ODB to use.
+           mdb_metadata: Metadata for the MDB.
+           mdb:          Abaqus MDB object.
 
+       Returns:
+           None.
 
-# Create a new model with a single deformed part represented by an orphan mesh.  
-#    The orphan mesh comes from an ODB.
-#
-# Notes:
-#    Assumes that the deformed part resulted from the last frame of the last
-#       step of the simulation which generated the ODB.
-#
-# Arguments:
-#    part_name    - String.
-#                   Desired new part name.
-#    model_name   - String.
-#                   Desired new model name.
-#    path_to_odb  - String.
-#                   Path to the ODB to use.
-#    mdb_metadata - AbaqusMdbMetadata object.
-#    mdb          - Abaqus MDB object.
-#
-# Returns:
-#    None. 
-def create_model_and_part_from_odb(part_name, model_name, path_to_odb, mdb_metadata, mdb):
-# type: (str, str, str, abq_md.AbaqusMdbMetadata, Any) -> None
+       Raises:
+           None.
+    """
 
     model = mdb.Model(model_name)
     odb = odbAccess.openOdb(path=path_to_odb)
@@ -2454,3 +2533,47 @@ def build_tool_pass_bounding_box(name: str, x_excess: float, y_excess: float,
 
 
 
+def merge_instances_in_assembly(name: str, instances_to_merge: tuple[Any, ...], 
+                                keep_intersections: bool, model_name: str, 
+                                mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
+                               ) -> Any:
+    """DEPRECATED. Was a helper for the bounding box mesh refinement technique.
+
+       Merges instances to create a new part.
+
+       Explicitly suppresses the instances used to do the merge.
+       
+       Args:
+           name:               The name of the resulting part.
+           instance_to_merge:  Tuple of Abaqus PartInstance objects. The instances 
+                                   to be merged.
+           keep_intersections: Should the intersecting boundaries be kept after 
+                                   the merge?
+           model_name:         Model in which the instances to be merged exist. 
+           mdb_metadata:       Metadata for this MDB.
+           mdb:                Abaqus MDB object.
+
+       Returns:
+           Abaqus Part object.
+
+       Raises:
+           None.
+    """
+
+    try:
+        part = mdb.models[model_name].rootAssembly.PartFromBooleanMerge(name, instances_to_merge, keepIntersections=keep_intersections)
+        mdb_metadata.models_metadata[model_name].part_names.append(name)
+
+        # Suppress the features used in the merge. 
+        for instance in instances_to_merge:
+            name = (instance.name, )
+            mdb.models[model_name].rootAssembly.suppressFeatures(name)
+
+    except AbaqusException as e:
+        dp("")
+        dp("Failed to do merge operation.")
+        dp("The exception message is " + str(e.args))
+        dp("")
+        raise
+
+    return part
