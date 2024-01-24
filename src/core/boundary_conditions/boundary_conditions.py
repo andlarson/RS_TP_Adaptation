@@ -111,7 +111,7 @@ def apply_BCs(BCs, step_name, part_instance, model_name, mdb):
             raise RuntimeError("Not yet supported.")
 
         if isinstance(BC.bc_settings, DisplacementBCSettings):
-            shim.create_displacement_bc(BC_name, step_name, region, BC.bc_settings, model_name, mdb)
+            shim.create_disp_rot_bc(BC_name, step_name, region, BC.bc_settings, model_name, mdb)
 
         else:
             raise RuntimeError("Not yet supported.")
