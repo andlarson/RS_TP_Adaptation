@@ -38,11 +38,15 @@ extern "C" void FOR_NAME(sigini, SIGINI) (double *sigma, double *coords, int *nt
                                           int *layer, int *kspt, int *lrebar,
                                           char **names)
 {
-    // sigma[0] = coords[0] * coords[0];
-    // sigma[1] = pow(10, 8);
-    sigma[0] = pow(10, 9);
-    sigma[1] = pow(10, 8);
-    sigma[3] = 5 * pow(10, 9);
+
+    if ((0 <= coords[2]) && (coords[2] <= 10))
+    {
+        sigma[0] = 500 * pow(10, 9);
+    }
+    else
+    {
+        sigma[0] = pow(10, 9);
+    }
 
     // Calling a Fortran subroutine.
     // Doing things this way doesn't quite work. It appears as though the lop

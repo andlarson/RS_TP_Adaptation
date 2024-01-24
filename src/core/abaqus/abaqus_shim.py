@@ -1327,26 +1327,27 @@ def create_model_and_part_from_odb(part_name: str, model_name: str, path_to_odb:
 
 
 
-# Create a part as an orphan mesh via an ODB in a pre-existing model.
-#
-# Notes:
-#    Assumes that the deformed part resulted from the last frame of the last
-#       step of the simulation which generated the ODB.
-#
-# Arguments:
-#    part_name    - String.
-#                   Desired new part name.
-#    model_name   - String.
-#                   Existing new model name.
-#    path_to_odb  - String.
-#                   Path to the ODB to use.
-#    mdb_metadata - AbaqusMdbMetadata object.
-#    mdb          - Abaqus MDB object.
-#
-# Returns:
-#    None. 
-def create_part_from_odb(part_name, model_name, path_to_odb, mdb_metadata, mdb):
-# type: (str, str, str, abq_md.AbaqusMdbMetadata, Any) -> None
+def create_part_from_odb(part_name: str, model_name: str, path_to_odb: str, 
+                         mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
+                        ) -> None:
+    """Creates a part as an orphan mesh via an ODB.
+
+       Assumes that the deformed part resulted from the last frame of the last
+           step of the simulation which generated the ODB.
+
+       Args:
+           part_name:    Desired new part name.
+           model_name:   Existing model name. 
+           path_to_odb:  Absolute path to the ODB to use.
+           mdb_metadata: Metadata from the MDB. 
+           mdb:          Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
 
     odb = odbAccess.openOdb(path=path_to_odb)
     mdb.models[model_name].PartFromOdb(part_name, odb, shape=DEFORMED)
@@ -1357,187 +1358,29 @@ def create_part_from_odb(part_name, model_name, path_to_odb, mdb_metadata, mdb):
 
 
 
-"""
-# ***** DEPRECATED DUE TO ODB ISSUES *****
+def assign_section_to_whole_part(part_name: str, model_name: str, mdb: Any):
+    """Assigns a single section to an entire part. 
 
-# Update all ODBs open in the current session. 
-#
-# Notes:
-#    This function is necessary due to, what I think is, a bug in the Abaqus
-#       codebase. The bug signature is a message like "ODB is out-of-date. Please
-#       close and reopen all ODBs". This bug might happen even when a path to
-#       the ODB is passed to a function like materialsFromOdb(). This makes
-#       me think that Abaqus has cached a version of the ODB at the specified
-#       path, and realizes that the ODB needs to be updated.
-#
-# Arguments:
-#    None.
-# 
-# Returns:
-#    None.
-def update_session_odbs():
-# type: () -> None
+       Assumes that the section has standard name, the part has no section 
+           assignments, and there is exactly one section in the model.
 
-    for i in range(len(session.odbs.keys())):
-        name = session.odbs.keys()[i]
-        session.odbs[name].close()
-        odbAccess.openOdb(name)
-"""
+       Args:
+           part_name:  The name of the part to which to assign the section.
+           model_name: Name of the model the part and section live in.
+           mdb:        Abaqus MDB object.
 
+       Returns:
+           None.
 
+       Raises:
+           None.
+    """
 
-"""
-# ***** DEPRECATED DUE TO ODB ISSUES *****
+    if len(mdb.models[model_name].parts[part_name].sectionAssignments) != 0:
+        raise RuntimeError("The part already has a section assignment!")
 
-# Propagate the material definition from an ODB into a model.
-#
-# Notes:
-#    None.
-#
-# Arguments:
-#    path_to_odb    - String.
-#    odb_model_name - String. 
-#                     The name of the model in the ODB which contains the material.
-#    new_model_name - String.
-#                     The name of the model that the material will be imported
-#                        into.
-#    mdb            - Abaqus MDB object.
-#
-# Returns:
-#    None. 
-def create_material_from_odb(path_to_odb, odb_model_name, new_model_name, mdb):
-# type: (str, str, str, Any) -> None 
-
-    assert(len(mdb.models[new_model_name].materials) == 0)
-
-    # Note: Don't do the following!!
-    # This often causes a segmentation fault because, I believe, it uses a
-    #    cached ODB that is out of date and out of our control. Explicitly 
-    #    opening and accessing the ODB is preferable.
-    # materials = mdb.models[model_name].materialsFromOdb(path_to_odb)
-
-    odb = odbAccess.openOdb(path_to_odb)
-
-    materials = odb.models[odb_model_name].materials
-    assert(len(materials) == 1)
-
-    material = materials[materials.keys()[0]]
-    youngs_modulus, poissons_ratio = check_material_properties(material)
-    
-    new_material = mdb.models[new_model_name].Material(STANDARD_MATERIAL_NAME)
-    new_material.Elastic(((youngs_modulus), (poissons_ratio)))
-
-    odb.close()
-"""
-
-
-
-# Ensure that the material has the expected properties.
-#
-# Notes:
-#   An elastic, isotropic material with a Young's modulus and a Poisson's ratio
-#      is expected. 
-#
-# Arguments:
-#    material - Abaqus Material object.
-#
-# Returns:
-#    Tuple of two floats.
-def check_material_properties(material):
-# type: (Any) -> None 
-
-    assert(material.elastic.type == ISOTROPIC)
-    assert(len(material.elastic.table) == 2)
-    assert(len(material.elastic.table[0]) == 1)
-    assert(len(material.elastic.table[1]) == 1)
-
-    return (material.elastic.table[0], material)
-
-
-
-"""
-# ***** DEPRECATED DUE TO ODB ISSUES *****
-
-# Propagate the section from an ODB into a model. 
-#
-# Notes:
-#    This does not propagate section assignments.
-#    Assumes that the material underlying the section already exists in the
-#       new model.
-#
-# Arguments:
-#    path_to_odb     - String.
-#    odb_model_name  - String. 
-#                      The name of the model in the ODB that the section comes
-#                         from.
-#    new_model_name  - String.
-#                      The name of the model that the section will be imported
-#                         into.
-#    mdb             - Abaqus MDB object.
-#
-# Returns:
-#    None. 
-def create_section_from_odb(path_to_odb, odb_model_name, new_model_name, mdb):
-# type: (str, str, str, Any) -> None 
-
-    section_repo = mdb.models[new_model_name].sections
-    assert(len(section_repo) == 0)
-
-    # Note: Don't do the following!!
-    # This often causes a segmentation fault because, I believe, it uses a
-    #    cached ODB that is out of date and out of our control. Explicitly 
-    #    opening and accessing the ODB is preferable.
-    # new_sections = mdb.models[model_name].sectionsFromOdb(path_to_odb)
-
-    odb = odbAccess.openOdb(path_to_odb)
-    sections = odb.models[odb_model_name].sections
-    assert(len(sections) == 1)
-
-    section = sections[sections.keys()[0]]
-    check_section_properties(section)
-
-    mdb.models[new_model_name].HomogeneousSolidSection(STANDARD_SECTION_NAME, STANDARD_MATERIAL_NAME)
-
-    odb.close()
-"""
-
-
-
-# Check that the section has the expected properties.
-#
-# Notes:
-#    A homogeneous solid section corresponding is expected.
-# 
-# Arguments:
-#    section - Abaqus section object.
-# 
-# Returns:
-#    None.
-def check_section_properties(section):
-# type: (Any) -> None
-
-    assert(section.name == STANDARD_SECTION_NAME)
-    assert(section.material == STANDARD_MATERIAL_NAME)
-
-
-
-# Assign a single section to an entire part. 
-#
-# Notes:
-#    Assumes that the section has standard name.
-#
-# Arguments:
-#    part_name    - String.
-#    model_name   - String. 
-#    mdb          - Abaqus MDB object.
-#
-# Returns:
-#    None. 
-def assign_section_to_whole_part(part_name, model_name, mdb):
-# type: (str, str, Any) -> None
-
-    assert(len(mdb.models[model_name].parts[part_name].sectionAssignments) == 0)
-    assert(len(mdb.models[model_name].sections) == 1)
+    if len(mdb.models[model_name].sections) != 1:
+        raise RuntimeError("There is not exactly one section in the model!")
     
     # Create a set which encompasses all the cells in the part.
     all_cells = mdb.models[model_name].parts[part_name].cells
@@ -1548,40 +1391,20 @@ def assign_section_to_whole_part(part_name, model_name, mdb):
 
 
 
-# Build a region on a root assembly using the reference points which already
-#    exist on the root assembly.
-# Note that this function expects a list of reference point features, which it
-#    translates to reference point objects.
-def build_region_with_ref_points(ref_point_features, model_name, mdb):
-# type: (List[Any], str, Any) -> Any
+def build_region_with_face(face: Any, obj: Any) -> Any:
+    """Builds a region which matches a face.
 
-    root_assembly = mdb.models[model_name].rootAssembly
+       Args:
+           face: Abaqus Face object. The face with which to build the region.
+           obj:  Abaqus Part object or Abaqus PartInstance object. The face must
+                     be on this object. 
 
-    # Construct a sequence of ReferencePoint objects.
-    ref_point_objects = []
-    for ref_point_feature in ref_point_features:
-        key = ref_point_feature.id
-        ref_point_objects.append(root_assembly.referencePoints[key]) 
+       Returns:
+           Abaqus Region object.
 
-    return regionToolset.Region(referencePoints=ref_point_objects)
-
-
-
-# Build a region out of a face.
-#
-# Notes:
-#    None.
-#
-# Arguments:
-#    face_feature - Abaqus Face object 
-#    obj          - Abaqus Part object or Abaqus PartInstance object.
-#                   The face which underlies the feature must be a face on this
-#                      object.
-#
-# Returns:
-#    Abaqus Region object.
-def build_region_with_face(face, obj):
-# type: (Any, Any) -> Any
+       Raises:
+           None.
+    """
 
     # Even though the Abaqus Region() constructor says that it takes "A sequence 
     #    of Face objects", it really takes an Abaqus FaceArray object.
@@ -1604,8 +1427,20 @@ def build_region_with_face(face, obj):
     
 
 
-def build_region_with_elem_face(face, part):
-# type: (Any, Any) -> Any
+def build_region_with_elem_face(face: Any, part: Any) -> Any:
+    """Builds a region from the face of an element in a mesh.
+
+       Args:
+           face: Abaqus MeshFace object. The face to build the region from.
+           part: Abaqus Part object or Abaqus PartInstance object. The part that 
+                     the face/mesh belongs to.
+
+       Returns:
+           Abaqus Region object.
+
+       Raises:
+           None.
+    """
 
     # Find the face number that the face belongs to on the element.
     face_num = face.face
@@ -1654,15 +1489,26 @@ def build_region_with_elem_face(face, part):
     elif face_num == FACE6:
         region = regionToolset.Region(face6Elements=seq)
     else:
-        raise RuntimeError("Failed to build region from face!")
+        assert(False)
 
     return region 
 
 
 
-# Add a face feature to a part based on a region. 
-def add_face_from_region(region, part):
-# type: (Any, Any) -> Any
+def add_face_from_region(region: Any, part: Any) -> Any:
+    """Adds a face feature to a part based on a region.
+
+       Args:
+           region: Abaqus Region object. The region defining the new face.
+           part:   Abaqus Part object or Abaqus PartInstance object. The part to
+                       which the region belongs.
+
+       Returns:
+           Abaqus Feature object. The feature is associated with the new face.
+
+       Raises:
+           None.
+    """
    
     # According to Scripting Reference > Python Commands > Region Commands >
     #    Region Object, whenever a command accepts a named set or surface, it
@@ -1673,12 +1519,25 @@ def add_face_from_region(region, part):
 
 
 
-# Use a sequence of face features to add a solid feature to the part.
-# Note that this may fail, and the Abaqus documentation doesn't give any hint
-#    to the circumstances under which it may fail. Presumably it will fail if
-#    if the face features don't obviously outline a solid.
-def add_solid_from_faces(part):
-# type: (Any) -> Any 
+def add_solid_from_faces(part: Any) -> Any:
+    """Adds a solid feature to a part based on the faces associated with the  
+           part.
+
+       Assumes that the part already has faces which define a solid region.
+
+       Note that this may fail, and the Abaqus documentation doesn't give any 
+           hint to the circumstances under which it may fail. Presumably it 
+           will fail if the face features don't obviously outline a solid.
+
+       Args:
+           part: Abaqus Part object.
+
+       Returns:
+           Abaqus Feature object. The feature associated with the solid.
+
+       Raises:
+           None.
+    """
 
     feature = part.AddCells(part.faces)
     assert(feature != None)
@@ -2577,3 +2436,196 @@ def merge_instances_in_assembly(name: str, instances_to_merge: tuple[Any, ...],
         raise
 
     return part
+
+
+
+def update_session_odbs() -> None:
+    """DEPRECATED. Was used in an attempt to mitigate buggy accesses to out-of-
+           date ODBs. In particular, was used in an attempt to propagate
+           material definitions across simulations.
+
+       Updates all ODBs open in the current session. 
+
+       This function is necessary due to, what I think is, a bug in the Abaqus
+           codebase. The bug signature is a message like "ODB is out-of-date. Please
+           close and reopen all ODBs". This bug might happen even when a path to
+           the ODB is passed to a function like materialsFromOdb(). This makes
+           me think that Abaqus has cached a version of the ODB at the specified
+           path, and realizes that the ODB needs to be updated.
+
+       Args:
+           None.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
+
+    for i in range(len(session.odbs.keys())):
+        name = session.odbs.keys()[i]
+        session.odbs[name].close()
+        odbAccess.openOdb(name)
+
+
+
+def create_material_from_odb(path_to_odb: str, odb_model_name: str, 
+                             new_model_name: str, mdb: Any) -> None:
+    """DEPRECATED due to bug. Often when this function was called immediately 
+           after a job finished, a "ODB is out-of-date. Please
+           close and reopen all ODBs" bug message was emitted. Unclear why this
+           happened because all jobs were allowed to completely finish before
+           accessing the ODB. It may have been the case that I was running scripts
+           without the interactive flag, in which case the job may not have
+           finished before an attempt to access the ODB was made.
+
+       Propagates a material definition from an ODB into a model.
+
+       Assumes that there are no materials in the new model.
+
+       Args:
+           path_to_odb:    Absolute path to the ODB. 
+           odb_model_name: The name of the model in the ODB which contains the 
+                               material.
+           new_model_name: The name of the model that the material will be imported
+                               into.
+           mdb:            Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           RuntimeError: Material failed to be created by this function.
+    """
+
+    # Note: Don't do the following!!
+    # This often causes a segmentation fault because, I believe, it uses a
+    #    cached ODB that is out of date and out of our control. Explicitly 
+    #    opening and accessing the ODB is preferable.
+    # materials = mdb.models[model_name].materialsFromOdb(path_to_odb)
+
+    odb = odbAccess.openOdb(path_to_odb)
+    materials = odb.models[odb_model_name].materials
+
+    if len(materials) != 0:
+        raise RuntimeError("There probably shouldn't be any materials!")
+
+    material = materials[materials.keys()[0]]
+    youngs_modulus, poissons_ratio = check_material_properties(material)
+    
+    new_material = mdb.models[new_model_name].Material(STANDARD_MATERIAL_NAME)
+    new_material.Elastic(((youngs_modulus), (poissons_ratio)))
+
+    assert(len(materials) == 1)
+
+    odb.close()
+
+
+
+def check_material_properties(material: Any) -> tuple[float, float]:
+    """DEPRECATED. Was a helper function for exproting a material definition
+           from an ODB to a new model. When I moved this function to deprecated
+           status, I found a bug in it which may have been the reason why
+           exporting the material from an ODB was failing.
+    
+       Checks that a material has some expected properties.
+
+       Args:
+           material: Abaqus Material object.
+
+       Returns:
+           Tuple containing Young's Modulus and Poisson's Ratio.
+
+       Raises:
+           RuntimeError: The material is missing some properties. 
+    """
+
+    if material.elastic.type != ISOTROPIC:
+        raise RuntimeError("Not isotropic!")
+
+    if len(material.elastic.table) != 2:
+        raise RuntimeError("Missing material constants!")
+
+    if len(material.elastic.table[0]) != 1 or len(material.elastic.table[1]) != 1:
+        raise RuntimeError("Missing material constants!")
+
+    return (material.elastic.table[0][0], material.elastic.table[1][0])
+
+
+
+def create_section_from_odb(path_to_odb: str, odb_model_name: str, 
+                            new_model_name: str, mdb: Any) -> None:
+    """DEPRECATED due to the same bug as create_material_from_odb.
+       
+       Propagates a single section from an ODB into a model. 
+    
+       Does not propagate section assignments.
+       Assumes that the material underlying the section already exists in the
+           new model.
+
+       Args:
+           path_to_odb:    Absolute path to an ODB. 
+           odb_model_name: The name of the model in the ODB that the section comes
+                               from.
+           new_model_name: The name of the model that the section will be imported
+                               into.
+           mdb:            Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
+
+    sections = mdb.models[new_model_name].sections
+
+    if len(sections) != 0:
+        raise RuntimeError("There probably shouldn't be any sections!")
+
+    # Note: Don't do the following!!
+    # This often causes a segmentation fault because, I believe, it uses a
+    #    cached ODB that is out of date and out of our control. Explicitly 
+    #    opening and accessing the ODB is preferable.
+    # new_sections = mdb.models[model_name].sectionsFromOdb(path_to_odb)
+
+    odb = odbAccess.openOdb(path_to_odb)
+    sections = odb.models[odb_model_name].sections
+
+    assert(len(sections) == 1)
+
+    section = sections[sections.keys()[0]]
+    check_section_properties(section)
+
+    mdb.models[new_model_name].HomogeneousSolidSection(STANDARD_SECTION_NAME, STANDARD_MATERIAL_NAME)
+
+    odb.close()
+
+
+
+def check_section_properties(section: Any) -> None:
+    """DEPRECATED. Was a helper for the create_section_from_odb() function.
+    
+       Checks the properties of a section. 
+
+       Args:
+
+       Returns:
+           None.
+
+       Raises:
+           RuntimeError: Section doesn't have the expected properties.
+    """
+
+    if section.name != STANDARD_SECTION_NAME:
+        raise RuntimeError("The section doesn't have the normal name!")
+
+    if section.material != STANDARD_MATERIAL_NAME:
+        raise RuntimeError("The material of the section doesn't have the normal name!")
+
+
+
+
+
+

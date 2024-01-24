@@ -20,6 +20,10 @@ The sigma22 stress is set to 10**8 everywhere. All other entries in the tensor
 Case 2:
 Same stress profile as Case 1, greater mesh density.
 
+Case 3:
+The sigma11 stress is set to 10**9 everywhere, the sigma22 stress is 10**8 everywhere,
+    the sigma12 stress is 5*10**9 everywhere.
+
 The shape is quite abnormal.
 
 All nodes in the mesh can neither displace nor rotate.
@@ -43,6 +47,11 @@ The force vector on Surface 3 is [0, 0, 0].
 Case 2:
 Almost exactly the same force vectors recovered.
 
+Case 3:
+The force vector on Surface 1 is [487E9, 415E9, 0].
+The force vector on Surface 2 is [290E9, -41E9, 0].
+The force vector on Surface 3 is [0, 0, 0].
+
 
 
 *******************************************************************************
@@ -51,10 +60,31 @@ Almost exactly the same force vectors recovered.
 
 Case 1:
 Consider Surface 1. The surface is not exactly normal to the y axis. For simplicity,
-    let's assume that, on average, it's normal is at a 45 degree angle with respect
+    let's assume that, on average, its normal is at a 45 degree angle with respect
     to the positive y axis. This yields: 10**8 * 127.63 * cos(45) ~ 9E9.
 
 Consider Surface 2. The surface is nearly normal to the y axis. Thus, the calculation
     10**8 * 60.78 ~ 6E9!
 
+Case 3:
+Consider Surface 1. The surface is neither normal to the x axis nor the y axis.
+    All three stress components are active on this surface and contribute to the
+    traction developed on it. The geometry of the surface makes it difficult to
+    write down the equations which give the traction developed on it due to the
+    stress field in the part. The idea is that there is some component of the 
+    surface which is normal to the x axis and some component of the surface which
+    is normal to the y axis. The various components of the tensor act on these
+    surfaces.
 
+
+
+*******************************************************************************
+                                Conclusion 
+*******************************************************************************
+
+When curved geoemtries are present, the calculations which go from traction
+    vectors on surface -> stress state of part are complex and depend on
+    knowing the equations which describe the curved geometry. These involve
+    some nasty integrals.
+
+However, when the surfaces are planar, the same calculations are easier.
