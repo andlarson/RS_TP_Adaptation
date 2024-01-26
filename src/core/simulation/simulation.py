@@ -1,3 +1,7 @@
+"""
+Provides top-level functionality to do simulations in Abaqus.
+"""
+
 import os
 import time
 

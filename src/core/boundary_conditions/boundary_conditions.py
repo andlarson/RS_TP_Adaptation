@@ -1,3 +1,7 @@
+"""
+This module offers classes and functions related to boundary conditions.
+"""
+
 import numpy as np
 
 import src.util.geom as geom
@@ -14,15 +18,36 @@ class BCSettings:
 
 
 
-# A displacement boundary condition is defined by restrictions on displacement
-#    and rotation in the three spatial directions.
 class DisplacementBCSettings(BCSettings):
     
-    def __init__(self, fix_x, fix_y, fix_z, prevent_x_rot, prevent_y_rot, prevent_z_rot):
-    # type: (bool, bool, bool, bool, bool, bool) -> None
+    def __init__(self, fix_x: bool, fix_y: bool, fix_z: bool, prevent_x_rot: bool, 
+                 prevent_y_rot: bool, prevent_z_rot: bool) -> None:
+        """Creates a displacement boundary condition.
+           
+           The displacment boundary condition is not associated with an object
+               or surface.
 
-        if fix_x == False and fix_y == False and fix_z == False and prevent_x_rot \
-           == False and prevent_y_rot == False and prevent_z_rot == False:
+           Args:
+               fix_x:         Restricts displacement in the x direction.
+               fix_y:         Restricts displacement in the y direction.
+               fix_z:         Restricts displacement in the z direction.
+               prevent_x_rot: Restricts rotation about the x axis.
+               prevent_y_rot: Restricts rotation about the y axis.
+               prevent_z_rot: Restricts rotation about the z axis.
+
+               Note that at least one argument must be true or nothing is restricted
+                   and there is no need for a boundary condition.
+
+           Returns:
+               DsiplacementBCSettings object.
+
+           Raises:
+               None.
+        """
+
+        if not fix_x and not fix_y and not fix_z and \
+           not prevent_x_rot and not prevent_y_rot and \
+           not prevent_z_rot:
             raise RuntimeError("The boundary condition settings don't restrict anything!")
 
         self.fix_x = fix_x
@@ -37,65 +62,87 @@ class DisplacementBCSettings(BCSettings):
 class BC:
 
     def __init__(self):
-    # type: (None) -> None
-
         raise RuntimeError("Not supported.")
 
 
 
-# A boundary condition across some surface.
 class SurfaceBC(BC):
         
-    def __init__(self, ngon, bc_settings):
-    # type: (geom.NGon3D, BCSettings) -> None
+    def __init__(self, ngon: geom.NGon3D, bc_settings: BCSettings) -> None:
+        """Creates a boundary condition on some surface.
+           
+           Args:
+               ngon:        The surface on which the boundary condition applies.
+               bc_settings: The restrictions for the surface.
+
+           Returns:
+               None.
+
+           Raises:
+               None.
+        """
     
         self.region = ngon
         self.bc_settings = bc_settings
 
 
 
-# A boundary condition on some set of points.
 class VertexBC(BC):
 
-    def __init__(self, vertices, bc_settings):
-    # type: (List[geom.Point3D], BCSettings) -> None
+    def __init__(self, vertices: list[geom.Point3D], bc_settings: BCSettings
+                ) -> None:
+        """Creates a boundary condition on some set of points.
+
+           Args:
+               vertices:    The points on which to create the boundary conditions.
+               bc_settings: The restrictions on the points.
+
+           Returns:
+               None.
+
+           Raises:
+               None.
+        """
 
         self.region = vertices
         self.bc_settings = bc_settings
 
 
 
-# Apply boundary conditions to an Assembly.
-# Note that boundary conditions can only be applied to an Assembly, not to a
-#    Part.  
-#
-# Arguments:
-#    BCs           - List of BC objects. 
-#    step_name     - String. 
-#                    The step at which the boundary conditions are first applied. 
-#                       By default, they propagate to future steps. 
-#    part_instance - Abaqus PartInstance object. 
-#    model_name    - String.
-#    mdb           - Abaqus MDB object.
-#
-# Notes:
-#    In order to apply boundary conditions to regions which don't already exist, 
-#       it's necessary to partition pre-existing features. In general, an Abaqus 
-#       Part object or an Abaqus PartInstance object can be partitioned. This 
-#       function creates new regions on parts, when necessary, by partitioning 
-#       this single Abaqus PartInstance object.
-#    Since a PartInstance object must be passed, it means that the Assembly is 
-#       not empty. In my experience, if you try to create a boundary condition 
-#       on a region of an Abaqus Part object and the Assembly is empty, Abaqus 
-#       segfaults.
-#
-# Returns:
-#    None.
-def apply_BCs(BCs, step_name, part_instance, model_name, mdb):
-# type: (List[BC], str, Any, str, Any) -> None
+def apply_BCs(BCs: list[BC], step_name: str, part_instance: Any, model_name: str, 
+              mdb: Any) -> None:
+    """Applies boundary conditions to an assembly.
 
+       Note that boundary conditions can only be applied to an Assembly, they
+           cannot be applied to a part.
+
+       In order to apply boundary conditions to regions which don't already exist, 
+           it's necessary to partition pre-existing features. In general, an Abaqus 
+           Part object or an Abaqus PartInstance object can be partitioned. This 
+           function creates new regions on parts, when necessary, by partitioning 
+           this single Abaqus PartInstance object.
+       Since a PartInstance object must be passed, it means that the Assembly is 
+           not empty. In my experience, if you try to create a boundary condition 
+           on a region of an Abaqus Part object and the Assembly is empty, Abaqus 
+           segfaults.
+
+       Args:
+           BCs:           The boundary conditions to apply.
+           step_name:     The first step at which the boundary conditions should be
+                              active. By default, the boundary conditions propagate
+                              to all future steps.
+           part_instance: Abaqus PartInstance object. The instance on which to
+                              apply the boundary conditions.
+           model_name:    The name of the model.
+           mdb:           Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
     for BC in BCs:
-
         BC_cnt = shim.get_bc_cnt(model_name, mdb)
         BC_name = shim.STANDARD_BC_PREFIX + str(BC_cnt)
 
@@ -103,15 +150,12 @@ def apply_BCs(BCs, step_name, part_instance, model_name, mdb):
             assembly = mdb.models[model_name].rootAssembly
             face = shim.partition_face(BC.region, instance=part_instance, assembly=assembly) 
             region = shim.build_region_with_face(face, part_instance)
-
         elif isinstance(BC, VertexBC):
             raise RuntimeError("Not yet supported.")
-
         else:
             raise RuntimeError("Not yet supported.")
 
         if isinstance(BC.bc_settings, DisplacementBCSettings):
             shim.create_disp_rot_bc(BC_name, step_name, region, BC.bc_settings, model_name, mdb)
-
         else:
             raise RuntimeError("Not yet supported.")

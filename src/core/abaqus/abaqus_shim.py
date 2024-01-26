@@ -82,7 +82,7 @@ STANDARD_INIT_GEOM_WITH_BBOX_NAME = "Initial_Geometry_With_Bounding_Box"
 # *****************************************************************************
 
 
-def get_model_cnt(mdb: Any) -> int:
+def _get_model_cnt(mdb: Any) -> int:
     """Gets the number of models in an Abaqus MDB.
     
        Args:
@@ -99,28 +99,7 @@ def get_model_cnt(mdb: Any) -> int:
 
 
 
-def get_only_part_name(model_name: str, mdb: Any) -> str:
-    """In a model with only a single part, gets the name of the part.
-
-       Args:
-           model_name: The name of the model in the Abaqus MDB.
-           mdb:        Abaqus MDB object. MDB in which the model lives.
-
-       Returns:
-           Name of the part.
-
-       Raises:
-           None. 
-    """
-    
-    if len(mdb.models[model_name].parts.keys() != 1):
-        raise ValueError("There should only be a single part in the model.")
-
-    return mdb.models[model_name].parts.keys()[0]
-
-
-
-def get_step_keyword(kwb: Any) -> int:
+def _get_step_keyword(kwb: Any) -> int:
     """Finds the first occurence of the "Step" keyword in an input file. 
 
        Args:
@@ -141,7 +120,7 @@ def get_step_keyword(kwb: Any) -> int:
 
 
 
-def get_closest_face(points: list[geom.Point3D], obj: Any) -> Any:
+def _get_closest_face(points: list[geom.Point3D], obj: Any) -> Any:
     """Gets the face closest to the centroid of some points.
 
        This function is a workaround to writing/calling nasty geometric routines. 
@@ -216,26 +195,7 @@ def get_mesh_face_elements(mesh_face: Any) -> tuple[Any, ...]:
 
 
 
-def get_any_edge_on_face(face: Any, obj: Any) -> Any:
-    """Gets an arbitrary edge on a face.
-
-       Args:
-           face: Abaqus Face object.
-           obj:  Abaqus Part object or Abaqus Partinstance object.
-
-       Returns:
-           Abaqus Edge object.
-
-       Raises:
-           None.
-    """
-    
-    edge_id = face.getEdges()[0]
-    return obj.edges[edge_id]
-
-
-
-def get_all_vertices(obj: Any) -> list[list[geom.Point3D]]:
+def _get_all_vertices(obj: Any) -> list[list[geom.Point3D]]:
     """Gets all the vertices of an object.
        
        The documentation for the pointOn member of the Vertex object is 
@@ -271,10 +231,10 @@ def get_all_vertices(obj: Any) -> list[list[geom.Point3D]]:
 
 
 
-def get_face_vertices(face: Any, part: Optional[Any] = None, 
-                      assembly: Optional[Any] = None, 
-                      part_instance: Optional[Any] = None
-                     ) -> list[tuple[float, float, float], ...]:
+def _get_face_vertices(face: Any, part: Optional[Any] = None, 
+                       assembly: Optional[Any] = None, 
+                       part_instance: Optional[Any] = None
+                      ) -> list[tuple[float, float, float], ...]:
     """Gets the vertices of a face.
 
        Error in documentation of pointOn member.
@@ -441,11 +401,11 @@ def check_basic_geom(should_print: bool, mdb: Any) -> bool:
            None.
     """
 
-    if not check_standard_model_and_part(should_print, mdb):
+    if not _check_standard_model_and_part(should_print, mdb):
         return False 
 
-    if not check_steps_loads_assembly(should_print, mdb) or \
-       not check_no_material_and_section(should_print, mdb):
+    if not _check_steps_loads_assembly(should_print, mdb) or \
+       not _check_no_material_and_section(should_print, mdb):
         return False
 
     return True
@@ -469,7 +429,7 @@ def check_multiple_steps(should_print: bool, model_name: bool, mdb: Any) -> bool
 
 
 
-def check_standard_model_and_part(should_print: bool, mdb: Any):
+def _check_standard_model_and_part(should_print: bool, mdb: Any):
     """Checks that an MDB was just initialized and contains the default post-
            initialization objects."""
 
@@ -490,7 +450,7 @@ def check_standard_model_and_part(should_print: bool, mdb: Any):
 
 
 
-def check_no_material_and_section(should_print: bool, mdb: Any) -> bool:
+def _check_no_material_and_section(should_print: bool, mdb: Any) -> bool:
     """Checks that the default model does not have a material, a section, or a
            section assignment."""
 
@@ -508,7 +468,7 @@ def check_no_material_and_section(should_print: bool, mdb: Any) -> bool:
 
 
 
-def check_steps_loads_assembly(should_print: bool, mdb: Any) -> bool:
+def _check_steps_loads_assembly(should_print: bool, mdb: Any) -> bool:
     """Checks that the default model has exactly one step, no loads, and that
           the assembly has no instances."""
 
@@ -547,7 +507,7 @@ def suppress_feature(name: str, part: Any) -> None:
 
 
 
-def build_sketch_transform_from_face(face: Any, edge: Any, obj: Any) -> Any:
+def _build_sketch_transform_from_face(face: Any, edge: Any, obj: Any) -> Any:
     """Specifies the location and orientation of a sketch (basically a plane of
            finite size) in space.
      
@@ -579,7 +539,7 @@ def build_sketch_transform_from_face(face: Any, edge: Any, obj: Any) -> Any:
 
 
 
-def extract_global_csys_to_sketch_csys(transform: Any) -> geom.CSys3D:
+def _extract_global_csys_to_sketch_csys(transform: Any) -> geom.CSys3D:
     """Converts the information associated with a transform to a custom format
            for a coordinate system.
 
@@ -609,7 +569,7 @@ def extract_global_csys_to_sketch_csys(transform: Any) -> geom.CSys3D:
 
 
 
-def build_constrained_sketch(transform: Any, sketch_name: str, model_name: str, 
+def _build_constrained_sketch(transform: Any, sketch_name: str, model_name: str, 
                              mdb: Any) -> Any:
     """Builds and orients a sketch somewhere in space.
 
@@ -646,7 +606,7 @@ def build_constrained_sketch(transform: Any, sketch_name: str, model_name: str,
 
 
 
-def build_wire(spline: geom.PlanarCubicC2Spline3D, part_name: str, model_name: str, 
+def _build_wire(spline: geom.PlanarCubicC2Spline3D, part_name: str, model_name: str, 
                mdb: Any) -> Any:
     """Builds a wire feature.
 
@@ -684,7 +644,7 @@ def build_wire(spline: geom.PlanarCubicC2Spline3D, part_name: str, model_name: s
 
 
 
-def sweep_tool_along_wire(tool_pass: tp.ToolPass, edge_array: Any, part_name: str, 
+def _sweep_tool_along_wire(tool_pass: tp.ToolPass, edge_array: Any, part_name: str, 
                           model_name: str, mdb: Any) -> Any:
     """Sweeps a tool cross section along a wire to create a solid feature.
        
@@ -731,7 +691,7 @@ def sweep_tool_along_wire(tool_pass: tp.ToolPass, edge_array: Any, part_name: st
     datum_axis = part.datums[feature.id]
 
     # Create the sketch that will be swept along the wire.
-    sketch = build_constrained_sketch(None, part_name, model_name, mdb)
+    sketch = _build_constrained_sketch(None, part_name, model_name, mdb)
 
     # Draw the rectangle.
     sketch.rectangle((tool_pass.radius, 0), (-tool_pass.radius, tool_pass.length))
@@ -742,7 +702,7 @@ def sweep_tool_along_wire(tool_pass: tp.ToolPass, edge_array: Any, part_name: st
 
 
 
-def add_tool_pass_caps(tool_pass: tp.ToolPass, part_name: str, model_name: str, 
+def _add_tool_pass_caps(tool_pass: tp.ToolPass, part_name: str, model_name: str, 
                        mdb: Any) -> None:
     """Adds caps at both ends of a tool pass.
        
@@ -773,15 +733,15 @@ def add_tool_pass_caps(tool_pass: tp.ToolPass, part_name: str, model_name: str,
 
     start_point = tool_pass.path.v_list[0]
     face = part.faces.findAt(coordinates=start_point.components())
-    build_cap("CAP_1", tool_pass, face, part_name, model_name, mdb)
+    _build_cap("CAP_1", tool_pass, face, part_name, model_name, mdb)
 
     end_point = tool_pass.path.v_list[-1]
     face = part.faces.findAt(coordinates=end_point.components())
-    build_cap("CAP_2", tool_pass, face, part_name, model_name, mdb)
+    _build_cap("CAP_2", tool_pass, face, part_name, model_name, mdb)
 
 
 
-def build_cap(name: str, tool_pass: Any, face: Any, part_name: str, model_name: str, 
+def _build_cap(name: str, tool_pass: Any, face: Any, part_name: str, model_name: str, 
               mdb: Any) -> None:
     """Adds a cap (aka a half cylinder) to the face of a part.
     
@@ -823,11 +783,11 @@ def build_cap(name: str, tool_pass: Any, face: Any, part_name: str, model_name: 
     datum_axis = part.datums[datum_feature.id]
 
     # Position the sketch in space.
-    transform = build_sketch_transform_from_face(face, datum_axis, part)
+    transform = _build_sketch_transform_from_face(face, datum_axis, part)
 
     # Build the sketch, create its axis of rotation, and draw the shape to be
     #    revolved. 
-    sketch = build_constrained_sketch(transform, name, model_name, mdb)
+    sketch = _build_constrained_sketch(transform, name, model_name, mdb)
     axis_of_revolution = sketch.ConstructionLine((0., 0.), (0., 1.))
     sketch.assignCenterline(axis_of_revolution)
     sketch.rectangle((tool_pass.radius, tool_pass.length/2), (0, -tool_pass.length/2))
@@ -865,7 +825,7 @@ def build_tool_pass_part(name: str, tool_pass: tp.ToolPass, model_name: str,
     mdb_metadata.models_metadata[model_name].part_names.append(name)
 
     # Create the wire feature.
-    build_wire(tool_pass.path, name, model_name, mdb)
+    _build_wire(tool_pass.path, name, model_name, mdb)
 
     # Extract the Abaqus EdgeArray object which the containts the Abaqus Edge
     #    object that corresponds to the wire.
@@ -873,10 +833,10 @@ def build_tool_pass_part(name: str, tool_pass: tp.ToolPass, model_name: str,
     edge = mdb.models[model_name].parts[name].edges[-1:]
 
     # Sweep the cross section of the cylinder along the wire.
-    sweep_tool_along_wire(tool_pass, edge, name, model_name, mdb)
+    _sweep_tool_along_wire(tool_pass, edge, name, model_name, mdb)
 
     # Add the rounded portions at both ends of the tool pass.
-    add_tool_pass_caps(tool_pass, name, model_name, mdb)
+    _add_tool_pass_caps(tool_pass, name, model_name, mdb)
 
     return part
 
@@ -907,7 +867,7 @@ def inp_add_stress_subroutine(model_name: str, mdb: Any) -> None:
 
     # The initial condition keyword is placed right before the first step in
     #    the input file.
-    idx_step = get_step_keyword(kwb)
+    idx_step = _get_step_keyword(kwb)
     idx_before_step = idx_step - 1
     kwb.insert(idx_before_step, "*Initial Conditions, Type=Stress, User")
 
@@ -953,7 +913,7 @@ def inp_map_stress(path_sim_file: str, model_name: str, mdb: Any) -> None:
     
     # The initial condition keyword is placed right before the first step in
     #    the input file.
-    idx_step = get_step_keyword(kwb)
+    idx_step = _get_step_keyword(kwb)
     idx_before_step = idx_step - 1
     kwb.insert(idx_before_step, "*Initial Conditions, Type=Stress")
     idx_before_external_field = idx_before_step + 1
@@ -1207,7 +1167,7 @@ def create_job(model_name: str, mdb_metadata: abq_md.AbaqusMdbMetadata,
            None.
     """
 
-    job_name = STANDARD_JOB_PREFIX + str(get_model_cnt(mdb))
+    job_name = STANDARD_JOB_PREFIX + str(_get_model_cnt(mdb))
 
     # The "resultsFormat=BOTH" causes Abaqus to generate .odb and .sim files
     #    when the simulation runs. This functionality is currently undocumented
@@ -1274,14 +1234,14 @@ def run_job(job: Any) -> None:
     job.submit()
     job.waitForCompletion()
 
-    print_job_messages(job)
+    _print_job_messages(job)
 
     if job.status == ABORTED:
         raise RuntimeError("The job with name " + job.name + " was aborted!")
 
 
 
-def print_job_messages(job: Any) -> None:
+def _print_job_messages(job: Any) -> None:
     """Prints all the messages received during the analysis of a job."""
 
     if len(job.messages) != 0:
@@ -1541,7 +1501,7 @@ def add_solid_from_faces(part: Any) -> Any:
     """
 
     feature = part.AddCells(part.faces)
-    assert(feature != None)
+    assert(feature is not None)
 
     return feature 
 
@@ -1670,7 +1630,7 @@ def create_disp_rot_bc(BC_name: str, step_name: str, region: Any,
 
 
 
-def find_face_ngon_lives_on(ngon: geom.NGon3D, obj: Any) -> Any:
+def _find_face_ngon_lives_on(ngon: geom.NGon3D, obj: Any) -> Any:
     """Finds the face of an object that an ngon exists on.
     
        If the ngon does not exactly live on the face of an object, an arbitrary
@@ -1697,7 +1657,7 @@ def find_face_ngon_lives_on(ngon: geom.NGon3D, obj: Any) -> Any:
     #    lives on that face. That face might have holes in it! That face could be
     #    curved!
     on_a_face = False
-    for vertices_single_face in get_all_vertices(obj):
+    for vertices_single_face in _get_all_vertices(obj):
         if geom.on_plane_of_ngon(vertices_single_face, ngon):
             on_a_face = True
     
@@ -1706,7 +1666,7 @@ def find_face_ngon_lives_on(ngon: geom.NGon3D, obj: Any) -> Any:
 
     # Assume that the face closest to points which make up the ngon is the face
     #    that the ngon lives on.
-    face_ngon_belongs_to = get_closest_face(ngon.vertices, obj)
+    face_ngon_belongs_to = _get_closest_face(ngon.vertices, obj)
 
     return face_ngon_belongs_to
 
@@ -1751,7 +1711,7 @@ def partition_face(ngon: geom.NGon3D, part: Optional[Any] = None,
     module = part if part else assembly
     obj = part if part else instance
 
-    face_ngon_belongs_to = find_face_ngon_lives_on(ngon, obj)
+    face_ngon_belongs_to = _find_face_ngon_lives_on(ngon, obj)
 
     """ DEPRECATED TECHNIQUE. This is an old technique used to create the
             partition.
@@ -1770,8 +1730,8 @@ def partition_face(ngon: geom.NGon3D, part: Optional[Any] = None,
     # Construct and orient a sketch which lives on that face.
     edge = get_any_edge_on_face(face_ngon_belongs_to, obj)
     assembly = mdb.models[model_name].rootAssembly
-    transform = build_sketch_transform_from_face(face_ngon_belongs_to, edge, assembly)
-    sketch = build_constrained_sketch(transform, new_face_name, model_name, mdb)
+    transform = _build_sketch_transform_from_face(face_ngon_belongs_to, edge, assembly)
+    sketch = _build_constrained_sketch(transform, new_face_name, model_name, mdb)
 
     # Sketch the ngon.
     sketch = sketch_ngon(ngon, transform, sketch)
@@ -1788,7 +1748,6 @@ def partition_face(ngon: geom.NGon3D, part: Optional[Any] = None,
     # Create a datum point for each vertex.
     datums = []
     for idx in range(len(ngon.vertices)):
-
         feature = module.DatumPointByCoordinate(ngon.vertices[idx].components())
         id = feature.id
         datums.append(module.datums[id])
@@ -1838,7 +1797,7 @@ def partition_face(ngon: geom.NGon3D, part: Optional[Any] = None,
 # *****************************************************************************
 
 
-def get_all_vertices_ordered(obj: Any) -> list[list[list[geom.Point3D]]]:
+def _get_all_vertices_ordered(obj: Any) -> list[list[list[geom.Point3D]]]:
     """DEPRECATED in deference to the get_closest_face() approach.
 
        Gets all the vertices of an object and ensures that the vertices are
@@ -1879,7 +1838,7 @@ def get_all_vertices_ordered(obj: Any) -> list[list[list[geom.Point3D]]]:
         vertex_ids = face.getVertices()
         vertices_on_face = [obj.vertices[vertex_id] for vertex_id in vertex_ids]
 
-        ordered_vertices_on_face = get_face_ordered_vertices(vertices_on_face, face, obj) 
+        ordered_vertices_on_face = _get_face_ordered_vertices(vertices_on_face, face, obj) 
 
         for vertex_group in ordered_vertices_on_face:
             vertices[-1].append([geom.Point3D(np.array(vertex.pointOn[0])) for vertex in vertex_group])
@@ -1888,7 +1847,7 @@ def get_all_vertices_ordered(obj: Any) -> list[list[list[geom.Point3D]]]:
 
 
 
-def get_face_ordered_vertices(vertices: list[Any], face: Any, obj: Any) -> list[list[Any]]:
+def _get_face_ordered_vertices(vertices: list[Any], face: Any, obj: Any) -> list[list[Any]]:
     """DEPRECATED in deference to the get_closest_face() approach.
     
        Orders the vertices of a face.
@@ -1925,11 +1884,11 @@ def get_face_ordered_vertices(vertices: list[Any], face: Any, obj: Any) -> list[
 
         for i, vertex in enumerate(vertices):
             
-            if vertices_used[i] == False:
+            if not vertices_used[i]:
               
                 # Starting from an unvisited vertex, find all the other connected 
                 #    vertices on the face.
-                vertex_group = traverse_connected_vertices_on_face(vertices[i], face, obj)
+                vertex_group = _traverse_connected_vertices_on_face(vertices[i], face, obj)
                 per_group_vertices.append(vertex_group)
 
                 # Mark all the visited vertices as visited.
@@ -1941,7 +1900,7 @@ def get_face_ordered_vertices(vertices: list[Any], face: Any, obj: Any) -> list[
 
 
 
-def traverse_connected_vertices_on_face(vertex: Any, face: Any, obj: Any) -> list[Any]:
+def _traverse_connected_vertices_on_face(vertex: Any, face: Any, obj: Any) -> list[Any]:
     """DEPRECATED in deference to the get_closest_face() approach.
     
        Traverses vertices on a face via the geometrical connections between
@@ -1963,7 +1922,7 @@ def traverse_connected_vertices_on_face(vertex: Any, face: Any, obj: Any) -> lis
 
     first_vertex = vertex
     prev_vertex = first_vertex 
-    first_neighbors = get_neighbor_vertices(first_vertex, face, obj)
+    first_neighbors = _get_neighbor_vertices(first_vertex, face, obj)
     current_vertex = first_neighbors[0]
     
     well_ordered_vertices = [first_vertex]    
@@ -1971,7 +1930,7 @@ def traverse_connected_vertices_on_face(vertex: Any, face: Any, obj: Any) -> lis
         
         well_ordered_vertices.append(current_vertex)
     
-        current_neighbors = get_neighbor_vertices(current_vertex, face, obj)
+        current_neighbors = _get_neighbor_vertices(current_vertex, face, obj)
     
         if current_neighbors[0].index != prev_vertex.index:
             prev_vertex = current_vertex
@@ -1984,7 +1943,7 @@ def traverse_connected_vertices_on_face(vertex: Any, face: Any, obj: Any) -> lis
 
 
 
-def get_neighbor_vertices(vertex, face, obj):
+def _get_neighbor_vertices(vertex, face, obj):
     """DEPRECATED in deference to the get_closest_face() approach.
     
        Gets the vertices connected to a single vertex on a face.
@@ -2020,7 +1979,7 @@ def get_neighbor_vertices(vertex, face, obj):
 
 
 
-def check_face_ngon_match(ngon: geom.NGon3D, face: Any, obj: Any) -> bool:
+def _check_face_ngon_match(ngon: geom.NGon3D, face: Any, obj: Any) -> bool:
     """DEPRECATED. This function was previously used in the process of partitioning
            a face. In particular, it was used to check if a face of the exact same
            geometry already existed. In the new approach, it does not matter if
@@ -2046,7 +2005,7 @@ def check_face_ngon_match(ngon: geom.NGon3D, face: Any, obj: Any) -> bool:
            None.
     """
 
-    face_vertices = get_face_vertices(face, obj)
+    face_vertices = _get_face_vertices(face, obj)
     ngon_vertices = ngon.get_builtin_rep()
     ngon_face_share_vertices = True 
     if len(face_vertices) == len(ngon_vertices):
@@ -2060,7 +2019,7 @@ def check_face_ngon_match(ngon: geom.NGon3D, face: Any, obj: Any) -> bool:
 
 
 
-def change_only_part_name(new_name: str, model_name: str, mdb: Any) -> None:
+def _change_only_part_name(new_name: str, model_name: str, mdb: Any) -> None:
     """DEPRECATED. Not sure where this was ever used.
        
        In a model with only a single part, changes the name of the part.
@@ -2087,7 +2046,7 @@ def change_only_part_name(new_name: str, model_name: str, mdb: Any) -> None:
 
 
 
-def check_ready_for_toolpasses(should_print: bool, mdb: Any) -> bool:    
+def _check_ready_for_toolpasses(should_print: bool, mdb: Any) -> bool:    
     """DEPRECATED. Other MDB state checker functions are now being used. 
        
        Checks, non-exhaustively, that an MDB is ready to have tool passes
@@ -2108,18 +2067,18 @@ def check_ready_for_toolpasses(should_print: bool, mdb: Any) -> bool:
            None.
     """
 
-    if not check_standard_model_and_part(should_print, mdb):
+    if not _check_standard_model_and_part(should_print, mdb):
         return False 
 
-    if not check_material_and_section(should_print, mdb) or \
-       not check_steps_loads_assembly(should_print, mdb):
+    if not _check_material_and_section(should_print, mdb) or \
+       not _check_steps_loads_assembly(should_print, mdb):
         return False
 
     return True
 
 
 
-def check_material_and_section(should_print: str, mdb: Any) -> bool:
+def _check_material_and_section(should_print: str, mdb: Any) -> bool:
     """DEPRECATED. Helper for another deprecated function.
 
        Checks that the MDB contains exactly one material, one section, and that
@@ -2139,7 +2098,7 @@ def check_material_and_section(should_print: str, mdb: Any) -> bool:
 
 
 
-def build_spec_right_rect_prism_part(part_name: str, spec_right_rect_prism: geom.SpecRightRectPrism, 
+def _build_spec_right_rect_prism_part(part_name: str, spec_right_rect_prism: geom.SpecRightRectPrism, 
                                      model_name: str, mdb: Any) -> None:
     """DEPRECRATED. Was used to construct very simple tool pass geometries and
            bounding boxes.
@@ -2191,7 +2150,7 @@ def build_spec_right_rect_prism_part(part_name: str, spec_right_rect_prism: geom
     t = part.MakeSketchTransform(sketchPlane=sketch_plane, origin=(centroid.rep[0], centroid.rep[1], z_offset), sketchUpEdge=da1)
 
     # Create the sketch using the transform object.
-    sketch = build_constrained_sketch(t, part_name, model_name, mdb)
+    sketch = _build_constrained_sketch(t, part_name, model_name, mdb)
 
     # Draw the rectangle accounting for the translated origin.
     v1, v2 = spec_right_rect_prism.get_rect_corners() 
@@ -2209,7 +2168,7 @@ def build_spec_right_rect_prism_part(part_name: str, spec_right_rect_prism: geom
 
 
 
-def build_bounding_box_part(name: str, tool_pass: tp.ToolPass, model_name: str, 
+def _build_bounding_box_part(name: str, tool_pass: tp.ToolPass, model_name: str, 
                             mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
                            ) -> Any:
 
@@ -2242,13 +2201,13 @@ def build_bounding_box_part(name: str, tool_pass: tp.ToolPass, model_name: str,
     # Update metadata for bookkeeping. 
     mdb_metadata.models_metadata[model_name].part_names.append(name)
 
-    build_tool_pass_bounding_box(name, 3, 3, 3, tool_pass, model_name, mdb)
+    _build_tool_pass_bounding_box(name, 3, 3, 3, tool_pass, model_name, mdb)
 
     return part
 
 
 
-def build_tool_pass_bounding_box(name: str, x_excess: float, y_excess: float, 
+def _build_tool_pass_bounding_box(name: str, x_excess: float, y_excess: float, 
                                  z_excess: float, tool_pass: tp.ToolPass, model_name: str, 
                                  mdb: Any) -> None:
     """DEPRECATED. Was used as a helper function for creating bounding boxes
@@ -2280,11 +2239,11 @@ def build_tool_pass_bounding_box(name: str, x_excess: float, y_excess: float,
 
     bounding_box = tp.create_tool_pass_bounding_box(x_excess, y_excess, z_excess, tool_pass)
 
-    build_spec_right_rect_prism_part(name, bounding_box, model_name, mdb)    
+    _build_spec_right_rect_prism_part(name, bounding_box, model_name, mdb)    
 
 
 
-def merge_instances_in_assembly(name: str, instances_to_merge: tuple[Any, ...], 
+def _merge_instances_in_assembly(name: str, instances_to_merge: tuple[Any, ...], 
                                 keep_intersections: bool, model_name: str, 
                                 mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
                                ) -> Any:
@@ -2331,7 +2290,7 @@ def merge_instances_in_assembly(name: str, instances_to_merge: tuple[Any, ...],
 
 
 
-def update_session_odbs() -> None:
+def _update_session_odbs() -> None:
     """DEPRECATED. Was used in an attempt to mitigate buggy accesses to out-of-
            date ODBs. In particular, was used in an attempt to propagate
            material definitions across simulations.
@@ -2362,7 +2321,7 @@ def update_session_odbs() -> None:
 
 
 
-def create_material_from_odb(path_to_odb: str, odb_model_name: str, 
+def _create_material_from_odb(path_to_odb: str, odb_model_name: str, 
                              new_model_name: str, mdb: Any) -> None:
     """DEPRECATED due to bug. Often when this function was called immediately 
            after a job finished, a "ODB is out-of-date. Please
@@ -2404,7 +2363,7 @@ def create_material_from_odb(path_to_odb: str, odb_model_name: str,
         raise RuntimeError("There probably shouldn't be any materials!")
 
     material = materials[materials.keys()[0]]
-    youngs_modulus, poissons_ratio = check_material_properties(material)
+    youngs_modulus, poissons_ratio = _check_material_properties(material)
     
     new_material = mdb.models[new_model_name].Material(STANDARD_MATERIAL_NAME)
     new_material.Elastic(((youngs_modulus), (poissons_ratio)))
@@ -2415,7 +2374,7 @@ def create_material_from_odb(path_to_odb: str, odb_model_name: str,
 
 
 
-def check_material_properties(material: Any) -> tuple[float, float]:
+def _check_material_properties(material: Any) -> tuple[float, float]:
     """DEPRECATED. Was a helper function for exproting a material definition
            from an ODB to a new model. When I moved this function to deprecated
            status, I found a bug in it which may have been the reason why
@@ -2446,7 +2405,7 @@ def check_material_properties(material: Any) -> tuple[float, float]:
 
 
 
-def create_section_from_odb(path_to_odb: str, odb_model_name: str, 
+def _create_section_from_odb(path_to_odb: str, odb_model_name: str, 
                             new_model_name: str, mdb: Any) -> None:
     """DEPRECATED due to the same bug as create_material_from_odb.
        
@@ -2488,7 +2447,7 @@ def create_section_from_odb(path_to_odb: str, odb_model_name: str,
     assert(len(sections) == 1)
 
     section = sections[sections.keys()[0]]
-    check_section_properties(section)
+    _check_section_properties(section)
 
     mdb.models[new_model_name].HomogeneousSolidSection(STANDARD_SECTION_NAME, STANDARD_MATERIAL_NAME)
 
@@ -2496,7 +2455,7 @@ def create_section_from_odb(path_to_odb: str, odb_model_name: str,
 
 
 
-def check_section_properties(section: Any) -> None:
+def _check_section_properties(section: Any) -> None:
     """DEPRECATED. Was a helper for the create_section_from_odb() function.
     
        Checks the properties of a section. 
@@ -2518,7 +2477,7 @@ def check_section_properties(section: Any) -> None:
 
 
 
-def partition_face_with_sketch(face: Any, edge: Any, sketch: Any, assembly: Optional[Any] = None, 
+def _partition_face_with_sketch(face: Any, edge: Any, sketch: Any, assembly: Optional[Any] = None, 
                                instance: Optional[Any] = None, part: Optional[Any] = None
                               ) -> Any:
     """DEPRECATED. Now, instead of partitioning a face with a sketch, a face
@@ -2578,7 +2537,7 @@ def partition_face_with_sketch(face: Any, edge: Any, sketch: Any, assembly: Opti
 
 
 
-def sketch_ngon(ngon: geom.NGon3D, transform: Any, sketch: Any) -> Any:
+def _sketch_ngon(ngon: geom.NGon3D, transform: Any, sketch: Any) -> Any:
     """DEPRECATED. Was used as a helper to partition a face.
     
        Sketches the points which make up an ngon on a sketch which has some
@@ -2600,7 +2559,7 @@ def sketch_ngon(ngon: geom.NGon3D, transform: Any, sketch: Any) -> Any:
     """
 
     # Extract the coordinate system of the sketch. 
-    csys = extract_global_csys_to_sketch_csys(transform)
+    csys = _extract_global_csys_to_sketch_csys(transform)
 
     # Map the points into the coordinate system of the sketch. 
     points = csys.map_into_csys(ngon.vertices)
@@ -2624,3 +2583,24 @@ def sketch_ngon(ngon: geom.NGon3D, transform: Any, sketch: Any) -> Any:
         line = sketch.Line(cur_point, next_point)
 
     return sketch
+
+
+
+def _get_any_edge_on_face(face: Any, obj: Any) -> Any:
+    """DEPRECATED. Was helper for partition face technique.
+    
+       Gets an arbitrary edge on a face.
+
+       Args:
+           face: Abaqus Face object.
+           obj:  Abaqus Part object or Abaqus Partinstance object.
+
+       Returns:
+           Abaqus Edge object.
+
+       Raises:
+           None.
+    """
+    
+    edge_id = face.getEdges()[0]
+    return obj.edges[edge_id]

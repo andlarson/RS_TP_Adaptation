@@ -1,3 +1,13 @@
+"""
+This module contains top-level, user-facing functionality for:
+    1) Performing simulations of potential tool passes.
+    2) Recovering information about the residual stress field.
+
+The MachiningProcess object is the top-level object that a user of this library
+    should create. This object's methods implement the abilities listed
+    above.
+"""
+
 import shutil
 import os
 
