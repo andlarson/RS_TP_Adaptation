@@ -1,4 +1,10 @@
+"""
+This module contains functionality for doing various geometric operations of
+    interest.
+"""
+
 import itertools
+from typing import Any
 
 import numpy as np
 import numpy.linalg as linalg
@@ -8,16 +14,11 @@ from src.util.debug import *
 
 
 
-FLOATING_POINT_TOLERANCE = 10**(-6)
-
-
-
 class Basis3D:
 
-    # By definition, a basis consists of three vectors which must have unit length
-    #    and be orthogonal to one another.
-    def __init__(self, v1, v2, v3):
-    # type: (Vec3D, Vec3D, Vec3D) -> None
+    def __init__(self, v1: Vec3D, v2: Vec3D, v3: Vec3D) -> None:
+        """Creates a basis which consists of three vectors which are of unit
+               length and are orthogonal to one another."""
 
         assert(v1.is_unit())
         assert(v2.is_unit())
@@ -32,39 +33,42 @@ class Basis3D:
 
 class CSys3D:
 
-    # Describe a coordinate system relative to some global coordinate system.
-    # 
-    # Notes:
-    #    It is expected that all coordinate systems are described relative to
-    #       a single global coodinate system.
-    # 
-    # Arguments:
-    #    translation - Vec3D. 
-    #                  Describes the translation in space of coordinate system.
-    #    basis       - Basis. 
-    #
-    # Returns:
-    #    None.
-    def __init__(self, translation, basis):
-    # type: (Vec3D, Basis3D) -> None
+    def __init__(self, translation: Vec3D, basis: Basis3D):
+        """Describes a coordinate system relative to some global coordinate system.
+        
+           It is expected that all coordinate systems are described relative to
+               a single global coodinate system.
+        
+           Args:
+               translation: Describes the translation in space of coordinate system.
+               basis:       Describes the directions of the axes. 
+        
+           Returns:
+               None.
+
+           Raises:
+               None.
+        """
 
         self.translation = translation
         self.basis = basis 
 
     
-    # Map points into the coordinate system described by this object.
-    #
-    # Notes:
-    #    This function does a generic mapping. It has no knowledge about the
-    #       coordinate system that the points already live in.
-    #
-    # Arguments:
-    #    points - List of Point3D objects.
-    # 
-    # Returns:
-    #    List of Point3D objects.
-    def map_into_csys(self, points):
-    # type: (List[Point3D]) -> List[Point3D]
+    def map_into_csys(self, points: list[Point3D]) -> list[Point3D]:
+        """Maps points into the coordinate system described by this object.
+        
+           This function does a generic mapping. It has no knowledge about the
+               coordinate system that the points already live in.
+        
+           Args:
+               points: List of Point3D objects.
+           
+           Returns:
+               The points in the new coordinate system.
+
+           Raises:
+               None.
+        """
 
         return [Point3D(np.matmul(self.basis.rep, (point.rep - self.translation.rep))) for point in points]
 
@@ -72,8 +76,18 @@ class CSys3D:
 
 class Point2D:
     
-    def __init__(self, arr):
-    # type: (np.ndarray) -> None
+    def __init__(self, arr: Any) -> None:
+        """Creates a point in two dimensions.
+
+           Args:
+               arr: Numpy ndarray of length 2. The coordinates of the point.
+
+           Returns:
+               None.
+
+           Raises:
+               None.
+        """
 
         assert(isinstance(arr, np.ndarray))
         assert(arr.size == 2)
@@ -82,8 +96,8 @@ class Point2D:
         self.rep = arr
 
 
-    def components(self):
-    # type: (None) -> Tuple[np.float, np.float]
+    def components(self) -> tuple[Any, Any]:
+        """Returns the components of the point."""
 
         return (self.rep[0], self.rep[1])
 
@@ -91,8 +105,18 @@ class Point2D:
 
 class Point3D:
 
-    def __init__(self, arr):
-    # type: (np.ndarray) -> None
+    def __init__(self, arr: Any) -> None:
+        """Creates a point in two dimensions.
+
+           Args:
+               arr: Numpy ndarray of length 3. The coordinates of the point.
+
+           Returns:
+               None.
+
+           Raises:
+               None.
+        """
 
         assert(isinstance(arr, np.ndarray))
         assert(arr.size == 3)
@@ -101,20 +125,20 @@ class Point3D:
         self.rep = arr
 
 
-    def proj_xy(self):
-    # type: (None) -> Point2D
+    def proj_xy(self) -> Point2D:
+        """Returns the projection of the point onto the x-y plane."""
 
         return Point2D(self.rep[0:2]) 
 
 
-    def proj_xz(self):
-    # type: (None) -> Point2D 
+    def proj_xz(self) -> Point2D:
+        """Returns the projection of the point onto the x-z plane."""
 
         return Point2D(np.array([self.rep[0], self.rep[2]]))
 
 
-    def components(self):
-    # type: (None) -> Tuple[np.float, np.float, np.float]
+    def components(self) -> tuple[Any, Any, Any]:
+        """Returns the components of the point."""
 
         return (self.rep[0], self.rep[1], self.rep[2])
 
@@ -565,6 +589,7 @@ def point_in_box(point, box_points):
 #
 # Returns:
 #    Bool. 
+FLOATING_POINT_TOLERANCE = 10**(-6)
 def float_equals(a, b):
 # type: (float, float) -> bool
 
