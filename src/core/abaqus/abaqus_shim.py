@@ -70,9 +70,6 @@ STANDARD_TOOL_PASS_PART_PREFIX = "Tool_Pass_"
 STANDARD_POST_TOOL_PASS_PART_PREFIX = "Post_Tool_Pass_"
 STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
 STANDARD_BC_PREFIX = "Boundary_Condition_"
-STANDARD_BOUNDING_BOX_PART_NAME = "Bounding_Box"
-STANDARD_EXCESS_BOUNDING_BOX_PART_NAME = "Bounding_Box_Excess"
-STANDARD_BOUNDING_BOX_INIT_GEOM_PART_NAME = "Bounding_Box_And_Initial_Geometry"
 STANDARD_INIT_GEOM_WITH_BBOX_NAME = "Initial_Geometry_With_Bounding_Box"
 
 
@@ -1489,6 +1486,8 @@ def add_solid_from_faces(part: Any) -> Any:
        Note that this may fail, and the Abaqus documentation doesn't give any 
            hint to the circumstances under which it may fail. Presumably it 
            will fail if the face features don't obviously outline a solid.
+       
+       Usually better to use convert_shell_to_solid() instead of this function.
 
        Args:
            part: Abaqus Part object.
@@ -1568,7 +1567,9 @@ def convert_shell_to_solid(part: Any) -> None:
        Results in a new solid feature being added to the part.
 
        Does not use Abaqus' built in shell to solid conversion utility, which isn't
-           very effective.
+           very effective. This is why the add_solid_from_faces() function is
+           generally avoided. The stitching method used in this function is
+           significantly more robust.
 
        Assumes that the part is a well formed shell geometry and that the result
            is a solid. Note that the checkGeometry() method is useless because
