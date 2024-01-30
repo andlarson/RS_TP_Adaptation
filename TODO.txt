@@ -1,16 +1,6 @@
 
 Recovering Residual Stress - Short Term TODO:
 
-1) Upgrade to Abaqus 2024 / Python 3.10 and fix the import machinery. As part of
-      this, get the static analysis working (get rid of mypy crap?) and make the
-      code adhere to the PEP conventions.
-   Substeps:
-      1) Fix import machinery and project structure.
-      2) Make code adhere to PEP8 conventions (minus stuff related to type
-            annotations).
-      3) Get mypy integrated and working. 
-   Long-term:
-      1) Annotate local variables in addition to function interfaces.
 
 
 Simulating Material Removal - Short Term TODO:

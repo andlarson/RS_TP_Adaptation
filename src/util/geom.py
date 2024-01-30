@@ -4,7 +4,7 @@ This module contains functionality for doing various geometric operations of
 """
 
 import itertools
-from typing import Any
+from typing import Any, Sequence, TypeVar, Iterable
 
 import numpy as np
 import numpy.linalg as linalg
@@ -13,6 +13,185 @@ import matplotlib.path as path
 from src.util.debug import *
 
 
+class Point2D:
+    
+    def __init__(self, arr: Any) -> None:
+        """Creates a point in two dimensions.
+
+           Args:
+               arr: Numpy ndarray of length 2. The coordinates of the point.
+
+           Returns:
+               None.
+
+           Raises:
+               None.
+        """
+
+        assert isinstance(arr, np.ndarray)
+        assert arr.size == 2
+        
+        arr = np.array(arr, dtype=float)
+        self.rep = arr
+
+
+    def components(self) -> tuple[Any, Any]:
+        """Returns the components of the point."""
+
+        return (self.rep[0], self.rep[1])
+
+
+
+class Point3D:
+
+    def __init__(self, arr: Any) -> None:
+        """Creates a point in three dimensions.
+
+           Args:
+               arr: Numpy ndarray of length 3. The coordinates of the point.
+
+           Returns:
+               None.
+
+           Raises:
+               None.
+        """
+
+        assert isinstance(arr, np.ndarray)
+        assert arr.size == 3
+        
+        arr = np.array(arr, dtype=float)
+        self.rep = arr
+
+
+    def proj_xy(self) -> Point2D:
+        """Returns the projection of the point onto the x-y plane."""
+
+        return Point2D(self.rep[0:2]) 
+
+
+    def proj_xz(self) -> Point2D:
+        """Returns the projection of the point onto the x-z plane."""
+
+        return Point2D(np.array([self.rep[0], self.rep[2]]))
+
+
+    def components(self) -> tuple[Any, Any, Any]:
+        """Returns the components of the point."""
+
+        return (self.rep[0], self.rep[1], self.rep[2])
+
+
+Point = TypeVar("Point", Point3D, Point2D)
+
+
+class Vec2D:
+
+    def __init__(self, arr: Any) -> None:
+        """Creates a vector in two dimensions.
+
+           Args:
+               arr: Numpy ndarray of length 2. The coordinates of the point.
+
+           Returns:
+               None.
+
+           Raises:
+               None.
+        """
+
+        assert isinstance(arr, np.ndarray)
+        assert arr.size == 2
+        
+        arr = np.array(arr, dtype=float)
+        self.rep = arr
+
+
+
+    def is_unit(self) -> bool:
+        """Checks if the vector has unit norm."""
+
+        if float_equals(self.len(), 1):
+            return True
+        return False
+
+
+    def normalize(self) -> "Vec2D":
+        """Returns a normalized version of the vector. Does not modify internal
+               state."""
+
+        res = (1 / linalg.norm(self.rep)) * self.rep
+        return Vec2D(res)
+
+
+    def len(self) -> float:
+        """Returns the length of the vector."""
+
+        return linalg.norm(self.rep)
+
+
+
+class Vec3D:
+
+    def __init__(self, arr: Any) -> None:
+        """Creates a vector in three dimensions.
+
+           Args:
+               arr: Numpy ndarray of length 3. The coordinates of the point.
+
+           Returns:
+               None.
+
+           Raises:
+               None.
+        """
+
+        assert isinstance(arr, np.ndarray)
+        assert arr.size == 3
+        
+        arr = np.array(arr, dtype=float)
+        self.rep = arr
+
+
+    def is_unit(self) -> bool:
+        """Checks if the vector has unit norm."""
+        
+        if float_equals(self.len(), 1):
+            return True
+        return False
+
+
+    def normalize(self) -> "Vec3D":
+        """Returns a normalized version of the vector. Does not modify internal
+               state."""
+
+        res = (1 / linalg.norm(self.rep)) * self.rep
+        return Vec3D(res)
+
+
+    def len(self) -> float:
+        """Returns the length of the vector."""
+
+        return linalg.norm(self.rep)
+ 
+    
+    def get_orthonormal(self) -> "Vec3D":
+        """Returns a vector orthogonal to the vector. Note that there are an infinite 
+               number of vectors orthogonal to a vector. Returns one chosen arbitrarily 
+               with unit length."""
+
+        if self.rep[1] == 0 and self.rep[2] == 0:
+            other_vec = np.array([0, 1, 0])
+        else:
+            other_vec = np.array([1, 0, 0])
+
+        orth_vec = Vec3D(np.cross(other_vec, self.rep))
+
+        return orth_vec.normalize()
+
+
+Vec = TypeVar("Vec", Vec3D, Vec2D)
+
 
 class Basis3D:
 
@@ -20,12 +199,12 @@ class Basis3D:
         """Creates a basis which consists of three vectors which are of unit
                length and are orthogonal to one another."""
 
-        assert(v1.is_unit())
-        assert(v2.is_unit())
-        assert(v3.is_unit())
-        assert(are_orthogonal(v1, v2))
-        assert(are_orthogonal(v2, v3))
-        assert(are_orthogonal(v1, v3))
+        assert v1.is_unit()
+        assert v2.is_unit()
+        assert v3.is_unit()
+        assert _are_orthogonal(v1, v2)
+        assert _are_orthogonal(v2, v3)
+        assert _are_orthogonal(v1, v3)
 
         self.rep = np.stack([v1.rep, v2.rep, v3.rep], axis=0) 
 
@@ -74,186 +253,29 @@ class CSys3D:
 
 
 
-class Point2D:
-    
-    def __init__(self, arr: Any) -> None:
-        """Creates a point in two dimensions.
-
-           Args:
-               arr: Numpy ndarray of length 2. The coordinates of the point.
-
-           Returns:
-               None.
-
-           Raises:
-               None.
-        """
-
-        assert(isinstance(arr, np.ndarray))
-        assert(arr.size == 2)
-        
-        arr = np.array(arr, dtype=float)
-        self.rep = arr
-
-
-    def components(self) -> tuple[Any, Any]:
-        """Returns the components of the point."""
-
-        return (self.rep[0], self.rep[1])
-
-
-
-class Point3D:
-
-    def __init__(self, arr: Any) -> None:
-        """Creates a point in two dimensions.
-
-           Args:
-               arr: Numpy ndarray of length 3. The coordinates of the point.
-
-           Returns:
-               None.
-
-           Raises:
-               None.
-        """
-
-        assert(isinstance(arr, np.ndarray))
-        assert(arr.size == 3)
-        
-        arr = np.array(arr, dtype=float)
-        self.rep = arr
-
-
-    def proj_xy(self) -> Point2D:
-        """Returns the projection of the point onto the x-y plane."""
-
-        return Point2D(self.rep[0:2]) 
-
-
-    def proj_xz(self) -> Point2D:
-        """Returns the projection of the point onto the x-z plane."""
-
-        return Point2D(np.array([self.rep[0], self.rep[2]]))
-
-
-    def components(self) -> tuple[Any, Any, Any]:
-        """Returns the components of the point."""
-
-        return (self.rep[0], self.rep[1], self.rep[2])
-
-
-
-class Vec2D:
-
-    def __init__(self, arr):
-    # type: (np.ndarray) -> None
-
-        assert(isinstance(arr, np.ndarray))
-        assert(arr.size == 2)
-        
-        arr = np.array(arr, dtype=float)
-        self.rep = arr
-
-
-
-    def is_unit(self):
-    # type: (None) -> bool
-
-        if float_equals(self.len(), 1):
-            return True
-        return False
-
-
-    def normalize(self):
-    # type: (None) -> Vec3D
-
-        res = (1 / linalg.norm(self.np_arr)) * self.np_arr
-        return Vec2D(res)
-
-
-    def len(self):
-    # type: (None) -> float
-
-        return linalg.norm(self.np_arr)
-
-
-
-class Vec3D:
-
-    def __init__(self, arr):
-    # type: (np.ndarrar) -> None
-
-        assert(isinstance(arr, np.ndarray))
-        assert(arr.size == 3)
-        
-        arr = np.array(arr, dtype=float)
-        self.rep = arr
-
-
-    # Check if the vector has unit norm.
-    def is_unit(self):
-    # type: (None) -> bool
-        
-        if float_equals(self.len(), 1):
-            return True
-        return False
-
-
-    # Get a normalized version of the vector, without modifying internal
-    #    state.
-    def normalize(self):
-    # type: (None) -> Vec3D
-
-        res = (1 / linalg.norm(self.rep)) * self.rep
-        return Vec3D(res)
-
-
-    def len(self):
-    # type: (None) -> float
-
-        return linalg.norm(self.rep)
- 
-    
-    # Get a vector orthogonal to the vector. Note that there are an infinite
-    #    number of vectors orthogonal to a vector. This function returns
-    #    one chosen arbitrarily with unit length.
-    def get_orthonormal(self):
-    # type: (None) -> Vec3D
-
-        if self.rep[1] == 0 and self.arr[2] == 0:
-            other_vec = np.array([0, 1, 0])
-        else:
-            other_vec = np.array([1, 0, 0])
-
-        orth_vec = Vec3D(np.cross(other_vec, self.rep))
-
-        return orth_vec.get_norm()
-        
-
-
 class PlanarCubicC2Spline3D:
 
-    # A planar cubic spline with continuous first and second derivatives in 3D.
-    # 
-    # Notes:
-    #    Abaqus always uses the a cubic spline with continuous first and second
-    #       derivatives to contruct wire features. For this reason, this is a very
-    #       natural geometry.
-    #    For simplicity, we force the spline to be planar for now. In particular,
-    #       the points MUST ALL HAVE THE SAME Y COORDINATE!
-    #
-    # Arguments:
-    #    points - List of Point3D objects.
-    #             The ordering of the list is the order in which the points will
-    #                be connected.
-    #
-    # Returns:
-    #   None. 
-    def __init__(self, points):
-    # type: (List[Point3D]) -> None
-
-        assert(len(points) > 1)
+    def __init__(self, points: list[Point3D]) -> None:
+        """Creates a planar cubic spline with continuous first and second derivatives 
+               in 3D.
+        
+           Abaqus always uses the a cubic spline with continuous first and second
+               derivatives to contruct wire features. For this reason, this is a very
+               natural geometry.
+           For simplicity, we force the spline to be planar for now. In particular,
+               the points MUST ALL HAVE THE SAME Y COORDINATE!
+        
+           Args:
+               points: The points which make up the spline. The ordering of the list 
+                           should represent the connectivity. 
+        
+           Returns:
+               None. 
+           
+           Raises:
+               None.
+        """
+        assert len(points) > 1
 
         y = points[0].rep[1]
         for point in points:
@@ -265,113 +287,36 @@ class PlanarCubicC2Spline3D:
 
 
 
-# A right rectangular prism is a 3D object which consists of 8 vertices,
-#   all right angles, and opposite faces have equal area.
-# This is not only a right rectangular prism, but also a right rectangular
-#   prism with faces which are parallel to the standard planes of the coordinate
-#   system.
-class SpecRightRectPrism:
-   
-    def __init__(self, v1, v2, v3, v4, v5, v6, v7, v8):
-    # type: (Point3D, Point3D, Point3D, Point3D, Point3D, Point3D, Point3D, Point3D) -> None
-
-        v_list = [v1, v2, v3, v4, v5, v6, v7, v8]
-
-        # Find the groups of 4 vertices which share the same x coordinates, y
-        #   coordinates, and z coordinates.
-        self.same_x_g1 = [v1]
-        self.same_x_g2 = []
-        self.same_y_g1 = [v1]
-        self.same_y_g2 = []
-        self.same_z_g1 = [v1]
-        self.same_z_g2 = []
-        for v in v_list[1:]:
-            if v.rep[0] == self.same_x_g1[0].rep[0]:
-                self.same_x_g1.append(v)
-            else:
-                self.same_x_g2.append(v)
-
-            if v.rep[1] == self.same_y_g1[0].rep[1]:
-                self.same_y_g1.append(v)
-            else:
-                self.same_y_g2.append(v)
-
-            if v.rep[2] == self.same_z_g1[0].rep[2]:
-                self.same_z_g1.append(v)
-            else:
-                self.same_z_g2.append(v)
-
-        assert(len(self.same_x_g1) == 4)
-        assert(len(self.same_x_g2) == 4)
-        assert(len(self.same_y_g1) == 4)
-        assert(len(self.same_y_g2) == 4)
-        assert(len(self.same_z_g1) == 4)
-        assert(len(self.same_z_g2) == 4)
-
-        self.vertices = v_list
-
-   
-    def get_smaller_z(self):
-    # type: (None) -> float
-
-        return min(self.same_z_g1[0].rep[2], self.same_z_g2[0].rep[2]) 
-
-
-    # Get the length in the x-direction, the width in the y-direction, and the
-    #   height in the z-direction.
-    def get_dims(self):
-    # type: (None) -> Tuple(float, float, float)
-       
-        x_length = abs(self.same_x_g1[0].rep[0] - self.same_x_g2[0].rep[0])
-        y_width = abs(self.same_y_g1[0].rep[1] - self.same_y_g2[0].rep[1])
-        z_height = abs(self.same_z_g1[0].rep[2] - self.same_z_g2[0].rep[2])
-
-        return (x_length, y_width, z_height)
-
-    
-    # Get 2 vertices which have the same z coordinates but differing x and y
-    #   coordinates.
-    def get_rect_corners(self):
-    # type: (None) -> Tuple[Point3D, Point3D] 
-
-        v1 = self.vertices[0]
-
-        for v in self.vertices[1:]:
-            if (v1.rep[2] == v.rep[2]) and (v1.rep[0] != v.rep[0]) and (v1.rep[1] != v.rep[1]):
-                return v1, v
-
-
-    def get_centroid(self):
-    # type: (None) -> Point3D
-        
-        avg_x = (self.same_x_g1[0].rep[0] + self.same_x_g2[0].rep[0]) / 2
-        avg_y = (self.same_y_g1[0].rep[1] + self.same_y_g2[0].rep[1]) / 2
-        avg_z = (self.same_z_g1[0].rep[2] + self.same_z_g2[0].rep[2]) / 2
-
-        return Point3D(np.array([avg_x, avg_y, avg_z])) 
-
-
-
 class NGon2D:
 
-    # The points must be defined in order. In other words, the ngon will be
-    #    constructed under the assumption that a line segment connects the
-    #    first point to the second point, another line segment connects the
-    #    second point to the third point, etc. 
-    def __init__(self, vertices):
-    # type: (List[Point2D]) -> None
+    def __init__(self, vertices: list[Point2D]) -> None:
+        """Constructs a polygon in two dimensions.
 
-        # TODO:
-        # We should really check that an ngon is well defined.
-        # In particular, that none of the points are on the interior of the ngon
-        #    and that there are no redundant points.
+           No checks are done to insure that the polygon is well defined.
+
+           Args:
+               vertices: The vertices ordered according to connectivity. In
+                             other words, it is assumed that a line segment
+                             connects the first vertex to the second, the
+                             second to the third, ..., and the last vertex
+                             to the first.
+
+           Returns:
+               None.
+
+           Raises:
+               None.
+        """
+
+        # TODO: We should really check that an ngon is well defined.
+        #       In particular, that none of the points are on the interior of the ngon
+        #           and that there are no redundant points.
         self.vertices = vertices 
 
 
-    # Get a representation which is only composed of Python built-in types. 
-    # Useful for passing to other libraries.
-    def get_builtin_rep(self):
-    # type: (None) -> List[Tuple[float, float]] 
+    def get_builtin_rep(self) -> list[tuple[Any, Any]]:
+        """Returns a representation of the polygon composed of only Python
+               built-in types. Useful for interacting with other libraries."""
 
         return [(vertex.rep[0], vertex.rep[1]) for vertex in self.vertices]
 
@@ -379,44 +324,88 @@ class NGon2D:
 
 class NGon3D:
 
-    # The points must be defined in order. In other words, the ngon will be
-    #    constructed under the assumption that a line segment connects the
-    #    first point to the second point, another line segment connects the
-    #    second point to the third point, etc. 
-    def __init__(self, vertices):
-    # type: (List[Point3D]) -> None
+    def __init__(self, vertices: list[Point3D]) -> None:
+        """Constructs a polygon in three dimensions.
 
-        if not on_any_plane(vertices):
+           No checks are done to insure that the polygon is well defined.
+
+           Args:
+               vertices: The vertices ordered according to connectivity. In
+                             other words, it is assumed that a line segment
+                             connects the first vertex to the second, the
+                             second to the third, ..., and the last vertex
+                             to the first.
+                          The vertices must all exist on a single plane.
+
+           Returns:
+               None.
+
+           Raises:
+               None.
+        """
+
+        if not _on_any_plane(vertices):
             raise RuntimeError("The points don't describe a valid n-gon!")
 
-        # TODO:
-        # We should really check that an ngon is well defined.
-        # In particular, that none of the points are on the interior of the ngon
-        #    and that there are no redundant points.
+        # TODO: We should really check that an ngon is well defined.
+        #       In particular, that none of the points are on the interior of 
+        #           the ngon and that there are no redundant points.
         self.vertices = vertices
 
 
-    def get_plane_coeffs(self):
-    # type: (None) -> np.ndarray 
+    def get_plane_coeffs(self) -> Any:
+        """Gets the coefficients of the the plane that the vertices lie on.
 
-        return get_plane_coeffs(self.vertices[0], self.vertices[1], self.vertices[2])
+           Args:
+               None.
+
+           Returns:
+               Numpy ndarray of length 3. The coefficients of the plane.
+
+           Raises:
+               None.
+        """
+
+        return _get_plane_coeffs(self.vertices[0], self.vertices[1], self.vertices[2])
 
    
-    # Projects the ngon onto the xy-plane, returning an NGon2D.
-    # If the ngon existed on a plane orthogonal to the xy-plane, then all the
-    #    points in the NGon2D will be collinear.
-    def proj_xy(self):
-    # type: (None) -> NGon2D
+    def proj_xy(self) -> NGon2D:
+        """Projects the ngon onto the xy-plane, returning a two dimensional polygon.
+    
+           If the ngon existed on a plane orthogonal to the xy-plane, then all the
+               points in the returned polygon will be collinear.
+
+           Args:
+               None.
+
+           Returns:
+               A representation of the two dimensional polygon resulting from
+                   the projection.
+
+           Raises:
+               None.
+        """
 
         proj_points = [vertex.proj_xy() for vertex in self.vertices]
         return NGon2D(proj_points)
 
 
-    # Projects the ngon onto the xz-plane, returning an NGon2D.
-    # If the ngon existed on a plane orthogonal to the xz-plane, then all the
-    #    points in the NGon2D will be collinear.
-    def proj_xz(self):
-    # type: (None) -> NGon2D
+    def proj_xz(self) -> NGon2D:
+        """Projects the ngon onto the xz-plane, returning a two dimensional polygon.
+    
+           If the ngon existed on a plane orthogonal to the xz-plane, then all the
+               points in the returned polygon will be collinear.
+
+           Args:
+               None.
+
+           Returns:
+               A representation of the two dimensional polygon resulting from
+                   the projection.
+
+           Raises:
+               None.
+        """
 
         proj_points = [vertex.proj_xz() for vertex in self.vertices]
         return NGon2D(proj_points)
@@ -424,95 +413,73 @@ class NGon3D:
 
     # Get a representation which is only composed of Python built-in types. 
     # Useful for passing to other libraries.
-    def get_builtin_rep(self):
-    # type: (None) -> List[Tuple[np.float, np.float, np.float]] 
+    def get_builtin_rep(self) -> list[tuple[Any, Any, Any]]:
+        """Returns a representation of the polygon composed of only Python
+               built-in types. Useful for interacting with other libraries."""
 
         return [(vertex.rep[0], vertex.rep[1], vertex.rep[2]) for vertex in self.vertices]
 
 
 
-# An infinite line extends arbitrarily in space. Its length is infinite.
-class InfiniteLine3D:
+class _InfiniteLine:
 
-    def __init__(self, p1, p2):
-    # type: (Point3D, Point3D) -> None
+    def __init__(self, p1: Point, p2: Point) -> None:
+        """Creates an infinitely long line. 
+
+           Args:
+               p1: One point defining the line.
+               p2: Another point defining the line.
+
+           Returns:
+               None.
+
+           Raises:
+               None.
+        """
 
         # Store a parametric representation of the line.
         self.p1 = p1
-        self.line_dir = Vec3D(p1.rep - p2.rep)
+
+        if isinstance(p1, Point3D):
+            self.line_dir = Vec3D(p1.rep - p2.rep)
+        elif isinstance(p1, Point2D):
+            self.line_dir = Vec2D(p1.rep - p2.rep)
+        else:
+            raise AssertionError("Shouldn't get here.")
 
 
-    def is_on(self, point):
-    # type: (Point3D) -> bool
+    def is_on(self, point: Point) -> bool:
+        """Checks if a point is on the line."""
 
-        return point_on_inf_line(point, (self.p1, self.line_dir))
+        if type(point) is not type(self.p1):
+            raise RuntimeError("Dimensions don't match!")
 
-
-
-# An infinite line extends arbitrarily in space. Its length is infinite.
-class InfiniteLine2D:
-
-    def __init__(self, p1, p2):
-    # type: (Point2D, Point2D) -> None
-
-        self.p1 = p1 
-
-        self.line_dir = Vec2D(np.array([p1.rep[0] - p2.rep[0], p1.rep[1] - p2.rep[1]]))
-
-
-    def is_on(self, point):
-    # type: (Point2D) -> bool
-
-        if point_on_inf_line(point, (self.p1, self.line_dir)):
-            return True
-        return False
+        return _point_on_inf_line(point, (self.p1, self.line_dir))
 
 
 
-# A finite line has finite length.
-class FiniteLine2D:
-
-    # The two points define the length of the line.
-    def __init__(self, p1, p2):
-    # type: (Point2D, Point2D) -> None
-
-        self.p1 = p1 
-        self.p2 = p2
-
-        self.line_dir = Vec2D(np.array([p1.rep[0] - p2.rep[0], p1.rep[1] - p2.rep[1]]))
-
-
-    def is_on(self, point):
-    # type: (Point2D) -> bool
-
-        if point_on_inf_line(point, (self.p1, self.line_dir)) and point_in_box(point, (self.p1, self.p2)):
-            return True
-        return False
-
-
-
-# Check if a point is on a line which has infinite length.
-# 
-# Notes:
-#    None.
-# 
-# Arguments:
-#    point          - Point3D or Point2D.
-#    parametric_rep - Tuple containing Point3D and Vec3D or tuple containing Point2D
-#                        and Vec2D.
-#                     The parametric representation of the line.
-#
-# Returns:
-#    Boolean.
-def point_on_inf_line(point, parametric_rep):
-# type: (Union[Point3D, Point2D], Union[Tuple(Point3D, Vec3D), Tuple(Point2D, Vec2D)]) -> bool
+def _point_on_inf_line(point: Point, parametric_rep: tuple(Point3D, Vec3D) | tuple(Point2D, Vec2D)) -> bool:
+    """Checks if a point is on a line which has infinite length.
+    
+       Args:
+           point:          The point of interest in two dimensions or three dimensions. 
+           parametric_rep: A tuple containing a point and direction in two 
+                               dimensions or three dimensions. The parametric 
+                               representation of the line.
+       
+       Returns:
+           Indication of point being on the line.
+       
+       Raises:
+           None.
+    """
 
     if isinstance(point, Point3D) and isinstance(parametric_rep[0], Point3D) and isinstance(parametric_rep[1], Vec3D):
         dims = 3
     elif isinstance(point, Point2D) and isinstance(parametric_rep[0], Point2D) and isinstance(parametric_rep[1], Vec2D):
         dims = 2
     else:
-        raise RuntimeError("Bad passed arguments!")
+        raise TypeError("Dimensionality mismatch!")
 
     p1, line_dir = parametric_rep
 
@@ -520,7 +487,7 @@ def point_on_inf_line(point, parametric_rep):
     diff = point.rep - p1.rep
     params = []
     for i in range(dims):
-        params.append(robust_float_div(diff[i], line_dir.rep[i]))
+        params.append(_robust_float_div(diff[i], line_dir.rep[i]))
 
     # Zeros can cause problems.
     # Consider a line defined by: (0, 0, 0) + t * <0, -5, 0>. Say we want
@@ -534,64 +501,22 @@ def point_on_inf_line(point, parametric_rep):
     for param in params:
         if param not in degenerate_cases:
             p = p1.rep + param * line_dir.rep
-            res = Point3D(p)
 
-            if identical_points(point, res):
+            if dims == 3:
+                res = Point3D(p)
+            else:
+                res = Point2D(p)
+
+            if _identical_points(point, res):
                 return True
 
     return False
 
 
 
-# Check if a point lies in a box defined by two other points. 
-# 
-# Notes:
-#    There are a number of degenerate cases. The point could lie exactly on the
-#       other two points. Two points in three dimensions might only define a 
-#       plane. Two points in two dimensions might only define a line. If the point
-#       lies or in the geometric structure (point, line, plane, box) defined by the
-#       two points, this function returns True by convention. 
-# 
-# Arguments:
-#    point      - Point2D object or Point3D object. 
-#    box_points - Two element tuple of Point2D or Point3D objects.
-# 
-# Returns:
-#    Bool.
-def point_in_box(point, box_points):
-# type: (Union[Point2D, Point3D], Tuple[Union[Point2D, Point3D], Union[Point2D, Point3D]]) -> bool
-
-    if isinstance(point, Point2D):
-        if min(box_points[0].rep[0], box_points[1].rep[0]) <= point.rep[0] <= max(box_points[0].rep[0], box_points[1].rep[0]) and \
-           min(box_points[0].rep[1], box_points[1].rep[1]) <= point.rep[1] <= max(box_points[0].rep[1], box_points[1].rep[1]):
-            return True
-        else:
-            return False
-
-    else:
-        if min(box_points[0].rep[0], box_points[1].rep[0]) <= point.rep[0] <= max(box_points[1].rep[0], box_points[0].rep[0]) and \
-           min(box_points[0].rep[1], box_points[1].rep[1]) <= point.rep[1] <= max(box_points[1].rep[1], box_points[0].rep[1]) and \
-           min(box_points[0].rep[2], box_points[1].rep[2]) <= point.rep[2] <= max(box_points[1].rep[2], box_points[0].rep[2]):
-            return True
-        else:
-            return False
-
-
-
-# Check if two floats are equal using some fixed epsilon.
-# 
-# Notes:
-#    None.
-# 
-# Arguments:
-#    a - Float.
-#    b - Float.
-#
-# Returns:
-#    Bool. 
 FLOATING_POINT_TOLERANCE = 10**(-6)
-def float_equals(a, b):
-# type: (float, float) -> bool
+def float_equals(a: float, b: float) -> bool:
+    """Checks if two floats are equal up to some epsilon."""
 
     if abs(a - b) <= FLOATING_POINT_TOLERANCE:
         return True
@@ -600,19 +525,23 @@ def float_equals(a, b):
 
 
 
-# Compare the equality of two sequences of points. 
-# 
-# Notes:
-#    Order does not matter. If for every point in one sequence there is an equivalent 
-#       point in the other list, and vice versa, the two sequences are equal.
-# 
-# Arguments:
-#    s1 - Sequence of Point3D objects. 
-#    s2 - Sequence of Point3D objects. 
-#
-# Returns:
-#    Bool. 
-def seq_points_equal(s1, s2):
+def seq_points_equal(s1: Sequence[Point], s2: Sequence[Point]) -> bool:
+    """Checks if two sequences of points are the same.
+
+       The ordering of the sequences doesn't matter. If, for every point in one
+           sequence, there is an equivalnet point in the other sequence, the
+           two sequences are considered equal.
+
+       Args:
+           s1: Some points.
+           s2: Some points.
+
+       Returns:
+           Indication of the sequences being equal.
+
+       Raises:
+           None.
+    """
 
     if len(s1) != len(s2):
         return False
@@ -620,30 +549,19 @@ def seq_points_equal(s1, s2):
     found_match = [False] * len(s2)
     for p1 in s1:
         for index, p2 in enumerate(s2):
-            if identical_points(p1, p2) and found_match[index] == False:
+            if _identical_points(p1, p2) and not found_match[index]:
                 found_match[index] = True 
                 break
 
     if False not in found_match:
         return True
-    else:
-        return False
+
+    return False
                 
 
 
-# Check if two points are identical. 
-# 
-# Notes:
-#    Not checking for being truly identical, only to float precision.
-# 
-# Arguments:
-#    pt1 - Point3D or Point2D.
-#    pt2 - Point3D or Point2D.
-#
-# Returns:
-#    Bool. 
-def identical_points(pt1, pt2):
-# type: (Union[Point3D, Point2D], Union[Point3D, Point2D]) -> bool
+def _identical_points(pt1: Point, pt2: Point) -> bool:
+    """Checks if two points are identical within float tolerance."""
 
     if isinstance(pt1, Point3D):
         if float_equals(pt1.rep[0], pt2.rep[0]) and float_equals(pt1.rep[1], pt2.rep[1]) and \
@@ -657,29 +575,31 @@ def identical_points(pt1, pt2):
 
 
 
-# In a sequence of points, find some pair of points which are not identical. 
-# 
-# Notes:
-#    Not checking for being truly identical, only to float precision.
-# 
-# Arguments:
-#    points - A tuple of Point3D or Point2D objects. 
-#
-# Returns:
-#    Bool. 
-def find_non_identical_points(points):
-# type: (Tuple[Union[Point3D, Point2D], ...]) -> Tuple(Union[Point3D, Point2D], Union[Point3D, Point2D])
+def _find_non_identical_points(points: Iterable[Point]) -> tuple[Point, Point]:
+    """Finds and returns a pair of points which are not identical within float 
+           tolerance.
+
+       Args:
+           points: A sequence of points. 
+
+       Returns:
+           None.
+
+       Raises:
+           RuntimeError: A pair of non identical points could not be found. 
+    """
 
     for point_pair in itertools.combinations(points, 2):
-        if not identical_points(*point_pair):
+        if not _identical_points(*point_pair):
             return point_pair
 
     raise RuntimeError("Failed to find a pair of non identical points!")
 
 
 
-def robust_float_div(a, b):
-# type: (numbers.Real, numbers.Real) -> float
+def _robust_float_div(a: float, b: float) -> float:
+    """Divides two numbers with the guarantee that any divide by zero exception
+           will be caught and the result will be passed to the caller."""
 
     a = float(a)
     b = float(b)
@@ -688,29 +608,34 @@ def robust_float_div(a, b):
         res = a / b 
     except ZeroDivisionError:
         if a == 0:
-            return float("nan")
+            res = float("nan")
         elif a > 0:
-            return float("+inf")
+            res = float("+inf")
         else:
-            return float("-inf")
+            res = float("-inf")
 
     return res
 
 
 
+def _are_collinear(points: Iterable[Point]) -> bool:
+    """Checks if a sequence of points are collinear. 
 
-# Check if points are collinear.
-def are_collinear(points):
-# type: (Tuple[Union[Point3D, Point2D], ...]) -> bool
+       Args:
+           points: At least two points.
 
-    assert(len(points) > 2)
+       Returns:
+           Indication of collinearity.
 
-    points_for_line = find_non_identical_points(points)
+       Raises:
+           None.
+    """
 
-    if isinstance(points[0], Point3D):
-        line = InfiniteLine3D(*points_for_line)
-    else:
-        line = InfiniteLine2D(*points_for_line)
+    assert len(points) > 2
+
+    points_for_line = _find_non_identical_points(points)
+
+    line = _InfiniteLine(*points_for_line)
 
     for point in points:
         if not line.is_on(point):
@@ -720,13 +645,22 @@ def are_collinear(points):
 
 
 
-# Given some points, find the coefficients a, b, c, and d so that all the points
-#    lie on the plane described by ax + by + cz = d. If the points are
-#    collinear, an exception is thrown.
-def get_plane_coeffs(point1, point2, point3):
-# type: (Point3D, Point3D, Point3D) -> np.ndarray
+def _get_plane_coeffs(point1: Point3D, point2: Point3D, point3: Point3D) -> Any:
+    """Finds the coefficients of the plane passing through three points.
 
-    if are_collinear([point1, point2, point3]):
+       The plane is assumed to be of the form: ax + by + cz = d.
+
+       Args:
+           point1, ..., point3: Points.
+
+       Returns:
+           Numpy ndarray of length 4. The coefficients a, b, c, and d.
+
+       Raises:
+           RuntimeError: The points are collinear.
+    """
+
+    if _are_collinear([point1, point2, point3]):
         raise RuntimeError("Points are collinear!")
 
     # We cannot know if the plane will pass through the origin (making d = 0)
@@ -748,26 +682,34 @@ def get_plane_coeffs(point1, point2, point3):
 
 
 
-# Check if the points all lie on a single plane.
-# Assumed that the first three points are not collinear.
-def on_any_plane(points):
-# type: (List[Point3D]) -> bool
+def _on_any_plane(points: Sequence[Point3D]) -> bool:
+    """Checks if three or more points lie on the same plane."""
 
-    assert(len(points) >= 3)
+    assert len(points) >= 3
 
     # Find the coefficients of the plane which passes through the points.
-    coeffs = get_plane_coeffs(points[0], points[1], points[2])
+    coeffs = _get_plane_coeffs(points[0], points[1], points[2])
 
     # Check if all the points lie on this plane.
-    return on_particular_plane(points, coeffs)
+    return _on_particular_plane(points, coeffs)
 
 
 
-# Check if all points lie on a plane described by the coefficients of the plane.
-# The coefficent order should be a, b, c, d where the equation of the plane is
-#    ax + by + cz = d.
-def on_particular_plane(points, coeffs):
-# type: (List[Point3D], np.array) -> bool
+def _on_particular_plane(points: Sequence[Point], coeffs: Any) -> bool:
+    """Checks if a sequence of points lie on a plane of interest, within float
+           tolerance.
+
+       Args:
+           points: Some points of interest.
+           coeffs: Numpy ndarray of length 4. Assumed to contain a, b, c, d where
+                       the plane is described by ax + by + cz = d.
+
+       Returns:
+           Indication of the points lying on the specified plane.
+
+       Raises:
+           None.
+    """
 
     for point in points:
         if not float_equals(np.dot(coeffs[0:3], point.rep), coeffs[3]):
@@ -777,19 +719,17 @@ def on_particular_plane(points, coeffs):
 
 
 
-# Check if a set of points all lie on the same plane as an ngon. 
-def on_plane_of_ngon(points, ngon):
-# type: (List[Point3D], NGon3D) -> bool
+def on_plane_of_ngon(points: Sequence[Point], ngon: NGon3D) -> bool:
+    """Checks if some points lie on the plane of a polygon."""
 
     ngon_plane_coeffs = ngon.get_plane_coeffs()
 
-    return on_particular_plane(points, ngon_plane_coeffs)
+    return _on_particular_plane(points, ngon_plane_coeffs)
 
 
 
-# Check if two vectors are orthogonal.
-def are_orthogonal(vec1, vec2):
-# type: (Vec3D, Vec3D) -> bool
+def _are_orthogonal(vec1: Vec, vec2: Vec) -> bool:
+    """Checks if two vectors are orthogonal within float tolerance."""
 
     if float_equals(np.dot(vec1.rep, vec2.rep), 0):
         return True
@@ -797,48 +737,80 @@ def are_orthogonal(vec1, vec2):
 
 
 
-# Find the centroid of a group of points.
-#
-# Notes:
-#    None.
-#
-# Arguments:
-#    points - Tuple of Point3D objects.
-#
-# Returns:
-#    Point3D object.
-def find_centroid(points):
-# type: (Tuple[Point3D, ...]) -> Point3D 
-
-    rep = np.array([0, 0, 0], dtype=float)
-    for point in points:
+def find_centroid(points: Sequence[Point]) -> Point:
+    """Finds the centroid of some points."""
+    
+    rep = points[0].rep
+    for point in points[1:]:
         rep += point.rep
     cnt = len(points)
-    return Point3D(rep / cnt)
+
+    if len(rep) == 3:
+        return Point3D(rep / cnt)
+    elif len(rep) == 2:
+        return Point2D(rep / cnt)
+    else:
+        raise AssertionError("Shouldn't get here.")
+
+
+
+def seq_points(points: Sequence[Sequence[float]]) -> list[Point]:
+    """Converts sequence of sequences of points to genuine point objects.
+
+       Args:
+           points: Sequence of at least one point, where each point is represented
+                       by a sequence of floats. Assumed that all the sequences
+                       representing points are of the same length.
+
+       Returns:
+           Genuine point objects. 
+
+       Raises:
+           None.
+    """
+
+    if not points:
+        raise RuntimeError("Expected at least one point.")
+
+    is_3d = len(points[0]) == 3
+    is_2d = len(points[0]) == 2
+
+    if not is_3d and not is_2d:
+        raise RuntimeError("Expected 2D or 3D points.")
+    
+    if is_3d:
+        l = [Point3D(np.array(point)) for point in points]
+    if is_2d:
+        l = [Point2D(np.array(point)) for point in points]
+
+    return l
 
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#                                  Deprecated!
+#                                  DEPRECATED 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-# Check if all the points lie in the ngon.
-def points_in_ngon_3D(points, ngon):
-# type: (Tuple[Point3D], NGon3D) -> bool
+def points_in_ngon_3D(points: Iterable[Point3D], ngon: NGon3D) -> bool:
+    """DEPRECATED. Was used to determine the which face should be partitioned.
+        
+       Checks if all the points lie in a polygon. 
+    """
 
     for point in points:
-        if not point_in_ngon_3D(point, ngon):
+        if not _point_in_ngon_3D(point, ngon):
             return False
 
     return True
 
 
 
-# Check if a point lies inside an ngon. 
-# Assumed that both the point and the ngon live in 3D.
-def point_in_ngon_3D(point, ngon):
-# type: (Point3D, NGon3D) -> bool
+def _point_in_ngon_3D(point: Point3D, ngon: NGon3D) -> bool:
+    """DEPRECATED. Was a helper function for checking if many points were in a
+           polygon.
+       
+       Checks if a point lies in a polygon."""
 
     # If the point doesn't lie on the same plane as the ngon, it certainly
     #    isn't inside of it.
@@ -858,20 +830,19 @@ def point_in_ngon_3D(point, ngon):
     proj_ngon = ngon.proj_xy()
 
     # If all of the points are collinear, then project onto a different plane.
-    if are_collinear(proj_ngon.vertices + [proj_point]):
+    if _are_collinear(proj_ngon.vertices + [proj_point]):
         proj_point = point.proj_xz()
         proj_ngon = ngon.proj_xz()
 
-    return point_in_ngon_2D(proj_point, proj_ngon)
+    return _point_in_ngon_2D(proj_point, proj_ngon)
 
 
 
-# Check if a point lies inside an ngon.
-# Assumed that both the point and the ngon live in 2D.
-# If the point lies on one of the edges of the ngon, it is deemed to be in the 
-#    ngon.
-def point_in_ngon_2D(point, ngon):
-# type: (Point2D, NGon2D) -> bool    
+def _point_in_ngon_2D(point: Point2D, ngon: NGon2D) -> bool:
+    """DEPRECATED. Was a helper function for 3D version of this function.
+    
+       Checks a if point lies inside a polygon. If the point lies on one of the
+           edges of the polygon, it is considered inside the polygon."""
 
     # If the point lies on an edge, it is in the ngon.
     for idx, vertex in enumerate(ngon.vertices):
@@ -882,29 +853,21 @@ def point_in_ngon_2D(point, ngon):
             next_vertex = ngon.vertices[idx + 1]
         
         # WARNING: Relies on ordering according to connectivity. 
-        line = FiniteLine2D(vertex, next_vertex)
+        line = _FiniteLine(vertex, next_vertex)
 
         if line.is_on(point):
             return True
     
     # Otherwise, check if it's in the interior. 
-    ngon = path.Path(ngon.get_builtin_rep(), closed=True)
-    return ngon.contains_point(point.components())
+    ngon = path.Path(ngon.get_builtin_rep(), closed=True)   
+    return ngon.contains_point(point.components()) 
 
 
 
-# Find the extrema (i.e. maximum and minimum) x values, y values, and z values.
-# 
-# Notes:
-#    None.
-# 
-# Arguments:
-#    points - List of Point3D objects.
-#
-# Returns:
-#    6-tuple of floats.
-def find_extrema(points):
-# type: (List[Point3D]) -> Tuple[float, float, float, float, float, float]
+def find_extrema(points: Sequence[Point3D]) -> tuple[float, float, float, float, float, float]:
+    """DEPRECATED. Was a helper function for bounding box creation.
+
+       Find the extrema coordinates of a sequence of at least one points."""
 
     assert(len(points) > 0)
 
@@ -933,28 +896,186 @@ def find_extrema(points):
 
 
 
-# Convert a sequence of tuples representing points to a list of points.
-# 
-# Notes:
-#    None.
-# 
-# Arguments:
-#    points - Sequence of 2-tuples or 3-tuples that represent points.
-#
-# Returns:
-#    List of Point3D or Point2D objects. 
-def seq_points(points):
+class SpecRightRectPrism:
+    """DEPRECATED. Was used for tool pass geometry before splines were introduced."""
+   
+    def __init__(self, v1: Point3D, v2: Point3D, v3: Point3D, v4: Point3D, 
+                 v5: Point3D, v6: Point3D, v7: Point3D, v8: Point3D) -> None:
+        """Creates a right rectangular prism which has faces which are paralle to
+               the standard planes of the coordinate system.
 
-    assert(len(points) > 0)
-    is_3d = True if len(points[0]) == 3 else False
-    is_2d = True if len(points[0]) == 2 else False
-    assert(is_3d or is_2d)
+           Args:
+               v1, .., v8: The vertices. 
 
-    l = []
-    for point in points:
-        if is_3d:
-            l.append(Point3D(np.array(point)))
+           Returns:
+               None.
+
+           Raises:
+               None.
+        """
+
+        v_list = [v1, v2, v3, v4, v5, v6, v7, v8]
+
+        # Find the groups of 4 vertices which share the same x coordinates, y
+        #   coordinates, and z coordinates.
+        self.same_x_g1 = [v1]
+        self.same_x_g2 = []
+        self.same_y_g1 = [v1]
+        self.same_y_g2 = []
+        self.same_z_g1 = [v1]
+        self.same_z_g2 = []
+        for v in v_list[1:]:
+            if v.rep[0] == self.same_x_g1[0].rep[0]:
+                self.same_x_g1.append(v)
+            else:
+                self.same_x_g2.append(v)
+
+            if v.rep[1] == self.same_y_g1[0].rep[1]:
+                self.same_y_g1.append(v)
+            else:
+                self.same_y_g2.append(v)
+
+            if v.rep[2] == self.same_z_g1[0].rep[2]:
+                self.same_z_g1.append(v)
+            else:
+                self.same_z_g2.append(v)
+
+        assert len(self.same_x_g1) == 4
+        assert len(self.same_x_g2) == 4
+        assert len(self.same_y_g1) == 4
+        assert len(self.same_y_g2) == 4
+        assert len(self.same_z_g1) == 4
+        assert len(self.same_z_g2) == 4
+
+        self.vertices = v_list
+
+   
+    def get_smaller_z(self) -> float:
+        """Returns the value of the z coordinate corresponding to the plane of
+               prism which has smallest z value."""
+
+        return min(self.same_z_g1[0].rep[2], self.same_z_g2[0].rep[2]) 
+
+
+    def get_dims(self) -> tuple[float, float, float]:
+        """Returns the length in the x-direction, the width in the y-direction, and the
+               height in the z-direction."""
+       
+        x_length = abs(self.same_x_g1[0].rep[0] - self.same_x_g2[0].rep[0])
+        y_width = abs(self.same_y_g1[0].rep[1] - self.same_y_g2[0].rep[1])
+        z_height = abs(self.same_z_g1[0].rep[2] - self.same_z_g2[0].rep[2])
+
+        return (x_length, y_width, z_height)
+
+    
+    def get_rect_corners(self) -> tuple[Point3D, Point3D]:
+        """Returns 2 vertices which have the same z coordinates but differing x and y
+               coordinates."""
+
+        v1 = self.vertices[0]
+
+        for v in self.vertices[1:]:
+            if (v1.rep[2] == v.rep[2]) and (v1.rep[0] != v.rep[0]) and (v1.rep[1] != v.rep[1]):
+                return v1, v
+
+        raise AssertionError("Cannot find two vertices with matching z coordinates.")
+
+
+    def get_centroid(self) -> Point3D:
+        """Returns the centroid of the prism.""" 
+        
+        avg_x = (self.same_x_g1[0].rep[0] + self.same_x_g2[0].rep[0]) / 2
+        avg_y = (self.same_y_g1[0].rep[1] + self.same_y_g2[0].rep[1]) / 2
+        avg_z = (self.same_z_g1[0].rep[2] + self.same_z_g2[0].rep[2]) / 2
+
+        return Point3D(np.array([avg_x, avg_y, avg_z])) 
+
+
+
+class _FiniteLine:
+
+    def __init__(self, p1: Point, p2: Point) -> None:
+        """DEPRECATED. Was used to help do point inside polygon checking.
+
+           Creates a line of finite length. 
+
+           The line only exists on and between the two points which define it.
+
+           Args:
+               p1: One point defining the line.
+               p2: Another point defining the line.
+
+           Returns:
+               None.
+
+           Raises:
+               None.
+        """
+
+        self.p1 = p1 
+        self.p2 = p2
+        
+        if isinstance(p1, Point2D):
+            self.line_dir = Vec2D(np.array([p1.rep[0] - p2.rep[0], p1.rep[1] - p2.rep[1]]))
+        elif isinstance(p1, Point3D):
+            self.line_dir = Vec3D(np.array([p1.rep[0] - p2.rep[0], p1.rep[1] - p2.rep[1], p1.rep[2] - p2.rep[2]]))
         else:
-            l.append(Point2D(np.array(point)))
+            raise AssertionError("Shouldn't get here.")
 
-    return l
+
+    def is_on(self, point: Point) -> bool:
+        """Checks if a point is on the line."""
+        
+        if not isinstance(point, type(self.p1)):
+            raise TypeError("Dimensionality mismatch.")
+        
+        if _point_on_inf_line(point, (self.p1, self.line_dir)) and _point_in_box(point, (self.p1, self.p2)):
+            return True
+        return False
+
+
+
+def _point_in_box(point: Point, box_points: tuple[Point, Point]) -> bool:
+    """DEPRECATED. Was used as helper for checking if point lies on line of finite
+           length.
+
+       Checks if a point lies in a box defined by two other points.
+       
+       There are a number of degenerate cases. The point could lie exactly on 
+           the two points defining the box. Two points in three dimensions might 
+           only define a plane, not a rectangular prism. Two points in two 
+           dimensions might only define a line, not a rectangle. 
+
+       If the point lies in the geometric structure (point, line, plane, box) defined 
+           by the two points, this function returns True by convention. 
+
+       Args:
+           point:      The point of interest.
+           box_points: The points defining the box.
+                       
+           The dimensionality of the point and points defining the box should be the same.
+
+       Returns:
+           Indication if the points lie on or in the box.
+
+       Raises:
+           None.
+    """
+
+    if isinstance(point, Point2D):
+        if min(box_points[0].rep[0], box_points[1].rep[0]) <= point.rep[0] <= max(box_points[0].rep[0], box_points[1].rep[0]) and \
+           min(box_points[0].rep[1], box_points[1].rep[1]) <= point.rep[1] <= max(box_points[0].rep[1], box_points[1].rep[1]):
+            return True
+        else:
+            return False
+
+    else:
+        if min(box_points[0].rep[0], box_points[1].rep[0]) <= point.rep[0] <= max(box_points[1].rep[0], box_points[0].rep[0]) and \
+           min(box_points[0].rep[1], box_points[1].rep[1]) <= point.rep[1] <= max(box_points[1].rep[1], box_points[0].rep[1]) and \
+           min(box_points[0].rep[2], box_points[1].rep[2]) <= point.rep[2] <= max(box_points[1].rep[2], box_points[0].rep[2]):
+            return True
+        else:
+            return False
+
+
+

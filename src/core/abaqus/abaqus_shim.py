@@ -231,7 +231,7 @@ def _get_all_vertices(obj: Any) -> list[list[geom.Point3D]]:
 def _get_face_vertices(face: Any, part: Optional[Any] = None, 
                        assembly: Optional[Any] = None, 
                        part_instance: Optional[Any] = None
-                      ) -> list[tuple[float, float, float], ...]:
+                      ) -> list[tuple[float, float, float]]:
     """Gets the vertices of a face.
 
        Error in documentation of pointOn member.
@@ -326,8 +326,6 @@ def assign_only_section_to_part(part: Any, model_name: str, mdb: Any) -> None:
     full_set = part.Set(name="simple_set", cells=part.cells)
     
     part.SectionAssignment(full_set, section_name)
-    
-    return
 
 
 
@@ -1794,7 +1792,7 @@ def partition_face(ngon: geom.NGon3D, part: Optional[Any] = None,
 
 
 # *****************************************************************************
-#                             DEPRECATED Functions. 
+#                                 DEPRECATED 
 # *****************************************************************************
 
 
@@ -2100,7 +2098,7 @@ def _check_material_and_section(should_print: str, mdb: Any) -> bool:
 
 
 def _build_spec_right_rect_prism_part(part_name: str, spec_right_rect_prism: geom.SpecRightRectPrism, 
-                                     model_name: str, mdb: Any) -> None:
+                                      model_name: str, mdb: Any) -> None:
     """DEPRECRATED. Was used to construct very simple tool pass geometries and
            bounding boxes.
     

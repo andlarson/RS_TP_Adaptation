@@ -1,6 +1,8 @@
-# Overriding some defaults for this project.
 
 [tool.pylint.main]
 
 jobs=1
+
 py-version=3.10
+
+disable = missing-class-docstring, too-few-public-methods, line-too-long, no-else-return
