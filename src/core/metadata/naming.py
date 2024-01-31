@@ -76,13 +76,16 @@ def last_odb_file_name(mdb_metadata: abq_md.AbaqusMdbMetadata) -> str:
                which ran.
 
        Raises:
-           None.
+           RuntimeError: No job was run in the last model, so no odb file exists.
     """
 
     # Figure out the last model name in this MDB. 
     last_model_name = mdb_metadata.model_names[-1] 
 
-    return mdb_metadata.models_metadata[last_model_name].job_name + ".odb"
+    if mdb_metadata.models_metadata[last_model_name].job_name:
+        return mdb_metadata.models_metadata[last_model_name].job_name + ".odb"
+
+    raise RuntimeError("No job recorded, so no odb file exists!")
 
 
 
@@ -103,13 +106,14 @@ def last_sim_file_name(mdb_metadata):
                model which ran.
 
        Raises:
-           None.
+           RuntimeError: No job was run in the last model, so no sim file exists.
     """
 
     # Figure out the last model name in this MDB. 
     last_model_name = mdb_metadata.model_names[-1] 
 
-    return mdb_metadata.models_metadata[last_model_name].job_name + ".sim"
+    if mdb_metadata.models_metadata[last_model_name].job_name:
+        return mdb_metadata.models_metadata[last_model_name].job_name + ".sim"
 
-
+    raise RuntimeError("No job recorded, so no sim file exists!")
 

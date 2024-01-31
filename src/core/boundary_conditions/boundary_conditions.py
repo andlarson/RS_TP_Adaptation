@@ -2,6 +2,9 @@
 This module offers classes and functions related to boundary conditions.
 """
 
+from typing import Any, TypeVar
+from abc import ABCMeta, abstractmethod
+
 import numpy as np
 
 import src.util.geom as geom
@@ -11,14 +14,7 @@ from src.util.debug import *
 
 
 
-class BCSettings:
-
-    def __init__(self):
-        raise RuntimeError("Not yet available.")
-
-
-
-class DisplacementBCSettings(BCSettings):
+class DisplacementBCSettings():
     
     def __init__(self, fix_x: bool, fix_y: bool, fix_z: bool, prevent_x_rot: bool, 
                  prevent_y_rot: bool, prevent_z_rot: bool) -> None:
@@ -59,16 +55,9 @@ class DisplacementBCSettings(BCSettings):
 
 
 
-class BC:
-
-    def __init__(self):
-        raise RuntimeError("Not supported.")
-
-
-
-class SurfaceBC(BC):
+class SurfaceBC():
         
-    def __init__(self, ngon: geom.NGon3D, bc_settings: BCSettings) -> None:
+    def __init__(self, ngon: geom.NGon3D, bc_settings: DisplacementBCSettings) -> None:
         """Creates a boundary condition on some surface.
            
            Args:
@@ -87,9 +76,9 @@ class SurfaceBC(BC):
 
 
 
-class VertexBC(BC):
+class VertexBC():
 
-    def __init__(self, vertices: list[geom.Point3D], bc_settings: BCSettings
+    def __init__(self, vertices: list[geom.Point3D], bc_settings: DisplacementBCSettings 
                 ) -> None:
         """Creates a boundary condition on some set of points.
 
@@ -108,13 +97,15 @@ class VertexBC(BC):
         self.bc_settings = bc_settings
 
 
+BC = TypeVar("BC", SurfaceBC, VertexBC)
+
 
 def apply_BCs(BCs: list[BC], step_name: str, part_instance: Any, model_name: str, 
               mdb: Any) -> None:
     """Applies boundary conditions to an assembly.
 
-       Note that boundary conditions can only be applied to an Assembly, they
-           cannot be applied to a part.
+       Note that boundary conditions can only be applied to an Abaqus Assembly, they
+           cannot be applied to an Abaqus Part.
 
        In order to apply boundary conditions to regions which don't already exist, 
            it's necessary to partition pre-existing features. In general, an Abaqus 
@@ -142,20 +133,20 @@ def apply_BCs(BCs: list[BC], step_name: str, part_instance: Any, model_name: str
        Raises:
            None.
     """
-    for BC in BCs:
-        BC_cnt = shim.get_bc_cnt(model_name, mdb)
-        BC_name = shim.STANDARD_BC_PREFIX + str(BC_cnt)
+    for bc in BCs:
+        bc_cnt = shim.get_bc_cnt(model_name, mdb)
+        bc_name = shim.STANDARD_BC_PREFIX + str(bc_cnt)
 
-        if isinstance(BC, SurfaceBC):
+        if isinstance(bc, SurfaceBC):
             assembly = mdb.models[model_name].rootAssembly
-            face = shim.partition_face(BC.region, instance=part_instance, assembly=assembly) 
+            face = shim.partition_face(bc.region, instance=part_instance, assembly=assembly) 
             region = shim.build_region_with_face(face, part_instance)
-        elif isinstance(BC, VertexBC):
+        elif isinstance(bc, VertexBC):
             raise RuntimeError("Not yet supported.")
         else:
             raise RuntimeError("Not yet supported.")
 
-        if isinstance(BC.bc_settings, DisplacementBCSettings):
-            shim.create_disp_rot_bc(BC_name, step_name, region, BC.bc_settings, model_name, mdb)
+        if isinstance(bc.bc_settings, DisplacementBCSettings):
+            shim.create_disp_rot_bc(bc_name, step_name, region, bc.bc_settings, model_name, mdb)
         else:
             raise RuntimeError("Not yet supported.")

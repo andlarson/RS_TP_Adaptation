@@ -1001,7 +1001,7 @@ def cut_instances_in_assembly(name: str, instance_to_be_cut: Any, cutting_instan
 
 
 
-def mesh(part_instance: Any, size: int, model_name: str, mdb: Any) -> None:
+def mesh(part_instance: Any, size: float, model_name: str, mdb: Any) -> None:
     """Meshes an indepedent part instance in the context of the root Assembly.
 
        Uses a simple algorithm to do meshing: Starts by trying to mesh with
@@ -1056,7 +1056,7 @@ def mesh(part_instance: Any, size: int, model_name: str, mdb: Any) -> None:
 
 
 
-def create_material(material: mp.Material, model_name: str, mdb: Any):
+def create_material(material: mp.ElasticMaterial, model_name: str, mdb: Any):
     """Adds a material to a model.
 
        Right now, only some material types are acceptable. 
@@ -1077,8 +1077,8 @@ def create_material(material: mp.Material, model_name: str, mdb: Any):
     if isinstance(material, mp.ElasticMaterial):
         poissons_ratio = material.poissons_ratio
         youngs_modulus = material.youngs_modulus
-        material = mdb.models[model_name].Material(STANDARD_MATERIAL_NAME)
-        material.Elastic(((youngs_modulus, poissons_ratio), ), type=ISOTROPIC)
+        abq_material = mdb.models[model_name].Material(STANDARD_MATERIAL_NAME)
+        abq_material.Elastic(((youngs_modulus, poissons_ratio), ), type=ISOTROPIC)
     else:
         raise RuntimeError("No support for this type of material.")
 
@@ -1597,7 +1597,7 @@ def convert_shell_to_solid(part: Any) -> None:
 
 
 def create_disp_rot_bc(BC_name: str, step_name: str, region: Any, 
-                       settings: bc.BCSettings, model_name: str, 
+                       settings: bc.DisplacementBCSettings, model_name: str, 
                        mdb: Any):
     """Creates displacement and rotational boundary conditions for some region.
 
@@ -1746,10 +1746,14 @@ def partition_face(ngon: geom.NGon3D, part: Optional[Any] = None,
 
     # Create a datum point for each vertex.
     datums = []
-    for idx in range(len(ngon.vertices)):
-        feature = module.DatumPointByCoordinate(ngon.vertices[idx].components())
-        id = feature.id
-        datums.append(module.datums[id])
+    for v in ngon.get_builtin_rep():
+        
+        # DEBUG
+        dp("A datum is being created with coordinates " + str(v))
+
+        feature = module.DatumPointByCoordinate(v)
+        id_ = feature.id
+        datums.append(module.datums[id_])
 
     # Partition the face using the datum pairs to create edges.
     # Once all pairs of vertices of the ngon have been created, a new face should
@@ -2077,7 +2081,7 @@ def _check_ready_for_toolpasses(should_print: bool, mdb: Any) -> bool:
 
 
 
-def _check_material_and_section(should_print: str, mdb: Any) -> bool:
+def _check_material_and_section(should_print: bool, mdb: Any) -> bool:
     """DEPRECATED. Helper for another deprecated function.
 
        Checks that the MDB contains exactly one material, one section, and that
@@ -2206,8 +2210,8 @@ def _build_bounding_box_part(name: str, tool_pass: tp.ToolPass, model_name: str,
 
 
 
-def _build_tool_pass_bounding_box(name: str, x_excess: float, y_excess: float, 
-                                 z_excess: float, tool_pass: tp.ToolPass, model_name: str, 
+def _build_tool_pass_bounding_box(name: str, x_excess: float, y_excess: float,
+                                 z_excess: float, tool_pass: tp.ToolPass, model_name: str,
                                  mdb: Any) -> None:
     """DEPRECATED. Was used as a helper function for creating bounding boxes
            around tool passes.
@@ -2243,9 +2247,9 @@ def _build_tool_pass_bounding_box(name: str, x_excess: float, y_excess: float,
 
 
 def _merge_instances_in_assembly(name: str, instances_to_merge: tuple[Any, ...], 
-                                keep_intersections: bool, model_name: str, 
-                                mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
-                               ) -> Any:
+                                 keep_intersections: bool, model_name: str, 
+                                 mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
+                                ) -> Any:
     """DEPRECATED. Was a helper for the bounding box mesh refinement technique.
 
        Merges instances to create a new part.
@@ -2275,8 +2279,8 @@ def _merge_instances_in_assembly(name: str, instances_to_merge: tuple[Any, ...],
 
         # Suppress the features used in the merge. 
         for instance in instances_to_merge:
-            name = (instance.name, )
-            mdb.models[model_name].rootAssembly.suppressFeatures(name)
+            abq_name = (instance.name, )
+            mdb.models[model_name].rootAssembly.suppressFeatures(abq_name)
 
     except AbaqusException as e:
         dp("")
@@ -2477,8 +2481,8 @@ def _check_section_properties(section: Any) -> None:
 
 
 def _partition_face_with_sketch(face: Any, edge: Any, sketch: Any, assembly: Optional[Any] = None, 
-                               instance: Optional[Any] = None, part: Optional[Any] = None
-                              ) -> Any:
+                                instance: Optional[Any] = None, part: Optional[Any] = None
+                               ) -> Any:
     """DEPRECATED. Now, instead of partitioning a face with a sketch, a face
            is partitioned by creating edges on it which define the new face.
     
@@ -2529,7 +2533,7 @@ def _partition_face_with_sketch(face: Any, edge: Any, sketch: Any, assembly: Opt
     # Hack! Assumes that the created face is the last face in the array of faces. 
     if assembly is not None and instance is not None:
         new_face = instance.faces[-1]
-    else:
+    elif part is not None:
         new_face = part.faces[-1]
 
     return new_face

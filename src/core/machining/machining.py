@@ -61,8 +61,6 @@ class MachiningProcess:
         if (len(boundary_conditions) == 0):
             raise RuntimeError("At least one boundary condition must be supplied.")
 
-        os.chdir(os.path.dirname(init_part.path_to_mdb))
-
         self.metadata_committed_tool_pass_plans = []
         self.stress_profile_estimates = []
         self.boundary_conditions = boundary_conditions 
@@ -76,6 +74,8 @@ class MachiningProcess:
         elif isinstance(init_part, part.AbaqusDefinedPart):
             first_tp_metadata = md.CommittedToolPassPlanMetadata(init_part, init_part.path_to_mdb, boundary_conditions)
             self.metadata_committed_tool_pass_plans.append(first_tp_metadata)
+
+            os.chdir(os.path.dirname(init_part.path_to_mdb))
 
         else:
             raise AssertionError("Unrecognized part type.")
@@ -140,21 +140,23 @@ class MachiningProcess:
 
 
 
-    def sim_potential_tool_passes(self, tool_pass_plan: tp.ToolPassPlan, save_name: str) -> None:
+    def sim_potential_tool_passes(self, tool_pass_plan: tp.ToolPassPlan, 
+                                  save_name: str, save_dir: str) -> None:
         """Simulates potential tool passes and saves off the results. 
-        
-           Implementation Details:
-           This function has a single effect on the file system:
-               This function saves the simulation artifacts (the .odb, .sim, .inp, 
-                   etc. and the final .cae file) in a subdirectory of the directory 
-                   that the MDB for this commitment phase lives in.
         
            Args:
                tool_pass_plan: The tool pass plan to simulate.
+               save_dir:       Absolute path to a directory. In this directory,
+                                   a subdirectory with name save_name will be 
+                                   created.
                save_name:      The name of the subdirectory in which the simulation 
-                                   artifacts will be placed. Also, the name of the 
-                                   MDB which results from these simulations and 
-                                   lives in the subdirectory. 
+                                   artifacts (.odb file, .sim file, etc. and the 
+                                   final .cae file) will be placed. Also, the name 
+                                   of the artifacts themselves.
+                               If a file or directory exists at the path specified
+                                   by save_dir and save_name (concatenated), it will
+                                   be permanently deleted to make room for the new
+                                   subdirectory.
         
            Returns:
                None. 
@@ -184,9 +186,10 @@ class MachiningProcess:
 
         # If there is an estimated stress profile for this commitment phase, use it.
         if len(self.metadata_committed_tool_pass_plans) == len(self.stress_profile_estimates):
-            sim.sim_tool_pass_plan(tool_pass_plan, save_name, self.metadata_committed_tool_pass_plans[-1], self.stress_profile_estimates[-1])
+            sim.sim_tool_pass_plan(tool_pass_plan, save_name, save_dir, self.metadata_committed_tool_pass_plans[-1], 
+                                   self.stress_profile_estimates[-1])
         else:
-            sim.sim_tool_pass_plan(tool_pass_plan, save_name, self.metadata_committed_tool_pass_plans[-1])
+            sim.sim_tool_pass_plan(tool_pass_plan, save_name, save_dir, self.metadata_committed_tool_pass_plans[-1])
 
 
 

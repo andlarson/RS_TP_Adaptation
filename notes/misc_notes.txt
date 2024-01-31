@@ -1,6 +1,6 @@
 
 
-
+*** DIFFERENT WAYS OF DOING TOOL PASSES ***
 There needs to be a nice relationship between the residual stress field
    definition and the tool pass definition. There are a couple ways we can
    go about this:
@@ -39,6 +39,7 @@ Cuts are specified as arbitrary paths in space. However, after the first cut
 
 
 
+*** ABAQUS FEATURE OBJECTS ***
 When an Abaqus Feature object is created, another object is also usually created.
    For example, the PartitionFaceBySketch() also creates a new Abaqus Face object
    in addition to the Abaqus Feature object returned by the function. Sometimes
@@ -59,6 +60,7 @@ A hack can be done where you monitor the sequence of interest (for example, the
 
 
 
+*** SOURCING OF STRESSES ***
 There may or may not be an actual machining process going on while the simulation
    engine is running. This affects the sourcing of the stress profiles. What I mean
    by this is that, at the beginning of each Abaqus simulation, the part must have
@@ -91,6 +93,7 @@ There may or may not be an actual machining process going on while the simulatio
 
 
 
+*** DANGERS OF USING noGUI OPTION ***
 Using the noGUI option to invoke an Abaqus script is dangerous. In particular, if
    noGUI is used, there cannot be any monitoring of jobs. This means that a job
    issues no messages when submitted and therefore the waitForCompletion() method
@@ -100,6 +103,7 @@ Using the noGUI option to invoke an Abaqus script is dangerous. In particular, i
 
 
 
+*** MANUALLY RUNNING JOBS WITH CUSTOM STRESS PROFILE ***
 The user subroutine SIGINI should be used to define a custom stress profile. The
    "Abaqus make" program can be used to compile the user subroutine code. However,
    the only way to actually use the user subroutine is to insert the line "*Initial

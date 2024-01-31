@@ -2,47 +2,35 @@
 Contains functionality associated with parts.
 """
 
+from abc import ABCMeta, abstractmethod
+
 import src.util.geom as geom
-import src.core.material_properties.material_properties as mat_props 
+import src.core.material_properties.material_properties as mp 
 import src.core.abaqus.abaqus_shim as shim
 
 
-class _Part:
-
-    def __init__(self, name: str, material: mat_props.Material):
-    """Creates a top level part.
-
-       Args:
-           name:     The name of the part.
-           material: The material the part is made out of.
-
-       Returns:
-           None.
-
-       Raises:
-           None.
-    """
-
-        self.name = name
-        self.path_to_stress_subroutine = None
-        self.material = material
-        
-
-    def update_part_with_real_data(self): 
-        raise RuntimeError("Not yet supported.")
+class Part(metaclass=ABCMeta):
+    
+    @abstractmethod
+    def update_part_with_real_data(self) -> None:
+        """Updates the representation of a part with data from the real world."""
 
 
 
-class UserDefinedPart(_Part):
+class UserDefinedPart(Part):
     
     def __init__(self, name, part_rep, material_properties):
         raise RuntimeError("Can't handle user defined parts right now...")
 
+    def update_part_with_real_data(self) -> None:
+        """Updates the representation of a part with data from the real world."""
+        raise RuntimeError("Not yet implemented.")
 
 
-class AbaqusDefinedPart(_Part):
+
+class AbaqusDefinedPart(Part):
     
-    def __init__(self, name: str, path: str, material: mat_props.Material) -> None:
+    def __init__(self, name: str, path: str, material: mp.ElasticMaterial) -> None:
         """Creates a part based on one which exists in Abaqus.
 
            Assumes that the part, as it is defined in Abaqus, is defined in a basic
@@ -59,8 +47,10 @@ class AbaqusDefinedPart(_Part):
            Raises:
                None.
         """
-    
-        _Part.__init__(self, name, material)
+
+        self.name = name
+        self.path_to_stress_subroutine = None
+        self.material = material
 
         mdb = shim.use_mdb(path)
 
@@ -70,3 +60,7 @@ class AbaqusDefinedPart(_Part):
         shim.close_mdb(mdb)
 
         self.path_to_mdb = path
+
+    def update_part_with_real_data(self) -> None:
+        """Updates the representation of a part with data from the real world."""
+        raise RuntimeError("Not yet implemented.")

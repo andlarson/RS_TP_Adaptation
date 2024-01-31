@@ -351,6 +351,7 @@ class NGon3D:
         #       In particular, that none of the points are on the interior of 
         #           the ngon and that there are no redundant points.
         self.vertices = vertices
+            
 
 
     def get_plane_coeffs(self) -> Any:
@@ -458,7 +459,7 @@ class _InfiniteLine:
 
 
 
-def _point_on_inf_line(point: Point, parametric_rep: tuple(Point3D, Vec3D) | tuple(Point2D, Vec2D)) -> bool:
+def _point_on_inf_line(point: Point, parametric_rep: tuple[Point3D, Vec3D] | tuple[Point2D, Vec2D]) -> bool:
     """Checks if a point is on a line which has infinite length.
     
        Args:
@@ -618,7 +619,7 @@ def _robust_float_div(a: float, b: float) -> float:
 
 
 
-def _are_collinear(points: Iterable[Point]) -> bool:
+def _are_collinear(points: Sequence[Point]) -> bool:
     """Checks if a sequence of points are collinear. 
 
        Args:
@@ -754,7 +755,7 @@ def find_centroid(points: Sequence[Point]) -> Point:
 
 
 
-def seq_points(points: Sequence[Sequence[float]]) -> list[Point]:
+def seq_points(points: Sequence[Sequence[float]]) -> Sequence[Point]:
     """Converts sequence of sequences of points to genuine point objects.
 
        Args:
@@ -780,7 +781,7 @@ def seq_points(points: Sequence[Sequence[float]]) -> list[Point]:
     
     if is_3d:
         l = [Point3D(np.array(point)) for point in points]
-    if is_2d:
+    elif is_2d:
         l = [Point2D(np.array(point)) for point in points]
 
     return l

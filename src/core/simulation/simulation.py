@@ -5,6 +5,9 @@ Provides top-level functionality to do simulations of interest in Abaqus.
 import os
 import time
 from typing import Optional, Any
+import pathlib
+import shutil
+import sys
 
 from abaqus import *
 from abaqusConstants import * 
@@ -18,24 +21,22 @@ import src.core.metadata.naming as naming
 from src.util.debug import *        
 
 
-def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, commit_metadata: md.CommittedToolPassPlanMetadata, 
+def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, target_dir: str, 
+                       commit_metadata: md.CommittedToolPassPlanMetadata, 
                        stress_subroutine: Optional[str] = None) -> None:
-
-    """Simulates consecutive tool passes and save off the results.
+    """Simulates consecutive tool passes and saves off the results.
     
-       This function has two effects on the file system:
-           Creates a subdirectory in the CWD and runs the simulations. The simulation 
-               artifacts are saved in this new subdirectory. 
-           Saves the .cae file which represents the work for the last tool pass in
-               the subdirectory. Note that this .cae file does not contain the result
-               of the very last tool pass. The .odb produced by the last simulation
-               contains the geometry resulting from the very last tool pass.
-       
        Args:
            tool_pass_plan:    The tool pass plan to simulate. 
            name:              Desired name of the MDB which results from all the tool 
-                                  path simulations. Also, the name of the directory 
-                                  which is created.
+                                  path simulations. Also, the desired name of the
+                                  subdirectory created by this function.
+           target_dir:        Absolute path to directory. In this directory, a 
+                                  subdirectory is created and named name. The
+                                  simulation artifacts (.cae, .odb, .msg, etc.)
+                                  are generated in this subdirectory.
+                              If a directory or file with the desired name already
+                                  exists in this directory, it is deleted.
            commit_metadata:   The record associated with the search for a good next 
                                   tool pass to do.
            stress_subroutine: Path to stress subroutine. If this argument is not 
@@ -48,14 +49,29 @@ def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, commit_metada
            None.
 
        Raises:
-           None.
+           RuntimeError: An entity which is neither file nor directory exists
+                             at the file system location where the subdirectory
+                             needs to be created.
     """
 
     # Create the directory wherein all the simulation artifacts for this sequence
     #    of tool passes will live.
-    dir_path = os.path.dirname(commit_metadata.path_initial_mdb)
-    new_dir_path = os.path.join(dir_path, name)
+    new_dir_path = os.path.join(target_dir, name)
     new_mdb_path = os.path.join(new_dir_path, name)
+
+    # If a directory or file of the same name already exists, delete it.
+    subdir = pathlib.Path(new_dir_path)     
+    if subdir.exists():
+        if subdir.is_dir():
+            dp("Removing directory at path: " + new_dir_path)
+            shutil.rmtree(new_dir_path) 
+        elif subdir.is_file():
+            dp("Removing file at path: " + new_dir_path)
+            os.remove(new_dir_path)
+        else:
+            raise RuntimeError("Something which is neither file system nor file\
+                                exists at the desired location of the subdirectory.")
+
     os.mkdir(new_dir_path)
 
     # And set the CWD to this directory. Now all simulation artifacts will be placed
@@ -173,6 +189,8 @@ def _sim_first_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommittedTo
         # Use the stress state from the last toolpath in the previous commit.
         path_sim_file = commit_metadata.path_last_commit_sim_file
 
+        assert path_sim_file is not None
+
         # Since this modifies the input file directly, this should be the last
         #    thing that happens before the job is submitted and runs.
         shim.inp_map_stress(path_sim_file, names.new_model_name, mdb)
@@ -246,15 +264,13 @@ def _sim_nth_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommittedTool
 
 
 
-def _do_boilerplate_sim_ops(tool_pass: tp.ToolPass, names: names.ModelNames, 
+def _do_boilerplate_sim_ops(tool_pass: tp.ToolPass, names: naming.ModelNames, 
                             commit_metadata: md.CommittedToolPassPlanMetadata, 
                             mdb: Any) -> None:
     """Does some operations such as instancing, section assignment, etc. which
            are boilerplate (e.g. they need to be done just about any tool pass
            simulation).
 
-       Does manu sub operations.
-       
        Args:
            tool_pass:         The tool pass to simulate.
            names:             The names associated with the MDB.

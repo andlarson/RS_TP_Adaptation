@@ -57,7 +57,7 @@ class ToolPassPlan:
         self.passes_todo.append(tool_pass)
 
     
-    def pop(self) -> ToolPass:
+    def pop(self) -> ToolPass | None:
         """Returns the first tool pass in the tool pass plan, if there are any
                tool passes in the plan."""
 

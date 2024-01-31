@@ -12,7 +12,7 @@ from src.util.debug import *
 
 class CommittedToolPassPlanMetadata:
 
-    def __init__(self, init_part: part.Part, path_to_mdb: str, 
+    def __init__(self, init_part: part.AbaqusDefinedPart, path_to_mdb: str, 
                  BCs: list[bc.BC]) -> None:
         """Creates a data structure associated with a single committed tool pass plan.
 

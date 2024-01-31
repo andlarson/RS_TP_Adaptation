@@ -4,14 +4,7 @@ This module contains funcitonlaity related to material properties.
 
 
 
-class Material:
-
-    def __init__(self):
-        raise RuntimeError("Not yet supported!")        
-
-
-
-class ElasticMaterial(Material):
+class ElasticMaterial():
 
     def __init__(self, poissons_ratio: float, youngs_modulus: float):
         """Creates an isotropic elastic material.
