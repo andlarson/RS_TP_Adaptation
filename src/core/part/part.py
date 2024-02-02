@@ -38,7 +38,7 @@ class AbaqusDefinedPart(Part):
 
            Args:
                name:     The name of the part.
-               path:     The path of the .cae file defining the part.
+               path:     Absolute path to .cae file defining the part. 
                material: The material that the part is made out of.
 
            Returns:

@@ -54,9 +54,6 @@ extern "C" void FOR_NAME(sigini, SIGINI) (double *sigma, double *coords, int *nt
 
     stdb_abqerr_(&lop, my_msg, ints_to_output, reals_to_output, strings_to_output);
     */
-
-     
-
 }
 
 

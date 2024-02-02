@@ -286,7 +286,7 @@ def create_mdb(name: str, path: str) -> Any:
 
        Args:
            name: Name of the new MDB.
-           path: Location of where a save (not a save as!) will occur.
+           path: Absolute path to directory in which MDB lives. 
 
        Returns:
            Abaqus MDB object.
@@ -372,6 +372,24 @@ def save_mdb_as(save_path: str, mdb: Any) -> None:
     """
 
     mdb.saveAs(save_path)    
+    dp("The mdb was saved to: " + mdb.pathName)
+
+
+
+def save_mdb(mdb: Any) -> None:
+    """Saves the MDB to the location specified at creation time.
+        
+       Args:
+           mdb: Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
+
+    mdb.save()
     dp("The mdb was saved to: " + mdb.pathName)
 
 
@@ -1052,7 +1070,12 @@ def mesh(part_instance: Any, size: float, model_name: str, mdb: Any) -> None:
         mdb.models[model_name].rootAssembly.generateMesh(regions=seq)
 
     mesh_stats = mdb.models[model_name].rootAssembly.getMeshStats(regions=seq)
+
+    dump_banner("MESHING SUCCEEDED")
+    dp("")
     dp("Meshing succeeded. The total number of tetrahedral elements is " + str(mesh_stats.numTetElems))
+    dp("")
+    dump_banner_end()
 
 
 
@@ -1238,14 +1261,21 @@ def run_job(job: Any) -> None:
 
 def _print_job_messages(job: Any) -> None:
     """Prints all the messages received during the analysis of a job."""
+    
+    dump_banner("MESSAGES RECEIVED DURING JOB ANALYSIS")
+    dp("")
 
     if len(job.messages) != 0:
         dp("The job with name " + job.name + " ran and some messages were received!")
-
+    
     for message in job.messages:
+        dp("")
         dp("A message of type " + str(message.type) + " was received when the job ran!")
         for key in message.data:
             dp("For the key " + str(key) + " the associated value is " + str(message.data[key]))
+    
+    dp("")
+    dump_banner_end()
     
 
 
@@ -1748,9 +1778,6 @@ def partition_face(ngon: geom.NGon3D, part: Optional[Any] = None,
     datums = []
     for v in ngon.get_builtin_rep():
         
-        # DEBUG
-        dp("A datum is being created with coordinates " + str(v))
-
         feature = module.DatumPointByCoordinate(v)
         id_ = feature.id
         datums.append(module.datums[id_])
@@ -1771,11 +1798,13 @@ def partition_face(ngon: geom.NGon3D, part: Optional[Any] = None,
             # When partitioning, if the edge created matches an edge which already
             #    exists on the object, Abaqus will throw an exception. 
             redundant_edge_cnt += 1
-
+            
+            dump_banner("FACE PARTITIONING FAILURE")
             dp("")
             dp("Failed to create an edge during face partitioning. This may not be a bug.")
             dp("The arguments of the exception are " + str(e.args))
             dp("")
+            dump_banner_end()
             
     post_partition_face_cnt = len(obj.faces)
     if not ((post_partition_face_cnt == pre_partition_face_cnt + 1) or (redundant_edge_cnt == len(ngon.vertices))):

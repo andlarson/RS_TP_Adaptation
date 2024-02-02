@@ -40,11 +40,22 @@ class CommittedToolPassPlanMetadata:
            Raises:
                None.
         """
+        
+        # Flag indicating if this commitment phase is the very first one.
+        self.first_commitment_phase = False
 
         self.init_part = init_part
         self.path_initial_mdb = path_to_mdb
-        self.committed_tool_pass_plan = None
         self.BCs = BCs
+
+        # The tool pass plan which was committed to for this commitment phase.
+        # This acts as a flag. If this is not None, then the commitment phase
+        #     is done.
+        self.committed_tool_pass_plan = None
+
+        # Absolute path to the directory containing the results of the simulated
+        #     tool pass plan.
+        self.committed_tool_pass_plan_path = None
 
         # There is a single MDB for each tool pass plan simulated in this
         #     commitment phase. This keeps track of the metadata for each of these
@@ -55,8 +66,9 @@ class CommittedToolPassPlanMetadata:
         #     the tool pass plans which have been simulated is maintained. That
         #     way, it's possible to check if the tool pass plan has already been
         #     simulated before commitment is done. If so, no need to re-simulate.   
-        # Each list entry is a Tuple which contains a name and a ToolPassPlan
-        #    object.
+        # Each list entry is a Tuple which contains a name, a ToolPassPlan object,
+        #     and the absolute path to the directory where the simulation results
+        #     are stored.
         self.simulated_tool_pass_plans = [] 
 
         # Store the path to the .sim file for the last simulation in the last
@@ -64,3 +76,6 @@ class CommittedToolPassPlanMetadata:
         # This is helpful to keep track of because it can be used as the starting
         #     stress profile for the current commitment phase.
         self.path_last_commit_sim_file = None
+
+
+

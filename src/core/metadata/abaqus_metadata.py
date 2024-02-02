@@ -43,7 +43,7 @@ class AbaqusMdbMetadata:
                state. 
 
            Args:
-               path: The path to the MDB.
+               path: Absolute path to the .cae file. 
 
            Returns:
                None.

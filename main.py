@@ -7,6 +7,10 @@ This file is a testbed for the library in development. If you wish to use the
 import sys
 sys.path.append("/home/andlars/Desktop/RS_TP_Adaptation")
 
+import pathlib
+import os
+import shutil
+
 import numpy as np
 
 import src.core.machining.machining as mach
@@ -17,19 +21,28 @@ import src.core.boundary_conditions.boundary_conditions as bc
 import src.core.material_properties.material_properties as mp
 
 from src.util.debug import *
-import traceback
 
 if __name__ == "__main__":
 
     try:
-        
         # ----- Desired names and some paths ----- 
         PATH_TO_CAE = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/test_initial_geometry_cae/test_initial_geometry.cae" 
         SAVE_DIR = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/test_initial_geometry_cae/"
         PASS1 = "first_pass"
         PASS2 = "second_pass"
+        pass_names = [PASS1, PASS2]
         PART_NAME = "an_example_part"
         PATH_TO_SUBROUTINE = "/home/andlars/Desktop/RS_TP_Adaptation/src/core/user_subroutines/def_stress-std.o"
+
+        # ----- Delete any directories which already exist at the desired paths. -----
+        for name in pass_names:
+            full_path = os.path.join(SAVE_DIR, name) 
+            fs_path = pathlib.Path(full_path)
+            if fs_path.exists():
+                if fs_path.is_dir():
+                    shutil.rmtree(fs_path)
+                else:
+                    assert False, "Something exists but it's not a directory!"
 
         # ----- Specifying the initial geometry -----
         material = mp.ElasticMaterial(.3, 10**(9))
@@ -118,24 +131,7 @@ if __name__ == "__main__":
         """
     
     except BaseException as e:
-       
-        # DEBUG
-        # Dump the exception being handled. 
-        exception_info = sys.exc_info()
-
-        dp("")
-        dp("*******************************************************************")
-        dp("                        EXCEPTION OCCURRED                         ")
-        dp("")
-        dp("TYPE: " + str(exception_info[0]))
-        dp("")
-        dp("CAUSE: " + str(exception_info[1]))
-        dp("") 
-        dp("TRACEBACK: ")
-        tb = exception_info[2]
-        traceback.print_tb(tb, file=sys.__stderr__)
-        dp("*******************************************************************")
-        dp("")
+        dump_exception()       
 
 
 

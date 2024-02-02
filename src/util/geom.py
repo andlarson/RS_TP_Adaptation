@@ -351,7 +351,7 @@ class NGon3D:
         #       In particular, that none of the points are on the interior of 
         #           the ngon and that there are no redundant points.
         self.vertices = vertices
-            
+    
 
 
     def get_plane_coeffs(self) -> Any:
@@ -741,7 +741,7 @@ def _are_orthogonal(vec1: Vec, vec2: Vec) -> bool:
 def find_centroid(points: Sequence[Point]) -> Point:
     """Finds the centroid of some points."""
     
-    rep = points[0].rep
+    rep = points[0].rep.copy()
     for point in points[1:]:
         rep += point.rep
     cnt = len(points)
