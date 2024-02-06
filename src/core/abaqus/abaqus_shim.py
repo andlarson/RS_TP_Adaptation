@@ -1575,15 +1575,8 @@ def add_virtual_topology(part: Any) -> None:
         #                           shortEdgeThreshold=ARBITRARY_LARGE_THRESHOLD, 
         #                           mergeSmallFaces=True, smallFaceAreaThreshold=ARBITRARY_LARGE_THRESHOLD)
 
-        # DEBUG
-        dp("Starting to apply virtual topology!")
-        start = time.time()
-
         # Somewhat conservative!
         part.createVirtualTopology(ignoreRedundantEntities=True, mergeSmallAngleFaces=True, smallFaceCornerAngleThreshold=.5)
-
-        # DEBUG
-        dp("It took " + str(time.time() - start) + " seconds to apply the virtual topology!")
 
         # Very conservative!
         # part.createVirtualTopology(ignoreRedundantEntities=True)
@@ -1831,6 +1824,23 @@ def partition_face(ngon: geom.NGon3D, part: Optional[Any] = None,
             return face
 
     raise AssertionError("Failed to find new face!")
+
+
+
+def create_traction()
+    """Creates a traction on some region. 
+        
+       Args:
+           None.
+    
+       Returns:
+           None.
+    
+       Raises:
+           None.
+    """
+
+    return None
 
 
 

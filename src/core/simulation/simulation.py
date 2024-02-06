@@ -14,6 +14,9 @@ import src.core.tool_pass.tool_pass as tp
 import src.core.boundary_conditions.boundary_conditions as bc
 import src.core.metadata.metadata as md
 import src.core.metadata.naming as naming
+import src.core.residual_stress.residual_stress as rs
+import src.core.metadata.abaqus_metadata as abq_md
+import src.util.geom as geom
 
 from src.util.debug import *        
 
@@ -38,7 +41,7 @@ def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, target_dir: s
                                     is used.
            commitment_phase_md: The metadata associated with the current commitment
                                     phase.
-           stress_subroutine:   Path to stress subroutine. If this argument is not 
+           stress_subroutine:   Abolsute path to stress subroutine. If this argument is not 
                                     specified, then the initial stress state of the 
                                     part will be sourced from the last simulation in 
                                     the previous commitment phase. If this argument 
@@ -176,7 +179,7 @@ def _sim_first_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommittedTo
     shim.create_section(names.new_model_name, mdb)
     shim.assign_section_to_whole_part(names.pre_tool_pass_part_name, names.new_model_name, mdb)
 
-    _do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb)
+    _do_boilerplate_tp_sim_ops(tool_pass, names, commit_metadata, mdb)
 
     if stress_subroutine is not None:
         # Since this modifies the input file directly, this should be the last
@@ -241,13 +244,13 @@ def _sim_nth_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommittedTool
     shim.create_material(commit_metadata.init_part.material, names.new_model_name, mdb)
     shim.create_section(names.new_model_name, mdb)
 
-    orphan_mesh_to_geometry(names.pre_tool_pass_part_name, names.new_model_name, mdb)
+    _orphan_mesh_to_geometry(names.pre_tool_pass_part_name, names.new_model_name, mdb)
 
     # Do the section assignment only after the orphan mesh has been mapped to a
     #    geometry. This cannot be done before mapping to a geometry. 
     shim.assign_section_to_whole_part(names.pre_tool_pass_part_name, names.new_model_name, mdb)
 
-    _do_boilerplate_sim_ops(tool_pass, names, commit_metadata, mdb)
+    _do_boilerplate_tp_sim_ops(tool_pass, names, commit_metadata, mdb)
 
     # Map the stress profile which existed at the end of the last simulation
     #    onto the new geometry. 
@@ -261,20 +264,19 @@ def _sim_nth_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommittedTool
 
 
 
-def _do_boilerplate_sim_ops(tool_pass: tp.ToolPass, names: naming.ModelNames, 
-                            commit_metadata: md.CommittedToolPassPlanMetadata, 
-                            mdb: Any) -> None:
+def _do_boilerplate_tp_sim_ops(tool_pass: tp.ToolPass, names: naming.ModelNames, 
+                               commit_metadata: md.CommittedToolPassPlanMetadata, 
+                               mdb: Any) -> None:
     """Does some operations such as instancing, section assignment, etc. which
-           are boilerplate (e.g. they need to be done just about any tool pass
+           are boilerplate (i.e. they need to be done just about any tool pass
            simulation).
 
        Args:
-           tool_pass:         The tool pass to simulate.
-           names:             The names associated with the MDB.
-           commit_metadata:   The record associated with the search for a good next 
-                                  tool pass to do.
-           mdb:               Abaqus MDB object. The MDB in which the tool pass
-                                  will be simulated. 
+           tool_pass:       The tool pass to simulate.
+           names:           The names associated with the MDB.
+           commit_metadata: Metadata associated with the commitment phase.
+           mdb:             Abaqus MDB object. The MDB in which the tool pass
+                                will be simulated. 
 
        Returns:
            None.
@@ -319,7 +321,73 @@ def _do_boilerplate_sim_ops(tool_pass: tp.ToolPass, names: naming.ModelNames,
 
 
 
-def orphan_mesh_to_geometry(part_name: str, model_name: str, mdb: Any) -> None:
+def _do_boilerplate_traction_app_sim_ops(traction: geom.Traction,
+                                         face: Any,
+                                         names: naming.ModelNames, 
+                                         commit_metadata: md.CommittedToolPassPlanMetadata,
+                                         mdb: Any) -> None:
+    """Does some operations such as instancing, section assignment, traction 
+           creation, meshing, etc. which are boilerplate (i.e. they need to be 
+           done for just about any simulation of applied traction).
+       
+       When this function returns, the 
+        
+       Args:
+           traction:        The traction vector to apply.
+           face:            Abaqus Face object. The face on which to apply the traction.
+           names:           The names associated with the MDB.
+           commit_metadata: Metadata associated with the commitment phase.
+           mdb:             Abaqus MDB object.
+    
+       Returns:
+           None.
+    
+       Raises:
+           None.
+    """
+
+
+
+def create_mdb_from_odb(new_mdb_name: str, new_mdb_path: str, odb_path: str
+                       ) -> tuple[Any, abq_md.AbaqusMdbMetadata, naming.ModelNames]:
+    """Creates an MDB with a part in it by sourcing the content of an ODB.
+           Saves the MDB before returning.
+        
+       Args:
+           new_mdb_name: The desired name of the new MDB.
+           new_mdb_path: Absolute path to directory. The MDB (.cae file) will be
+                             created in this directory.
+           odb_path:     Absolute path to ODB (.odb file).
+     
+       Returns:
+           Tuple containing the new Abaqus MDB object, the metadata that accompanies 
+               it, and the names associated with it.
+    
+       Raises:
+           None.
+    """
+
+    # Create the new MDB.
+    mdb = shim.create_mdb(new_mdb_name, new_mdb_path)
+    full_path = os.path.join(new_mdb_path, new_mdb_name)
+    mdb_metadata = abq_md.AbaqusMdbMetadata(full_path) 
+    
+    # Generate the names for the stuff in the MDB.
+    names = naming.ModelNames(mdb_metadata, True)
+
+    # Fetch the result of the committed tool pass and use it as the initial state
+    #     of the MDB.
+    shim.create_part_from_odb(names.pre_tool_pass_part_name, names.new_model_name, odb_path, mdb_metadata, mdb)
+    _orphan_mesh_to_geometry(names.pre_tool_pass_part_name, names.new_model_name, mdb)
+    
+    # Save the MDB so it is visible in the file system.
+    shim.save_mdb(mdb)
+
+    return mdb, mdb_metadata, names
+
+
+
+def _orphan_mesh_to_geometry(part_name: str, model_name: str, mdb: Any) -> None:
     """Converts an orphan mesh to a solid geometry by converting all the faces
            of the orphan mesh to regions/surfaces, and then melding all the
            regions/surfaces together to form a solid geometry.
@@ -388,6 +456,169 @@ def orphan_mesh_to_geometry(part_name: str, model_name: str, mdb: Any) -> None:
     # Not doing this causes the orphan mesh to still appear in the Assembly
     #    module, which can make appearence confusing. 
     shim.suppress_feature(shim.STANDARD_ORPHAN_MESH_FEATURE_NAME, part)
+
+
+
+def estimate_residual_stresses(commitment_phase_md: md.CommittedToolPassPlanMetadata,
+                               path: str) -> rs.ConstantResidualStressField:
+    """Estimates the residual stresses which existed in a region of material
+           which was removed and caused a deformation of the workpiece.
+       
+       TODO: For now, the only source of deformation data is that which results
+           from simulations. It will also be necessary to use deformation data
+           which is from real life.
+       
+       Args:
+           commitment_phase_md: The commitment phase of interest. This commitment
+                                    phase should contain a committed tool pass
+                                    plan.
+           path:                Absolute path to directory. Any MDBs which need
+                                    to be created in order to recover the residual
+                                    stresses are placed in this directory.
+    
+       Returns:
+           The residual stress field in the material that was removed by the
+               committed tool pass plan.
+    
+       Raises:
+           None.
+    """
+
+    return recover_constant_residual_stress(commitment_phase_md, path)
+
+
+
+
+def recover_constant_residual_stress(commitment_phase_md: md.CommittedToolPassPlanMetadata,
+                                     path: str) -> rs.ConstantResidualStressField:
+    """Runs a technique to recover the residual stresses which existed in the 
+           region of material which was removed by the last committed tool pass
+           plan.
+
+       This technique assumes that the residual stress field which existed in
+           the region of material was constant before it was removed.
+        
+       Args:
+           commitment_phase_md: The commitment phase of interest. This commitment
+                                    phase should contain a committed tool pass
+                                    plan composed of exactly a single tool pass.
+           path:                Absolute path to directory. Any MDBs which need
+                                    to be created in order to recover the residual
+                                    stresses are placed this directory.
+                                This directory should not be reused for multiple
+                                    calls of this method.
+
+       Returns:
+           The residual stress field in the material that was removed by the
+               committed tool pass plan.
+    
+       Raises:
+           None.
+    """
+
+    if commitment_phase_md.committed_tool_pass_plan is not None:
+        raise RuntimeError("No tool pass plan was committed to, so no stresses \
+                            can be recovered yet.")
+
+    if len(commitment_phase_md.committed_tool_pass_plan) != 1:
+        raise RuntimeError("If more than one tool pass happened, then this \
+                            the method that this function implements cannot \
+                            hope to recover the stresses which existed in \
+                            the regions of material removal.")
+    
+    # Step 1:
+    # Create a new MDB for running the necessary simulations for this technique.
+    STRESS_RECOVERY_MDB_NAME = "recover_residual_stresses.cae"
+
+    new_mdb_path = os.path.join(path, STRESS_RECOVERY_MDB_NAME)
+    if pathlib.Path(new_mdb_path).exists():
+        raise RuntimeError("The path for the stress recovery MDB is already occupied!")
+
+    # Use the metadata about the commitment phase to retrieve the name
+    #     of the ODB which resulted from the committed tool pass plan being
+    #     simulated.
+    committed_tpp_mdb_md = commitment_phase_md.per_mdb_metadata[-1]
+    odb_name = naming.last_odb_file_name(committed_tpp_mdb_md)
+    path_committed_tpp = commitment_phase_md.committed_tool_pass_plan_path
+    odb_path = os.path.join(path_committed_tpp, odb_name) 
+
+    mdb, mdb_metadata, names = create_mdb_from_odb(path, STRESS_RECOVERY_MDB_NAME, odb_path)
+
+    # Step 2:
+    # Apply a traction vector on the trench of the well in a test direction.
+
+    # 
+     
+
+    # Step 3:
+    # Fetch the pre-deformed state of the workpiece. This will be used to find
+    #     the correct tractions to apply.
+
+    # Step 4:
+    # Recover the linear relationship between the applied traction vector and
+    #     the displacements / positions of the nodes of interest.
+
+    # Step 5:
+    # Use the linear relationship to minimize a measure of geometric dissimilarity.
+
+    # Step 6:
+    # Map the "good traction vector" to the components of the stress tensor
+    #     assuming a constant state of stress.
+
+
+
+def recover_linear_relationships(points: list[geom.Point3D], face: Any,
+                                 mdb: Any) -> tuple[Any, ...]:
+    """Applies test tractions to some face of a workpiece to recover the linear 
+           relationships which exist between applied traction and the displacement 
+           of some points.
+
+       Implementation Details:
+       This function runs all the simulations necessary to recover the linear
+           relationships.
+    
+       Args:
+           points: The points at which to recover the linear relationships.
+           face:   Abaqus Face object. The face to apply the tractions to.
+                       Must be planar. 
+           mdb:    Abaqus MDB object. The MDB containing the part which has the
+                       face. This MDB should contain only a basic part geometry
+                       (i.e. it should contain a single model, a single part,
+                       no non-default steps, etc.)
+    
+       Returns:
+           Tuple of 3 x 3 numpy arrays which describe the linear relationships
+               between the applied tractions and the displacements of the
+               points. 
+           For each matrix M, the matrix M relates the quantities: M * t = d. 
+               In this equation, t is a traction vector and d is a displacment vector.
+           The number of matrices equals the number of points passed to this
+               function.
+           Note that these linear relationships only hold when tractions are
+               applied to the face passed to this function.
+    
+       Raises:
+           None.
+    """
+
+    if not shim.check_basic_geom(True, mdb):
+        raise RuntimeError("The MDB should contain a basic geometry.")
+
+     
+
+    
+
+
+
+
+
+    
+
+
+    
+
+
+
 
 
 

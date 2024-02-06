@@ -2,27 +2,32 @@
 This file acts as a testbed for individual components of the library.
 """
 
+import copy
+
 
 class MyC:
     
-    def __init__(self, a, b):
+    def __init__(self, a, b, c):
         
         self.a = a
         self.b = b
+        self.dict = {"A": MyOtherC(c, 20), "B": MyOtherC(c, 700)}
 
-    def __setattr__(self, name, val):
-        
-        if name == "a":
-            print("The a var is being set....But I'm not going to actually set it.")
 
-        if name == "b":
-            print("The b var is being set...And I'm actually going to set it.")
-            super().__setattr__(name, val)
+class MyOtherC:
+    
+    def __init__(self, e, f):
+        self.e = e
+        self.f = f 
 
 
 if __name__ == "__main__":
     
-    c = MyC(10, 20)
+    c = MyC(10, 20, 300)
+    c.dict["D"] = MyOtherC(987, 65)
+    print(c.dict)
 
-    print(c.b)
-
+    d = copy.deepcopy(c)
+    print(d.dict)
+    print(d.dict["A"].e)
+    print(d.dict["B"].e)

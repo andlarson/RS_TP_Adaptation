@@ -11,6 +11,7 @@ The MachiningProcess object is the top-level object that a user of this library
 import shutil
 import os
 import pathlib
+import copy
 
 import src.core.part.part as part
 import src.core.simulation.simulation as sim
@@ -29,7 +30,7 @@ from src.util.debug import *
 class MachiningProcess:
 
     def __init__(self, init_part: part.Part, boundary_conditions: list[bc.BC]) -> None:
-        """Defines the whole machining process for a single part.
+        """Defines the machining process for a single part.
    
            Args:
                init_part:           The initial part geometry before any machining 
@@ -232,13 +233,16 @@ class MachiningProcess:
 
 
     def estimate_stress_via_last_tool_pass(self):
-        """
+        """Estimates the residual stress tensor field which existed in the region
+               of material removal due to the last committed tool pass.
+
+           This 
             
            Args:
                None.
 
            Returns:
-               None.
+                
 
            Raises:
                None.
@@ -273,27 +277,48 @@ class MachiningProcess:
         """
 
         match = False
-        for name, already_simulated_plan, dir_ in self.commitment_phase_metadata[-1].simulated_tool_pass_plans:
-            if tp.compare_tool_pass_plans(tool_pass_plan, already_simulated_plan):
+        tool_passes_done = self.commitment_phase_metadata[-1].simulated_tool_pass_plans
+        for i, simulated_tpp in enumerate(tool_passes_done):
+            name = simulated_tpp[0]
+            plan = simulated_tpp[1]
+            dir_ = simulated_tpp[2]
+            if tp.compare_tool_pass_plans(tool_pass_plan, plan):
                 # Copy the results of the already-simulated tool pass plan
                 #     into a new directory.
                 shutil.copytree(dir_, save_dir)
                 
                 # Rename the .cae file in this new directory.
-                old_path = os.path.join(dir_, name + ".cae") 
-                new_path = os.path.join(save_dir, save_name + ".cae")
-                shutil.move(old_path, new_path)
+                old_mdb_path = os.path.join(dir_, name + ".cae") 
+                new_mdb_path = os.path.join(save_dir, save_name + ".cae")
+                shutil.move(old_mdb_path, new_mdb_path)
 
                 # Rename the .jnl file in this new directory.
-                old_path = os.path.join(dir_, name + ".jnl")
-                new_path = os.path.join(save_dir, save_name + ".jnl")
-                shutil.move(old_path, new_path)
+                old_jnl_path = os.path.join(dir_, name + ".jnl")
+                new_jnl_path = os.path.join(save_dir, save_name + ".jnl")
+                shutil.move(old_jnl_path, new_jnl_path)
 
                 match = True
 
                 num_commits = len(self.commitment_phase_metadata)
+
+                dump_banner("COMMITTED TOOL PASS PLAN WAS ALREADY SIMULATED")
+                dp("")
                 dp("For commit " + str(num_commits) + ", the tool pass plan was \
-                    already simulated so no additional simulation was needed!")
+                    already simulated in the commitment phase so no additional \
+                    simulation was needed!")
+                dp("")
+                dump_banner_end()
+
+                # Even when the tool pass plan has already been simulated, it's
+                #     still necessary to record the metadata about the new
+                #     MDB that was just copied. 
+                # However, because the tool pass plan was already simulated, the
+                #    metadata already exists and just needs to be tweaked
+                #    slightly.
+                commitment_phase_metadata = self.commitment_phase_metadata[-1]
+                mdb_metadata = copy.deepcopy(commitment_phase_metadata.per_mdb_metadata[i])
+                mdb_metadata.path_to_mdb = new_mdb_path
+                commitment_phase_metadata.per_mdb_metadata.append(mdb_metadata)
                 break
 
         # Simulate the plan if necessary.
@@ -327,19 +352,19 @@ class MachiningProcess:
                                 already exists at the path.
         """
     
-        last_commit_metadata = self.commitment_phase_metadata[-1]
+        cur_commitment_phase_md = self.commitment_phase_metadata[-1]
+        committed_tpp_mdb_md = cur_commitment_phase_md.per_mdb_metadata[-1]
 
-        committed_tp_plan = last_commit_metadata.committed_tool_pass_plan
-        path_committed_tp_plan = last_commit_metadata.committed_tool_pass_plan_path
+        committed_tp_plan = cur_commitment_phase_md.committed_tool_pass_plan
+        path_committed_tpp = cur_commitment_phase_md.committed_tool_pass_plan_path
 
         assert committed_tp_plan is not None
-        assert path_committed_tp_plan is not None
+        assert path_committed_tpp is not None
 
         # Record the path of the .sim file. The .sim file may be used in the
         #     next commitment phase to set the initial stress state.
-        num_jobs = len(committed_tp_plan.plan)
-        sim_file_name = shim.STANDARD_JOB_PREFIX + str(num_jobs) + ".sim"
-        sim_file_path = os.path.join(path_committed_tp_plan, sim_file_name) 
+        sim_file_name = naming.last_sim_file_name(committed_tpp_mdb_md)
+        sim_file_path = os.path.join(path_committed_tpp, sim_file_name) 
 
         # Create the new subdirectory if the target path is unoccuppied. 
         new_subdir_path = os.path.join(save_dir, save_name)
@@ -347,27 +372,14 @@ class MachiningProcess:
             os.mkdir(new_subdir_path)
         else:
             raise RuntimeError("The subdirectory already exists!")
+        
+        # Retrieve the path to the ODB which contains the result of the committed
+        #     tool pass plan in the last committment phase.
+        odb_name = naming.last_odb_file_name(committed_tpp_mdb_md)
+        odb_path = os.path.join(path_committed_tpp, odb_name)
 
-        # Create the MDB for the next commitment phase and the metadata that
-        #     accompanies it.
-        mdb = shim.create_mdb(save_name, new_subdir_path) 
-        new_mdb_full_path = os.path.join(save_dir, save_name)
-        mdb_metadata = abq_md.AbaqusMdbMetadata(new_mdb_full_path) 
-
-        # Generate the names for the stuff in the MDB.
-        names = naming.ModelNames(mdb_metadata, True)
-
-        # Create a part in the pre-existing lone model which comes with a new
-        #     MDB.
-        odb_name = shim.STANDARD_JOB_PREFIX + str(num_jobs) + ".odb"
-        odb_path = os.path.join(path_committed_tp_plan, odb_name)
-        shim.create_part_from_odb(names.pre_tool_pass_part_name, names.new_model_name, odb_path, mdb_metadata, mdb)
-
-        # Map the orphan mesh to a part geometry.
-        sim.orphan_mesh_to_geometry(names.pre_tool_pass_part_name, names.new_model_name, mdb)
-
-        # Save the MDB so it is visible in the file system.
-        shim.save_mdb(mdb)
+        # Use the ODB to create a new MDB with the deformed geometry in it.
+        sim.create_mdb_from_odb(save_name, new_subdir_path, odb_path)
 
         # Create the material based on the material of the very first part in
         #     the machining process. 
@@ -376,7 +388,8 @@ class MachiningProcess:
         material = very_first_part.material
 
         # The starting point for the next commitment phase.
-        abaqus_part = part.AbaqusDefinedPart(save_name, new_mdb_full_path, material)
+        new_mdb_path = os.path.join(new_subdir_path, save_name)
+        abaqus_part = part.AbaqusDefinedPart(save_name, new_mdb_path, material)
 
         # The initial state of the next commitment phase depends on the result
         #     of the simulation. 

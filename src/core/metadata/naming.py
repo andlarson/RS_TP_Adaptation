@@ -46,7 +46,6 @@ class ModelNames:
             self.new_model_name = shim.STANDARD_MODEL_NAME
             self.pre_tool_pass_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
             self.tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX + str(self.model_cnt)
-
         else:
             self.post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(self.model_cnt + 1)
             self.new_model_name = shim.STANDARD_MODEL_NAME_PREFIX + str(self.model_cnt + 1) 

@@ -124,7 +124,7 @@ class Vec2D:
         return Vec2D(res)
 
 
-    def len(self) -> float:
+    def len(self) -> Any:
         """Returns the length of the vector."""
 
         return linalg.norm(self.rep)
@@ -169,7 +169,7 @@ class Vec3D:
         return Vec3D(res)
 
 
-    def len(self) -> float:
+    def len(self) -> Any:
         """Returns the length of the vector."""
 
         return linalg.norm(self.rep)

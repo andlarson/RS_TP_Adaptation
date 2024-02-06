@@ -60,6 +60,8 @@ class CommittedToolPassPlanMetadata:
         # There is a single MDB for each tool pass plan simulated in this
         #     commitment phase. This keeps track of the metadata for each of these
         #     MDBs.
+        # Note that a commitment phase includes both potential tool pass plans
+        #     and a single committed tool pass plan.
         self.per_mdb_metadata = [] 
 
         # Optimization: To speed up committing a tool pass plan, a list of all

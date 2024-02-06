@@ -3,6 +3,8 @@ This module contains code which can be used to keep track of and supplement the
     state saved in Abaqus.
 """
 
+from typing import Any
+
 import src.core.abaqus.abaqus_shim as shim
 
 
@@ -58,7 +60,6 @@ class AbaqusMdbMetadata:
         self.model_names = [shim.STANDARD_MODEL_NAME]
 
         self.models_metadata = {shim.STANDARD_MODEL_NAME: AbaqusModelMetadata()}
-
    
 
     def add_model(self, name: str) -> None:
@@ -104,3 +105,6 @@ class AbaqusModelMetadata:
         self.step_names = [shim.STANDARD_INITIAL_STEP_NAME]
         self.part_names = [shim.STANDARD_INIT_GEOM_PART_NAME]
         self.job_name = None      # Assume 1-to-1 mapping of model to job.
+
+
+
