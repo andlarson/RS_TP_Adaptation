@@ -79,6 +79,9 @@ def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, target_dir: s
         _sim_single_tool_pass(tool_pass, commitment_phase_md, mdb, stress_subroutine)    
         tool_pass_plan.pop()
 
+        # DEBUG
+        shim.save_mdb_as(new_mdb_path, mdb)
+
     shim.save_mdb_as(new_mdb_path, mdb)
     shim.close_mdb(mdb)
 
@@ -319,7 +322,7 @@ def _do_boilerplate_sim_ops(tool_pass: tp.ToolPass, names: naming.ModelNames,
 def orphan_mesh_to_geometry(part_name: str, model_name: str, mdb: Any) -> None:
     """Converts an orphan mesh to a solid geometry by converting all the faces
            of the orphan mesh to regions/surfaces, and then melding all the
-           regions/surfaces together to form a solid geometr
+           regions/surfaces together to form a solid geometry.
            
        For some context, the result of a simulation is an orphan mesh (i.e. 
            just a bunch of vertices and elements connecting the vertices 

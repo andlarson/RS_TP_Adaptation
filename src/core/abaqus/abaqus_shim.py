@@ -38,6 +38,7 @@ While all of the above is true, it's completely fine to use the Abaqus API
 """
 
 from typing import Any, Optional
+import time
 
 from abaqus import *
 from abaqusConstants import * 
@@ -1061,7 +1062,7 @@ def mesh(part_instance: Any, size: float, model_name: str, mdb: Any) -> None:
         else:
             size = float(size) / 2
             
-        if size <= .1:
+        if size <= .5:
             raise RuntimeError("Even with a miniscule global element size of " + str(size) + ", the mesh still failed to be generated!")
 
         dp("An attempt at meshing failed. Decreasing global element size to " + str(size) + " and giving it another go.") 
@@ -1219,11 +1220,13 @@ def add_user_subroutine(job: Any, path_to_subroutine: str) -> None:
                              specified. There should only ever be a single user
                              subroutine file for a particular job!
     """
-
+    
+    """
     if job.userSubroutine != "":
         raise RuntimeError("Overwriting a previous user subroutine file...")
 
     job.setValues(userSubroutine=path_to_subroutine)
+    """
 
 
 
@@ -1568,12 +1571,19 @@ def add_virtual_topology(part: Any) -> None:
         ARBITRARY_LARGE_THRESHOLD = 1000
 
         # Very liberal!
-        part.createVirtualTopology(ignoreRedundantEntities=True, mergeShortEdges=True, 
-                                   shortEdgeThreshold=ARBITRARY_LARGE_THRESHOLD, 
-                                   mergeSmallFaces=True, smallFaceAreaThreshold=ARBITRARY_LARGE_THRESHOLD)
+        # part.createVirtualTopology(ignoreRedundantEntities=True, mergeShortEdges=True, 
+        #                           shortEdgeThreshold=ARBITRARY_LARGE_THRESHOLD, 
+        #                           mergeSmallFaces=True, smallFaceAreaThreshold=ARBITRARY_LARGE_THRESHOLD)
+
+        # DEBUG
+        dp("Starting to apply virtual topology!")
+        start = time.time()
 
         # Somewhat conservative!
-        # part.createVirtualTopology(ignoreRedundantEntities=True, mergeSmallAngleFaces=True, smallFaceCornerAngleThreshold=.5)
+        part.createVirtualTopology(ignoreRedundantEntities=True, mergeSmallAngleFaces=True, smallFaceCornerAngleThreshold=.5)
+
+        # DEBUG
+        dp("It took " + str(time.time() - start) + " seconds to apply the virtual topology!")
 
         # Very conservative!
         # part.createVirtualTopology(ignoreRedundantEntities=True)

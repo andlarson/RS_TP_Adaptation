@@ -113,3 +113,15 @@ The user subroutine SIGINI should be used to define a custom stress profile. The
    use the "Abaqus make" program to produce the .o object file, and then run the
    job by issuing the command "abaqus job=job.inp interactive user=path/to/object/file.o" 
    at the command line.
+
+
+
+*** USING SHARED OBJECT LIBRARIES WHICH CONTAIN USER SUBROUTINES ***
+When "abaqus make" runs it can produce a .so file containing user subroutines.
+    The subroutines defined in the shared object libraries can be called at
+    runtime by a job which expects a user subroutine (which for example has
+    a .inp file with a "*Initial Conditions, type=stress, user" line). In order
+    to direct Abaqus to use the subroutines defined in the shared libraries,
+    it's necessary to define the usub_lib_dir variable in an Abaqus environment
+    file. This serves as a workaround to the fact that in Abaqus 2024, the
+    "abaqus make" utility seems to produce unusable .o files.

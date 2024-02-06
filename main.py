@@ -32,7 +32,7 @@ if __name__ == "__main__":
         PASS2 = "second_pass"
         pass_names = [PASS1, PASS2]
         PART_NAME = "an_example_part"
-        PATH_TO_SUBROUTINE = "/home/andlars/Desktop/RS_TP_Adaptation/src/core/user_subroutines/def_stress-std.o"
+        PATH_TO_SUBROUTINE = "/home/andlars/Desktop/RS_TP_Adaptation/src/core/user_subroutines/def_stress.cpp"
 
         # ----- Delete any directories which already exist at the desired paths. -----
         for name in pass_names:
@@ -118,18 +118,6 @@ if __name__ == "__main__":
 
         machining_process.sim_potential_tool_passes(plan, PASS2, SAVE_DIR)
 
-        """
-        p1 = geom.Point3D(np.array((5, 5, 200)))
-        p2 = geom.Point3D(np.array((35, 5, 200)))
-        path = geom.PlanarCubicC2Spline3D([p1, p2])
-        tp4 = tp.ToolPass(path, 2, 10)
-
-        p1 = geom.Point3D(np.array((5, 5, 200)))
-        p2 = geom.Point3D(np.array((35, 5, 300)))
-        path = geom.PlanarCubicC2Spline3D([p1, p2])
-        tp5 = tp.ToolPass(path, 2, 10)
-        """
-    
     except BaseException as e:
         dump_exception()       
 

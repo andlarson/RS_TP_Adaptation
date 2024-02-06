@@ -30,7 +30,18 @@ Simulating Material Removal - Short Term TODO:
 
 
 
-Long Term TODO.
+General - Short Term TODO:
+
+1) The add_user_subroutine() function currently doesn't do anything due to the
+       (potential bug) in Abaqus 2024 which causes the .o files produced by 
+       "abaqus make" to be useless.
+
+2) Rule out and write up alternative technique for material removal using the
+       additive manufacturing stuff in Abaqus.
+
+
+
+General - Long Term TODO.
 
 Experiments TODO:
 
