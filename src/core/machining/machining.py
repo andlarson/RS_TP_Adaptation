@@ -62,7 +62,7 @@ class MachiningProcess:
             #    metadata is the same as the AbaqusDefinedPart.
             raise AssertionError("Not yet supported.")
         elif isinstance(init_part, part.AbaqusDefinedPart):
-            first_tp_metadata = md.CommittedToolPassPlanMetadata(init_part, init_part.path_to_mdb, boundary_conditions)
+            first_tp_metadata = md.CommitmentPhaseMetadata(init_part, init_part.path_to_mdb, boundary_conditions)
             first_tp_metadata.first_commitment_phase = True
             self.commitment_phase_metadata.append(first_tp_metadata)
         else:
@@ -129,9 +129,9 @@ class MachiningProcess:
         if len(self.stress_profile_estimates) < len(self.commitment_phase_metadata):
             self.stress_profile_estimates.append(None)
         
-        last_commit_metadata = self.commitment_phase_metadata[-1]
-        last_commit_metadata.committed_tool_pass_plan = tool_pass_plan 
-        last_commit_metadata.committed_tool_pass_plan_path = os.path.join(save_name, save_dir)
+        last_commit_phase_md = self.commitment_phase_metadata[-1]
+        last_commit_phase_md.committed_tool_pass_plan = tool_pass_plan 
+        last_commit_phase_md.committed_tool_pass_plan_path = os.path.join(save_name, save_dir)
 
         self._lazy_sim_potential_tool_passes(tool_pass_plan, save_name, save_dir)
 
@@ -379,6 +379,8 @@ class MachiningProcess:
         odb_path = os.path.join(path_committed_tpp, odb_name)
 
         # Use the ODB to create a new MDB with the deformed geometry in it.
+        # It might seem necessary to set up the MDB metadata after this.
+        #     This is unnecessary because, when the 
         sim.create_mdb_from_odb(save_name, new_subdir_path, odb_path)
 
         # Create the material based on the material of the very first part in
@@ -393,10 +395,11 @@ class MachiningProcess:
 
         # The initial state of the next commitment phase depends on the result
         #     of the simulation. 
-        new_commit_metadata = md.CommittedToolPassPlanMetadata(abaqus_part, abaqus_part.path_to_mdb, self.boundary_conditions)
+        new_commit_metadata = md.CommitmentPhaseMetadata(abaqus_part, abaqus_part.path_to_mdb, self.boundary_conditions)
         self.commitment_phase_metadata.append(new_commit_metadata)
 
-        # Record the stress state after the last tool pass in the previous commit.
+        # Record the stress state which resulted from the committed tool pass 
+        #     plan. 
         self.commitment_phase_metadata[-1].path_last_commit_sim_file = sim_file_path
 
 

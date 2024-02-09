@@ -56,7 +56,12 @@ import src.core.boundary_conditions.boundary_conditions as bc
 from src.util.debug import *
 
 
-# Built-in names in Abaqus.
+# *****************************************************************************
+#                           Naming Stuff in Abaqus 
+# These are names that Abaqus uses by default or are standardized custom names. 
+# *****************************************************************************
+
+# Names that Abaqus uses by default. 
 STANDARD_MODEL_NAME = "Model-1"
 STANDARD_INIT_GEOM_PART_NAME = "Initial_Geometry"
 STANDARD_INITIAL_STEP_NAME = "Initial"
@@ -65,13 +70,23 @@ STANDARD_MATERIAL_NAME = "Material-1"
 STANDARD_JOB_PREFIX = "Job-"
 STANDARD_ORPHAN_MESH_FEATURE_NAME = "Orphan mesh-1"
 
-# Custom names.
+# Custom names. 
+
+# Generic.
 STANDARD_MODEL_NAME_PREFIX = "Model-"
+STANDARD_BC_PREFIX = "Boundary_Condition_"
+SOURCED_FROM_ODB_PART_NAME = "From_ODB"
+
+# For tool pass simulations.
 STANDARD_TOOL_PASS_PART_PREFIX = "Tool_Pass_"
 STANDARD_POST_TOOL_PASS_PART_PREFIX = "Post_Tool_Pass_"
 STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
-STANDARD_BC_PREFIX = "Boundary_Condition_"
 STANDARD_INIT_GEOM_WITH_BBOX_NAME = "Initial_Geometry_With_Bounding_Box"
+
+# For surface traction application.
+STANDARD_SURFACE_TRACTION_NAME = "Surface_Traction"
+STANDARD_TRACTION_STEP_PREFIX = "Traction_Application"
+
 
 
 # *****************************************************************************
@@ -118,7 +133,7 @@ def _get_step_keyword(kwb: Any) -> int:
 
 
 
-def _get_closest_face(points: list[geom.Point3D], obj: Any) -> Any:
+def get_closest_face(points: list[geom.Point3D], obj: Any) -> Any:
     """Gets the face closest to the centroid of some points.
 
        This function is a workaround to writing/calling nasty geometric routines. 
@@ -126,8 +141,7 @@ def _get_closest_face(points: list[geom.Point3D], obj: Any) -> Any:
            checks if a three dimensional polygon is entirely inside a three 
            dimensional polygon which may have holes in it.
        The default search tolerance is used.
-       Note that the Abaqus routines called in this function may throw an
-           exception if no face is found.
+       Note that Abaqus may throw an exception if no face is found.
 
        Args:
            points: A nonzero number of points. 
@@ -1137,10 +1151,10 @@ def create_section(model_name: str, mdb: Any) -> None:
 
 
 
-def create_equilibrium_step(name: str, name_step_to_follow: str, model_name: str, 
-                            mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
-                           ) -> None:
-    """Creates an equilibirium step after some other step.
+def create_step(name: str, name_step_to_follow: str, model_name: str, 
+                mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
+               ) -> None:
+    """Creates a step after some other step.
 
        Args:
            name:                Name of the new step.
@@ -1698,7 +1712,7 @@ def _find_face_ngon_lives_on(ngon: geom.NGon3D, obj: Any) -> Any:
 
     # Assume that the face closest to points which make up the ngon is the face
     #    that the ngon lives on.
-    face_ngon_belongs_to = _get_closest_face(ngon.vertices, obj)
+    face_ngon_belongs_to = get_closest_face(ngon.vertices, obj)
 
     return face_ngon_belongs_to
 
@@ -1780,7 +1794,6 @@ def partition_face(ngon: geom.NGon3D, part: Optional[Any] = None,
     # Create a datum point for each vertex.
     datums = []
     for v in ngon.get_builtin_rep():
-        
         feature = module.DatumPointByCoordinate(v)
         id_ = feature.id
         datums.append(module.datums[id_])
@@ -1827,11 +1840,24 @@ def partition_face(ngon: geom.NGon3D, part: Optional[Any] = None,
 
 
 
-def create_traction()
-    """Creates a traction on some region. 
+def create_traction(name: str, step_name: str, traction: geom.Vec3D, face: Any, 
+                    model_name: str, mdb: Any) -> None:
+    """Creates a surface traction on a face. 
         
        Args:
-           None.
+           name:       The name of the surface traction which is created. This
+                           name can be used to refer back to the surface traction
+                           at a later point in time.
+           step_name:  The name of the step in which to apply the traction.
+           traction:   The traction vector to apply.
+           face:       Abaqus Face object. The face must be a face on a part
+                           instance in the root assembly, not a face from a 
+                           part. This is because tractions are created in the 
+                           load application step, which operates on the root 
+                           assembly. This face is the face on which the traction 
+                           is applied.
+           model_name: The name of the model in which the traction is created.
+           mdb:        Abaqus MDB object.
     
        Returns:
            None.
@@ -1840,7 +1866,16 @@ def create_traction()
            None.
     """
 
-    return None
+    root_assembly = mdb.models[model_name].rootAssembly
+
+    # The chosen face does not matter.
+    # This surface gets a default name.
+    surface = root_assembly.Surface(side1Faces=face)
+
+    mdb.models[model_name].SurfaceTraction(name=name, createStepName=step_name,
+                                           region=surface, magnitude=traction.len,
+                                           directionVector=((0, 0, 0), traction.components),
+                                           distributionType=UNIFORM, traction=GENERAL)
 
 
 

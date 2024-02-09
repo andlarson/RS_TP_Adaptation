@@ -76,6 +76,12 @@ class ToolPassPlan:
 
         return len(self.passes_done)
 
+    
+    def __len__(self) -> int:
+        """The number of tool passes in the plan."""
+
+        return len(self.plan)
+
 
 
 def compare_tool_passes(tp1: ToolPass, tp2: ToolPass) -> bool:

@@ -130,6 +130,12 @@ class Vec2D:
         return linalg.norm(self.rep)
 
 
+    def components(self) -> tuple[float, float]:
+        """Returns the components of the vector."""
+
+        return (self.rep[0], self.rep[1])
+
+
 
 class Vec3D:
 
@@ -188,6 +194,12 @@ class Vec3D:
         orth_vec = Vec3D(np.cross(other_vec, self.rep))
 
         return orth_vec.normalize()
+
+
+    def components(self) -> tuple[float, float, float]:
+        """Returns the components of the vector."""
+
+        return (self.rep[0], self.rep[1], self.rep[2])
 
 
 Vec = TypeVar("Vec", Vec3D, Vec2D)

@@ -2,32 +2,33 @@
 This file acts as a testbed for individual components of the library.
 """
 
-import copy
+
+class LL_entry:
+
+    def __init__(self, prev: "LL_entry", val: int):
+        self.prev = prev
+        self.val = val
 
 
-class MyC:
+
+class LL:
     
-    def __init__(self, a, b, c):
+    def __init__(self):
+        self.l = []
+
+    def add(self, val):
+        if len(self.l) == 0:
+            entry = LL_entry(None, val)
+        else:
+            prev = self.l[-1]
+            entry = LL_entry(prev, val)
+        return entry
+
+    def remove(self, entry):
         
-        self.a = a
-        self.b = b
-        self.dict = {"A": MyOtherC(c, 20), "B": MyOtherC(c, 700)}
 
-
-class MyOtherC:
     
-    def __init__(self, e, f):
-        self.e = e
-        self.f = f 
 
 
 if __name__ == "__main__":
     
-    c = MyC(10, 20, 300)
-    c.dict["D"] = MyOtherC(987, 65)
-    print(c.dict)
-
-    d = copy.deepcopy(c)
-    print(d.dict)
-    print(d.dict["A"].e)
-    print(d.dict["B"].e)

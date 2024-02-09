@@ -1,3 +1,11 @@
+Left Off With:
+
+Changing the ModelNames class to generate names for MDBs which will contain
+    traction application simulations, not just tool pass simulations. Now
+    the issue is that the names generated depend on the model type...which
+    means that a simple function like create_mdb_from_odb() needs context
+    information.
+
 
 Recovering Residual Stress - Short Term TODO:
 
@@ -40,6 +48,10 @@ General - Short Term TODO:
 
 2) Rule out and write up alternative technique for material removal using the
        additive manufacturing stuff in Abaqus.
+
+3) The CommitmentPhaseMetadata data structure contains significant redundancy.
+       Also, it would be very helpful to diagram the metadata data flow. It's
+       too hard to understand right now.
 
 
 

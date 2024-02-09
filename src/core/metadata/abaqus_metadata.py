@@ -33,7 +33,7 @@ After a metadata object is created, it is updated via the same functions
 Also, this metadata only includes additional information which is necessary.
     Its only purpose is to supplement the state that Abaqus maintains, not
     replace or duplicate it. For example, it's unnecessary to track the sketches 
-    associated with a particular model since we don't care about ordering,
+    associated with a particular model since we don't care about their ordering,
     etc.
 """
 class AbaqusMdbMetadata:
