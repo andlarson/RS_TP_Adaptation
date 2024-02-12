@@ -5,7 +5,7 @@
 **
 ** PARTS
 **
-*Part, name=Post_Tool_Pass_1
+*Part, name=Post_Tool_Pass_
 *End Part
 **  
 **
@@ -13,7 +13,7 @@
 **
 *Assembly, name=Assembly
 **  
-*Instance, name=Post_Tool_Pass_1, part=Post_Tool_Pass_1
+*Instance, name=Post_Tool_Pass_, part=Post_Tool_Pass_
 *Node
       1,           0.,           5.,   88.9765778
       2,           0.,           5.,   91.0466156
@@ -2841,13 +2841,13 @@
 ,
 *End Instance
 **  
-*Nset, nset=_PickedSet13, internal, instance=Post_Tool_Pass_1
+*Nset, nset=_PickedSet13, internal, instance=Post_Tool_Pass_
    9,  10,  17,  18, 102, 157, 158, 159, 465
-*Elset, elset=_PickedSet13, internal, instance=Post_Tool_Pass_1
+*Elset, elset=_PickedSet13, internal, instance=Post_Tool_Pass_
  1045, 1046, 1049, 1051, 1643, 1644, 1721, 2159
-*Nset, nset=_PickedSet20, internal, instance=Post_Tool_Pass_1
+*Nset, nset=_PickedSet20, internal, instance=Post_Tool_Pass_
   13,  14,  15,  16, 122, 139, 140, 141, 227
-*Elset, elset=_PickedSet20, internal, instance=Post_Tool_Pass_1
+*Elset, elset=_PickedSet20, internal, instance=Post_Tool_Pass_
   604, 1041, 1138, 1674, 1695, 1986, 1987, 2073
 *End Assembly
 ** 
@@ -2877,10 +2877,10 @@ _PickedSet20, 5, 5
 _PickedSet20, 6, 6
 ** ----------------------------------------------------------------
 ** 
-** STEP: Equilibrium2
+** STEP: Equilibrium
 ** 
 *Initial Conditions, Type=Stress, User
-*Step, name=Equilibrium2, nlgeom=NO
+*Step, name=Equilibrium, nlgeom=NO
 *Static
 1., 1., 1e-05, 1.
 ** 

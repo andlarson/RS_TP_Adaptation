@@ -125,3 +125,9 @@ When "abaqus make" runs it can produce a .so file containing user subroutines.
     it's necessary to define the usub_lib_dir variable in an Abaqus environment
     file. This serves as a workaround to the fact that in Abaqus 2024, the
     "abaqus make" utility seems to produce unusable .o files.
+
+
+
+*** RUNNING A PYTHON SCRIPT ***
+Use the command "abaqus cae script=/path/to/script.py -mesa" to run a script
+    in interactive mode. 

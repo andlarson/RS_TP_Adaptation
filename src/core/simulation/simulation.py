@@ -63,7 +63,7 @@ def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, target_dir: s
     #     commitment phase.
     new_dir_path = os.path.join(target_dir, name)
     fs_path = pathlib.Path(new_dir_path)
-    if len(commitment_phase_md.simulated_tool_pass_plans) == 0 and \
+    if len(commitment_phase_md.potential_tpps) == 0 and \
        not commitment_phase_md.first_commitment_phase:
         assert fs_path.exists() and fs_path.is_dir()
     else:
@@ -88,8 +88,6 @@ def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, target_dir: s
 
     shim.save_mdb_as(new_mdb_path, mdb)
     shim.close_mdb(mdb)
-
-    commitment_phase_md.simulated_tool_pass_plans.append((name, tool_pass_plan, new_dir_path))
 
     # Don't permanently change the CWD.
     os.chdir(cwd)
@@ -128,7 +126,7 @@ def _sim_single_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.Commitment
     # If the MDB contains n (where n > 1) models and the last model to be 
     #    added contains an orphan mesh, then we're simulating an nth tool pass
     #    (where n > 1).
-    mdb_metadata = commit_metadata.per_mdb_metadata[-1] 
+    mdb_metadata = commit_metadata.potential_tpp_mdb_metadata[-1]
     last_model_name = mdb_metadata.model_names[-1]
 
     if shim.check_basic_geom(False, mdb):
@@ -171,9 +169,9 @@ def _sim_first_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentP
     if not shim.check_basic_geom(False, mdb):
         raise RuntimeError("The MDB is not in the expected state.")
 
-    mdb_metadata = commit_metadata.per_mdb_metadata[-1] 
+    mdb_metadata = commit_metadata.potential_tpp_mdb_metadata[-1]
 
-    names = naming.ModelNames(mdb_metadata, True)
+    names = naming.ModelNames(naming.ModelTypes.FIRST_TOOL_PASS_IN_MDB, mdb_metadata)
 
     # Do material and section creation.
     shim.create_material(commit_metadata.init_part.material, names.new_model_name, mdb)
@@ -229,9 +227,9 @@ def _sim_nth_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentPha
            None.
     """
 
-    mdb_metadata = commit_metadata.per_mdb_metadata[-1] 
+    mdb_metadata = commit_metadata.potential_tpp_mdb_metadata[-1]
 
-    names = naming.ModelNames(mdb_metadata, False)
+    names = naming.ModelNames(naming.ModelTypes.NTH_TOOL_PASS_IN_MDB, mdb_metadata)
     last_odb_file_name = naming.last_odb_file_name(mdb_metadata)
 
     # The .sim file contains the stress information which resulted from the last
@@ -381,6 +379,10 @@ def create_mdb_from_odb(new_mdb_name: str, new_mdb_path: str, odb_path: str
                        ) -> tuple[Any, abq_md.AbaqusMdbMetadata, naming.ModelNames]:
     """Creates an MDB with a part in it by sourcing the content of an ODB.
            Saves the MDB before returning.
+      
+       Implementation Detail:
+       The MDB is populated with a single part and that part is named in a
+           generic way.
         
        Args:
            new_mdb_name: The desired name of the new MDB.
@@ -402,12 +404,12 @@ def create_mdb_from_odb(new_mdb_name: str, new_mdb_path: str, odb_path: str
     mdb_metadata = abq_md.AbaqusMdbMetadata(full_path) 
     
     # Generate the names for the stuff in the MDB.
-    names = naming.ModelNames(mdb_metadata, True)
+    names = naming.ModelNames(naming.ModelTypes.ODB_TO_MDB, mdb_metadata)
 
     # Fetch the result of the committed tool pass and use it as the initial state
     #     of the MDB.
-    shim.create_part_from_odb(names.pre_tool_pass_part_name, names.new_model_name, odb_path, mdb_metadata, mdb)
-    _orphan_mesh_to_geometry(names.pre_tool_pass_part_name, names.new_model_name, mdb)
+    shim.create_part_from_odb(names.part_from_odb_name, names.new_model_name, odb_path, mdb_metadata, mdb)
+    _orphan_mesh_to_geometry(names.part_from_odb_name, names.new_model_name, mdb)
     
     # Save the MDB so it is visible in the file system.
     shim.save_mdb(mdb)
@@ -544,12 +546,12 @@ def _recover_constant_residual_stress(commit_phase_md: md.CommitmentPhaseMetadat
        Raises:
            None.
     """
-
-    if commit_phase_md.committed_tool_pass_plan is not None:
+    
+    if commit_phase_md.committed_tpp is not None:
         raise RuntimeError("No tool pass plan was committed to, so no stresses \
                             can be recovered yet.")
 
-    if len(commit_phase_md.committed_tool_pass_plan) != 1:
+    if len(commit_phase_md.committed_tpp[1]) != 1:
         raise RuntimeError("If more than one tool pass happened, then this \
                             the method that this function implements cannot \
                             hope to recover the stresses which existed in \
@@ -566,10 +568,10 @@ def _recover_constant_residual_stress(commit_phase_md: md.CommitmentPhaseMetadat
     # Use the metadata about the commitment phase to retrieve the path 
     #     of the ODB which resulted from the committed tool pass plan being
     #     simulated.
-    committed_tpp_mdb_md = commit_phase_md.per_mdb_metadata[-1]
+    committed_tpp_mdb_md = commit_phase_md.committed_tpp_mdb_metadata
     odb_name = naming.last_odb_file_name(committed_tpp_mdb_md)
-    path_committed_tpp = commit_phase_md.committed_tool_pass_plan_path
-    odb_path = os.path.join(path_committed_tpp, odb_name) 
+    committed_tpp_dir = commit_phase_md.committed_tpp_mdb_metadata.mdb_dir()
+    odb_path = os.path.join(committed_tpp_dir, odb_name) 
 
     # Create a new MDB which contains the deformed part, as produced by the
     #     simulation of the committed tool pass plan.
@@ -595,7 +597,6 @@ def _recover_constant_residual_stress(commit_phase_md: md.CommitmentPhaseMetadat
     # Step 6:
     # Map the "good traction vector" to the components of the stress tensor
     #     assuming a constant state of stress.
-
 
 
 def _recover_linear_relationships(points: list[geom.Point3D], 
@@ -658,7 +659,7 @@ def _recover_linear_relationships(points: list[geom.Point3D],
     y_traction = geom.Vec3D(y)
 
     # Need new names for new model!
-    names = naming.ModelNames(mdb_metadata, False)
+    names = naming.ModelNames(naming.ModelTypes.FIRST_TRACTION_APP_IN_MDB, mdb_metadata)
 
     _do_boilerplate_traction_app_sim_ops(y_traction, face, names, mdb_metadata, commit_phase_md, mdb)
 
@@ -669,7 +670,7 @@ def _recover_linear_relationships(points: list[geom.Point3D],
     z_traction = geom.Vec3D(z)
 
     # Need new names for new model!
-    names = naming.ModelNames(mdb_metadata, False)
+    names = naming.ModelNames(naming.ModelTypes.NTH_TRACTION_APP_IN_MDB, mdb_metadata)
 
     _do_boilerplate_traction_app_sim_ops(z_traction, face, names, mdb_metadata, commit_phase_md, mdb)
     
@@ -677,8 +678,8 @@ def _recover_linear_relationships(points: list[geom.Point3D],
     os.chdir(orig_cwd)
 
     # TODO: Actually recover the linear relationships.
+   
 
-    
      
 def _find_trench(toolpass: tp.ToolPass, obj: Any) -> Any:
     """Finds the face of a tool pass which is the trench.

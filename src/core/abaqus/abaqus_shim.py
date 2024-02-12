@@ -75,7 +75,6 @@ STANDARD_ORPHAN_MESH_FEATURE_NAME = "Orphan mesh-1"
 # Generic.
 STANDARD_MODEL_NAME_PREFIX = "Model-"
 STANDARD_BC_PREFIX = "Boundary_Condition_"
-SOURCED_FROM_ODB_PART_NAME = "From_ODB"
 
 # For tool pass simulations.
 STANDARD_TOOL_PASS_PART_PREFIX = "Tool_Pass_"
@@ -440,7 +439,7 @@ def check_basic_geom(should_print: bool, mdb: Any) -> bool:
 
 
 
-def check_multiple_steps(should_print: bool, model_name: bool, mdb: Any) -> bool:
+def check_multiple_steps(should_print: bool, model_name: str, mdb: Any) -> bool:
     """Checks that a model contains multiple steps."""
 
     if model_name not in mdb.models:
@@ -1071,12 +1070,9 @@ def mesh(part_instance: Any, size: float, model_name: str, mdb: Any) -> None:
     mdb.models[model_name].rootAssembly.generateMesh(regions=seq)
 
     while mdb.models[model_name].rootAssembly.getUnmeshedRegions() is not None:
-        if size > 1:
-            size = size - 1
-        else:
-            size = float(size) / 2
+        size = size / 2
             
-        if size <= .5:
+        if size <= 1:
             raise RuntimeError("Even with a miniscule global element size of " + str(size) + ", the mesh still failed to be generated!")
 
         dp("An attempt at meshing failed. Decreasing global element size to " + str(size) + " and giving it another go.") 
@@ -1598,11 +1594,7 @@ def add_virtual_topology(part: Any) -> None:
     except AbaqusException as e:
         # If a virtual topology does not remove any entities, then an exception
         #    is sometimes issued!
-        dp("")
-        dp("AbaqusException raised when trying to create a virtual topology!")
-        dp("The exception has arguments: " + str(e.args))
-        dp("Continuing without the virtual topology...")
-        dp("")
+        dump_exception()
 
 
 

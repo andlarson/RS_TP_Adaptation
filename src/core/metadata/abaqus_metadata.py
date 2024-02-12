@@ -4,6 +4,7 @@ This module contains code which can be used to keep track of and supplement the
 """
 
 from typing import Any
+import pathlib
 
 import src.core.abaqus.abaqus_shim as shim
 
@@ -61,6 +62,12 @@ class AbaqusMdbMetadata:
 
         self.models_metadata = {shim.STANDARD_MODEL_NAME: AbaqusModelMetadata()}
    
+    
+    def mdb_dir(self) -> str:
+        """Returns absolute path to the directory that the MDB is in."""
+        path = pathlib.Path(self.path_to_mdb)
+        return str(path.parent)
+    
 
     def add_model(self, name: str) -> None:
         """Adds a model to the data structure.

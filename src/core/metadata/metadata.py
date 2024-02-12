@@ -52,6 +52,8 @@ class CommitmentPhaseMetadata:
                None.
         """
         
+        # ----- Miscellaneous / Startup -----
+
         # Flag indicating if this commitment phase is the very first one.
         self.first_commitment_phase: bool = False
 
@@ -61,8 +63,8 @@ class CommitmentPhaseMetadata:
         #     this commitment phase.
         # This is really a convenience. It would not be hard to lookup the
         #     the .sim file which resulted from the committed tool pass plan in 
-        #     the commitment phase which precedes this one,  
-        self.path_last_commit_sim_file: str | None = None
+        #     the commitment phase which precedes this one.
+        self.path_last_commit_sim_file: str
         
         # The state of the part as it exists at the beginning of this commitment 
         #     phase.
@@ -71,35 +73,44 @@ class CommitmentPhaseMetadata:
         self.path_initial_mdb: str = path_to_mdb
         self.BCs: list[bc.BC] = BCs
 
-        # The tool pass plan which was committed to for this commitment phase.
-        # This acts as a flag. If this is not None, then the user has committed
-        #     to a tool pass plan for this commitment phase.
-        self.committed_tool_pass_plan: tp.ToolPassPlan | None = None
 
-        # Absolute path to the directory containing the results of the simulated
-        #     tool pass plan.
-        self.committed_tool_pass_plan_path: str | None = None
+        # ----- Potential Tool Pass Plans -----
 
-        # There is a single MDB for each tool pass plan simulated in this
-        #     commitment phase. This keeps track of the metadata for each of these
-        #     MDBs.
-        # Note that a commitment phase includes both potential tool pass plans
-        #     and a single committed tool pass plan. The last piece of metadata
-        #     in this list corresponds to the MDB used to simulate the committed
-        #     tool pass plan.
-        self.per_mdb_metadata: list[abq_md.AbaqusMdbMetadata] = [] 
+        # Each potential tool pass plan is simulated in an MDB. This stores
+        #     metadata about each of these MDBs.
+        self.potential_tpp_mdb_metadata: list[abq_md.AbaqusMdbMetadata] = []
 
         # Optimization: To speed up committing a tool pass plan, a list of all
-        #     the tool pass plans which have been simulated is maintained. That
-        #     way, it's possible to check if the tool pass plan has already been
-        #     simulated before commitment is done. If so, no need to re-simulate.   
-        # Each list entry is a Tuple which contains a name, a ToolPassPlan object,
-        #     and the absolute path to the directory where the simulation results
-        #     are stored.
-        self.simulated_tool_pass_plans: list[tuple[str, tp.ToolPassPlan, str]] = [] 
+        #     the potential tool pass plans which have been simulated is 
+        #     maintained. That way, it's possible to check if the tool pass plan 
+        #     has already been simulated before commitment is done. If so, no 
+        #     need to re-simulate. 
+        # Name, tool pass plan, and absolute path to directory of simulation
+        #     results.
+        self.potential_tpps: list[tuple[str, tp.ToolPassPlan, str]] = [] 
 
-        # Some simulations may be performed in order to recover an estimate of
-        #     the stresses which existed in the chunk of material which was
-        #     removed by the committed tool pass plan. This keeps track of the
-        #     metadata for each of these MDB used to do the simulations.
-        self.stress_estimate_mdb_metadata: list[abq_md.AbaqusMdbMetadata] = []
+
+        # ----- Committed Tool Pass Plans -----
+        
+        # The committed tool pass plan must also be simulated in an MDB.
+        self.committed_tpp_mdb_metadata: abq_md.AbaqusMdbMetadata
+
+        # The tool pass plan which was committed to for this commitment phase.
+        # The name, tool pass plan, and absolute path to directory of simualtion
+        #     results.
+        self.committed_tpp: tuple[str, tp.ToolPassPlan, str]
+
+
+        # ----- Stress Estimation -----
+
+        # The process of estimating the stress in a region of material removal
+        #     requires running simualtions, and therefore requires an MDB.
+        self.stress_estimate_mdb_metadata: abq_md.AbaqusMdbMetadata
+
+
+
+
+
+
+
+

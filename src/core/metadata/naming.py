@@ -9,6 +9,7 @@ import src.core.metadata.abaqus_metadata as abq_md
 
 # Different types of models have different naming schemes.
 class ModelTypes(Enum):
+    ODB_TO_MDB = 0
     FIRST_TOOL_PASS_IN_MDB = 1
     NTH_TOOL_PASS_IN_MDB = 2
     FIRST_TRACTION_APP_IN_MDB = 3
@@ -33,8 +34,8 @@ class ModelNames:
                             For example, if the model is the first in an MDB
                                 and is going to be used to simulate a tool pass, 
                                 then the names of some stuff are set by Abaqus
-                                (e.g. the model name) while other names are
-                                set by the user (e.g. the first part they create).
+                                (e.g. the model name) while other names 
+                                get to be chosen (e.g. the first part they create).
               mdb_metadata: The metadata associated with the MDB of interest. 
            
            Returns:
@@ -46,37 +47,57 @@ class ModelNames:
 
         model_cnt = len(mdb_metadata.model_names)
         
-        if model_type is ModelTypes.FIRST_TOOL_PASS_IN_MDB:
-            # Already exists.
+        if model_type is ModelTypes.ODB_TO_MDB:
+            # Pre-defined.
             self.new_model_name = shim.STANDARD_MODEL_NAME
+            
+            # We choose.
+            self.part_from_odb_name = shim.STANDARD_INIT_GEOM_PART_NAME
 
+        elif model_type is ModelTypes.FIRST_TOOL_PASS_IN_MDB:
+            # Pre-defined. 
+            self.new_model_name = shim.STANDARD_MODEL_NAME
             self.pre_tool_pass_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
+            
+            # We choose.
             self.tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX 
             self.post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX 
             self.equil_step_name = shim.STANDARD_EQUIL_STEP_PREFIX 
 
         elif model_type is ModelTypes.NTH_TOOL_PASS_IN_MDB:
+            # Pre-defined. 
+            # Assumes that an ODB was used to create the initial part in this
+            #     model, and that ODB was produced by running the last
+            #     model in this MDB. When an ODB is imported to create a part,
+            #     the name of the part is, by default, in all caps.
+            last_model_name = mdb_metadata.model_names[-1]  
+            self.pre_tool_pass_part_name = mdb_metadata.models_metadata[last_model_name].part_names[-1].upper()     
+            
+            # We choose.
             self.post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX 
             self.new_model_name = shim.STANDARD_MODEL_NAME_PREFIX + str(model_cnt + 1) 
             self.tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX 
             self.equil_step_name = shim.STANDARD_EQUIL_STEP_PREFIX 
 
-            # Figure out the last model in this MDB. 
-            last_model_name = mdb_metadata.model_names[-1]  
+        elif model_type is ModelTypes.FIRST_TRACTION_APP_IN_MDB:
+            # Pre-defined. 
+            self.new_model_name = shim.STANDARD_MODEL_NAME
+            self.deformed_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
+            
+            # We choose.
+            self.traction_step_name = shim.STANDARD_TRACTION_STEP_PREFIX 
+
+        elif model_type is ModelTypes.NTH_TRACTION_APP_IN_MDB:
+            # Pre-defined. 
             # Assumes that an ODB was used to create the initial part in this
             #     model, and that ODB was produced by running the last
             #     model in this MDB. When an ODB is imported to create a part,
             #     the name of the part is, by default, in all caps.
-            self.pre_tool_pass_part_name = mdb_metadata.models_metadata[last_model_name].part_names[-1].upper()     
-
-        elif model_type is ModelTypes.FIRST_TRACTION_APP_IN_MDB:
-            self.new_model_name = shim.STANDARD_MODEL_NAME
-            self.deformed_part_name = shim.SOURCED_FROM_ODB_PART_NAME
-            self.traction_step_name = shim.STANDARD_TRACTION_STEP_PREFIX 
-
-        elif model_type is ModelTypes.NTH_TRACTION_APP_IN_MDB:
-            self.new_model_name = shim.STANDARD_MODEL_NAME + str(model_cnt)
-            self.deformed_part_name = shim.SOURCED_FROM_ODB_PART_NAME
+            last_model_name = mdb_metadata.model_names[-1]  
+            self.deformed_part_name = mdb_metadata.models_metadata[last_model_name].part_names[-1].upper()     
+            
+            # We choose.
+            self.new_model_name = shim.STANDARD_MODEL_NAME + str(model_cnt + 1)
             self.traction_step_name = shim.STANDARD_TRACTION_STEP_PREFIX 
 
 
