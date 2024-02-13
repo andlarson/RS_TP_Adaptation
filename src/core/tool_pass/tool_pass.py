@@ -103,20 +103,20 @@ def compare_tool_passes(tp1: ToolPass, tp2: ToolPass) -> bool:
            None.
     """
 
-    if type(tp1.geom) != type(tp2.geom):
+    if not isinstance(tp1.path, type(tp2.path)):
         return False
 
     # Compare types on a case-by-case basis.
-    if isinstance(tp1.geom, geom.SpecRightRectPrism):
+    if isinstance(tp1.path, geom.PlanarCubicC2Spline3D):
 
-        if len(tp1.geom.vertices) == len(tp2.geom.vertices):
+        if len(tp1.path.v_list) == len(tp2.path.v_list):
 
-            for v1 in tp1.geom.vertices:
-                if v1.components() not in [v2.components() for v2 in tp2.geom.vertices]:
+            for v1 in tp1.path.v_list:
+                if v1.components() not in [v2.components() for v2 in tp2.path.v_list]:
                     return False
             
-            for v2 in tp2.geom.vertices:
-                if v2.components() not in [v1.components() for v1 in tp1.geom.vertices]:
+            for v2 in tp2.path.v_list:
+                if v2.components() not in [v1.components() for v1 in tp1.path.v_list]:
                     return False
 
         else:

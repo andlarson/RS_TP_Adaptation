@@ -59,8 +59,6 @@ def dump_banner(msg: str) -> None:
 
 
 
-
-
 def dump_banner_end() -> None:
     """Prints the end of a banner."""
     

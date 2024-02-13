@@ -84,7 +84,7 @@ STANDARD_INIT_GEOM_WITH_BBOX_NAME = "Initial_Geometry_With_Bounding_Box"
 
 # For surface traction application.
 STANDARD_SURFACE_TRACTION_NAME = "Surface_Traction"
-STANDARD_TRACTION_STEP_PREFIX = "Traction_Application"
+STANDARD_TRACTION_STEP_NAME = "Traction_Application"
 
 
 
@@ -309,7 +309,7 @@ def create_mdb(name: str, path: str) -> Any:
            None.
     """
 
-    return Mdb(path + name)
+    return Mdb(os.path.join(path, name))
 
 
 
@@ -386,7 +386,12 @@ def save_mdb_as(save_path: str, mdb: Any) -> None:
     """
 
     mdb.saveAs(save_path)    
-    dp("The mdb was saved to: " + mdb.pathName)
+
+    dump_banner("MDB SAVED")
+    dp("")
+    dp("The MDB was saved to " + mdb.pathName)
+    dp("")
+    dump_banner_end()
 
 
 
@@ -404,7 +409,12 @@ def save_mdb(mdb: Any) -> None:
     """
 
     mdb.save()
-    dp("The mdb was saved to: " + mdb.pathName)
+
+    dump_banner("MDB SAVED")
+    dp("")
+    dp("The MDB was saved to " + mdb.pathName)
+    dp("")
+    dump_banner_end()
 
 
 
@@ -454,6 +464,38 @@ def check_multiple_steps(should_print: bool, model_name: str, mdb: Any) -> bool:
 
     return False
 
+
+
+def check_standard_model(should_print: bool, model: str, mdb: Any):
+    """Checks, non-exhaustively, that a model simply contains only a specification
+           of a part geometry."""
+
+    model = mdb.models[model]
+
+    if STANDARD_INIT_GEOM_PART_NAME not in model.parts:
+        if should_print:
+            dp("failure 1")
+        return False
+
+    if len(model.boundaryConditions) != 0 or \
+       len(model.steps) != 1 or \
+       len(model.sections) != 0 or \
+       len(model.materials) != 0 or \
+       len(model.rootAssembly.instances) != 0:
+        if should_print:
+            dp("failure 2")
+        return False
+
+    # Check that the model has a geometric volume.
+    # If the model does not have a geoemtric volume, it is probably an orphan
+    #     mesh.
+    if len(model.parts[STANDARD_INIT_GEOM_PART_NAME].cells) == 0:
+        if should_print:
+            dp("failure 3")
+        return False
+
+    return True
+    
 
 
 def _check_standard_model_and_part(should_print: bool, mdb: Any):
@@ -1292,6 +1334,31 @@ def _print_job_messages(job: Any) -> None:
     
 
 
+def copy_model(model_to_copy: str, new_model: str, 
+               mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
+    """Copies a model which already exists.
+        
+       Args:
+           model_to_copy: The name of the model to copy. This model msut already
+                              exist in the MDB.
+           model_name:    The name of the new model.
+           mdb_metadata:  Metadata associated with the MDB.
+           mdb:           Abaqus MDB object.
+    
+       Returns:
+           None.
+    
+       Raises:
+           None.
+    """
+
+    mdb.Model(name=new_model, objectToCopy=mdb.models[model_to_copy])
+
+    # Do book keeping.
+    mdb_metadata.add_copy(model_to_copy, new_model)
+
+
+
 def create_model_and_part_from_odb(part_name: str, model_name: str, path_to_odb: str,  
                                    mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
                                   ) -> None:
@@ -1858,11 +1925,9 @@ def create_traction(name: str, step_name: str, traction: geom.Vec3D, face: Any,
            None.
     """
 
-    root_assembly = mdb.models[model_name].rootAssembly
-
     # The chosen face does not matter.
     # This surface gets a default name.
-    surface = root_assembly.Surface(side1Faces=face)
+    surface = mdb.models[model_name].rootAssembly.Surface(side1Faces=(face,), name=name)
 
     mdb.models[model_name].SurfaceTraction(name=name, createStepName=step_name,
                                            region=surface, magnitude=traction.len,

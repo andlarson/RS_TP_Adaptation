@@ -22,6 +22,7 @@ import src.core.metadata.naming as naming
 import src.core.tool_pass.tool_pass as tp
 import src.core.abaqus.abaqus_shim as shim
 import src.core.material_properties.material_properties as mp
+import src.core.residual_stress.residual_stress as rs
 
 from src.util.debug import *
 
@@ -149,7 +150,8 @@ class MachiningProcess:
         """
 
         committment_phase_md = self.commitment_phase_metadata[-1]
-        committment_phase_md.potential_tpps.append((save_name, tool_pass_plan, save_dir))
+        new_dir_path = os.path.join(save_dir, save_name)
+        committment_phase_md.potential_tpps.append((save_name, tool_pass_plan, new_dir_path))
         mdb_metadata = abq_md.AbaqusMdbMetadata(committment_phase_md.path_initial_mdb)
         committment_phase_md.potential_tpp_mdb_metadata.append(mdb_metadata)
 
@@ -196,23 +198,24 @@ class MachiningProcess:
 
 
 
-    def estimate_stress_via_last_tool_pass(self):
+    def estimate_stress_via_last_tool_pass(self, path: str) -> rs.ConstantResidualStressField:
         """Estimates the residual stress tensor field which existed in the region
                of material removal due to the last committed tool pass.
 
-           This 
-            
            Args:
-               None.
+               path: Absolute path to a directory. Since some simulations are
+                         necessary to estimate the stress, this directory is
+                         where the simulation results will be placed.
 
            Returns:
-                
+               The constant residual stress field in the region of material
+                   removal.
 
            Raises:
                None.
         """
         
-        raise RuntimeError("Not yet supported.")
+        return sim.estimate_residual_stresses(self.commitment_phase_metadata[-1], path)
 
 
 
@@ -247,18 +250,21 @@ class MachiningProcess:
             plan = simulated_tpp[1]
             dir_ = simulated_tpp[2]
             if tp.compare_tool_pass_plans(tool_pass_plan, plan):
+
+                new_dir_name = os.path.join(save_dir, save_name)
+
                 # Copy the results of the already-simulated tool pass plan
                 #     into a new directory.
-                shutil.copytree(dir_, save_dir)
+                shutil.copytree(dir_, new_dir_name)
                 
                 # Rename the .cae file in this new directory.
-                old_mdb_path = os.path.join(dir_, name + ".cae") 
-                new_mdb_path = os.path.join(save_dir, save_name + ".cae")
+                old_mdb_path = os.path.join(new_dir_name, name + ".cae") 
+                new_mdb_path = os.path.join(new_dir_name, save_name + ".cae")
                 shutil.move(old_mdb_path, new_mdb_path)
 
                 # Rename the .jnl file in this new directory.
-                old_jnl_path = os.path.join(dir_, name + ".jnl")
-                new_jnl_path = os.path.join(save_dir, save_name + ".jnl")
+                old_jnl_path = os.path.join(new_dir_name, name + ".jnl")
+                new_jnl_path = os.path.join(new_dir_name, save_name + ".jnl")
                 shutil.move(old_jnl_path, new_jnl_path)
 
                 match = True
@@ -267,9 +273,9 @@ class MachiningProcess:
 
                 dump_banner("COMMITTED TOOL PASS PLAN WAS ALREADY SIMULATED")
                 dp("")
-                dp("For commit " + str(num_commits) + ", the tool pass plan was \
-                    already simulated in the commitment phase so no additional \
-                    simulation was needed!")
+                dp("For commit " + str(num_commits) + ", the tool pass plan was "
+                   "already simulated in the commitment phase so no additional "
+                   "simulation was needed!")
                 dp("")
                 dump_banner_end()
 
@@ -420,7 +426,7 @@ class MachiningProcess:
                started."""
 
         last_commitment_phase_md = self.commitment_phase_metadata[-1]
-        if last_commitment_phase_md.committed_tpp is not None:
+        if hasattr(last_commitment_phase_md, "committed_tpp"):
             return True
         return False
 

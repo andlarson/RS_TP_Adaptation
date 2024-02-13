@@ -12,8 +12,7 @@ class ModelTypes(Enum):
     ODB_TO_MDB = 0
     FIRST_TOOL_PASS_IN_MDB = 1
     NTH_TOOL_PASS_IN_MDB = 2
-    FIRST_TRACTION_APP_IN_MDB = 3
-    NTH_TRACTION_APP_IN_MDB = 4
+    TRACTION_APP = 3
 
 
 
@@ -48,24 +47,22 @@ class ModelNames:
         model_cnt = len(mdb_metadata.model_names)
         
         if model_type is ModelTypes.ODB_TO_MDB:
-            # Pre-defined.
+            # Assumed to already exist at call time. 
             self.new_model_name = shim.STANDARD_MODEL_NAME
-            
-            # We choose.
             self.part_from_odb_name = shim.STANDARD_INIT_GEOM_PART_NAME
 
         elif model_type is ModelTypes.FIRST_TOOL_PASS_IN_MDB:
-            # Pre-defined. 
+            # Assumed to already exist at call time. 
             self.new_model_name = shim.STANDARD_MODEL_NAME
             self.pre_tool_pass_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
             
-            # We choose.
+            # Assumed to be chosen. 
             self.tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX 
             self.post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX 
             self.equil_step_name = shim.STANDARD_EQUIL_STEP_PREFIX 
 
         elif model_type is ModelTypes.NTH_TOOL_PASS_IN_MDB:
-            # Pre-defined. 
+            # Assumed to already exist at call time. 
             # Assumes that an ODB was used to create the initial part in this
             #     model, and that ODB was produced by running the last
             #     model in this MDB. When an ODB is imported to create a part,
@@ -73,32 +70,23 @@ class ModelNames:
             last_model_name = mdb_metadata.model_names[-1]  
             self.pre_tool_pass_part_name = mdb_metadata.models_metadata[last_model_name].part_names[-1].upper()     
             
-            # We choose.
+            # Assumed to be chosen. 
             self.post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX 
             self.new_model_name = shim.STANDARD_MODEL_NAME_PREFIX + str(model_cnt + 1) 
             self.tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX 
             self.equil_step_name = shim.STANDARD_EQUIL_STEP_PREFIX 
 
-        elif model_type is ModelTypes.FIRST_TRACTION_APP_IN_MDB:
-            # Pre-defined. 
-            self.new_model_name = shim.STANDARD_MODEL_NAME
-            self.deformed_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
-            
-            # We choose.
-            self.traction_step_name = shim.STANDARD_TRACTION_STEP_PREFIX 
+        elif model_type is ModelTypes.TRACTION_APP:
+            # It is assumed that a model which includes traction application
+            #     will be created by copying another model which contains a simple 
+            #     part geometry. In the copy, the part name will be unchanged.
 
-        elif model_type is ModelTypes.NTH_TRACTION_APP_IN_MDB:
-            # Pre-defined. 
-            # Assumes that an ODB was used to create the initial part in this
-            #     model, and that ODB was produced by running the last
-            #     model in this MDB. When an ODB is imported to create a part,
-            #     the name of the part is, by default, in all caps.
-            last_model_name = mdb_metadata.model_names[-1]  
-            self.deformed_part_name = mdb_metadata.models_metadata[last_model_name].part_names[-1].upper()     
-            
-            # We choose.
-            self.new_model_name = shim.STANDARD_MODEL_NAME + str(model_cnt + 1)
-            self.traction_step_name = shim.STANDARD_TRACTION_STEP_PREFIX 
+            # Assumed to result from copy operation.
+            self.deformed_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
+
+            # Assumed to be chosen.
+            self.new_model_name = shim.STANDARD_MODEL_NAME_PREFIX + str(model_cnt + 1)
+            self.traction_step_name = shim.STANDARD_TRACTION_STEP_NAME
 
 
 

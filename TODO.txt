@@ -1,10 +1,3 @@
-Left Off With:
-
-Changing the ModelNames class to generate names for MDBs which will contain
-    traction application simulations, not just tool pass simulations. Now
-    the issue is that the names generated depend on the model type...which
-    means that a simple function like create_mdb_from_odb() needs context
-    information.
 
 
 Recovering Residual Stress - Short Term TODO:
@@ -20,18 +13,13 @@ Simulating Material Removal - Short Term TODO:
       mesh may be displaced in a way that makes it difficult or impossible to
       construct planar faces.
 
-1) Update the tool pass comparison functions.
-
 2) Add C++ support for defining some simple stress profiles.
    As part of this, account for the case when the user specifies a stress profile
       which is far from equilbirium. 
 
 3) Create a small library of examples illustrating current functionality.
 
-4) Add support for back calculating stress which caused a particular
-      deformation.
-
-5) If the user supplies their own estimated residual stress profile, it's necessary
+4) If the user supplies their own estimated residual stress profile, it's necessary
       to allow the part, embued by this stress field which may not be in equilibirum, 
       to deform to achieve mechanical equilibrium. This is necessary only in the case
       when the user supplies an estimated stress profile.
@@ -49,34 +37,15 @@ General - Short Term TODO:
 2) Rule out and write up alternative technique for material removal using the
        additive manufacturing stuff in Abaqus.
 
-3) The CommitmentPhaseMetadata data structure contains significant redundancy.
-       Also, it would be very helpful to diagram the metadata data flow. It's
-       too hard to understand right now.
+3) Update the README and add a diagram documenting the metadata / naming data
+       flow.
+
+4) Add functionality to save execution state upon an excpetion and some functionality
+       to resume from that state. This will be time-saving debug feature.
 
 
 
-General - Long Term TODO.
-
-Experiments TODO:
-
-    *** COMPARING BOOLEAN OPERATIONS AND ELEMENT DELETION ***
-    Compare the deformation which results from geometry change to element deletion.
-
-
-
-Thinking TODO:
-
-    *** BCs IN SITUATIONS WITHOUT CLAMPING ***
-    Think about Prof. Dick's claim: We need only a single BC constraining an element
-      in order to prvent numerial errors from resulting in non-physical deformations.
-      I agree with the claim. If the constrained element does not deform, then there
-      is a slight amount of error introduced. This error is small if the element/region
-      is small. If we restrict ourselves to situations where the clamps do not prevent
-      the deformations due to residual stress, then I believe that the only purpose of
-      boundary conditions is to prevent non-physical deformations due to numerical
-      error. Therefore, constraining a single element is sufficient.
-
-
+General - Long Term TODO:
 
 Code Organization / Structure TODO:
 
@@ -87,42 +56,6 @@ Code Organization / Structure TODO:
       because the way that a stress field is represented doesn't exactly match
       reality. Material removal is a fundamental procedure which is required during
       the machining process.
-
-    *** NAME CLEANING ***
-    Figure out a way to make the naming cleaner. Specifically, we expect some names to
-      be present and we always pick some particular names for use. Also, try to make
-      some of my variable names in simulation.py more concise. The names currently
-      make my eyes bleed.
-        Partially done. Still don't like some of name passing is done in simulation.py. 
-    Actually, just clean up how all the metadata is structured. Draw a picture!
-    The new_model_names() function is overly complex. The general issue is that
-       sometimes we have an MDB with a single model, and this model has already
-       been created and has some components which are already named, and other 
-       times we call this function before a model is being created.
-
-    *** KEEPING TRACK OF CWD AND DIRECTORY CHANGES ***
-    What is a general strategy for keeping track file directory modifications? Should
-       no functions have any net effect on the CWD (i.e. they just change it when
-       strictly necessary and then change it back before returning?), should each
-       function be responsible for changing it as necessary and not change it back?
-    In the current implementation, the commit_tool_pass() function implicitly assumes
-       that the CWD is something and saves stuff in particular locations based on this
-       assumption.
-
-    *** MYPY STATIC ANALYSIS ***
-    Get the MyPy static analysis up and running. Note that, for now, I'm only attempting
-      to do static analysis when Python-native types are involved. There are objects
-      native to Abaqus, numpy, etc. being passed around for which no type checking is
-      done. I think there is hope of getting static analysis running for at least libraries
-      like numpy. It might be worthwhile to build/contribute some basic stub files
-      for Abaqus. Also, what should be done when a function takes in an  
-      argument of a particular type, but the rest of the file doesn't need access to
-      the file which contains the type? Does the type need to be absolutely referenced
-      in the type line?
-
-    *** FIXING IMPORTS ***
-    Fix the way that imports are done so that main.py can be invoked from directories
-      other than /software/ and without using its full path name.
 
     *** OPENING AND CLOSING MDB ***
     Use cleaner technique to deal with opening and closing an mdb. Figure out how to
@@ -141,15 +74,6 @@ Code Organization / Structure TODO:
     Tuples should be passed as arguments when the function will not need to modify.
       Passing a list to a function is dangerous because the function may modify the
       list.
-
-    *** USING PEP8 CONVENTIONS ***
-    Use the PEP8 conventions for naming externally visible vs internally visible
-       stuff. In particular, a leading underscore should be used when necessary.    
-
-    *** DEAL WITH EXCEPTIONS IN UNIFORM MANNER ***
-    Don't catch all exceptions, only those that are expected (i.e. those of type
-       AbaqusException). And when an exception is caught, emit information about
-       it and re-raise it. 
 
 
 Adding/Modifying Features TODO:
@@ -216,10 +140,6 @@ Adding/Modifying Features TODO:
 
     *** WORKAROUND FOR INTERACTIVE MODE ***
     Figure out a workaround so we don't have to run Abaqus in interactive mode.
-
-    *** SPEEDING UP SIMULATION ARTIFACT CLEANUP ***
-    Write routine to delete all directories created for some simulations to avoid
-       manually deleting every time.
 
     *** SUPPORTING QUADRATIC SPLINES ***
     Can we support quadratic splines for toolpaths? 

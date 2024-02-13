@@ -5,6 +5,7 @@ This module contains code which can be used to keep track of and supplement the
 
 from typing import Any
 import pathlib
+import copy
 
 import src.core.abaqus.abaqus_shim as shim
 
@@ -86,6 +87,25 @@ class AbaqusMdbMetadata:
 
         self.model_names.append(name)
         self.models_metadata[name] = AbaqusModelMetadata()
+
+
+    def add_copy(self, to_copy: str, new_name: str) -> None:
+        """Adds a model to the data structure and populates its metadata with
+               data from another model.
+            
+           Args:
+               to_copy:  The name of the model to copy.
+               new_name: The name of the new model.
+        
+           Returns:
+               None.
+        
+           Raises:
+               None.
+        """
+
+        self.model_names.append(new_name)
+        self.models_metadata[new_name] = copy.deepcopy(self.models_metadata[to_copy])
 
 
 

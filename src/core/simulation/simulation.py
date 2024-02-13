@@ -83,9 +83,6 @@ def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, target_dir: s
         _sim_single_tool_pass(tool_pass, commitment_phase_md, mdb, stress_subroutine)    
         tool_pass_plan.pop()
 
-        # DEBUG
-        shim.save_mdb_as(new_mdb_path, mdb)
-
     shim.save_mdb_as(new_mdb_path, mdb)
     shim.close_mdb(mdb)
 
@@ -319,21 +316,29 @@ def _do_boilerplate_tp_sim_ops(tool_pass: tp.ToolPass,
 
 
 def _do_boilerplate_traction_app_sim_ops(traction: geom.Vec3D,
-                                         face: Any,
-                                         names: naming.ModelNames, 
+                                         point: geom.Point3D, 
+                                         model_to_copy: str,
                                          mdb_metadata: abq_md.AbaqusMdbMetadata,
                                          commit_phase_md: md.CommitmentPhaseMetadata,
                                          mdb: Any) -> None:
     """Does some operations such as instancing, section assignment, traction 
            creation, meshing, etc. which are boilerplate (i.e. they need to be 
            done for just about any simulation of applied traction).
+
+       Implementation Detail:
+       By assuming that the model to copy already has a geometry associated with
+           it, there is no need to map an orphan mesh to a geometry in this
+           function, which yields significant runtime savings.
        
        Args:
            traction:        The traction vector to apply.
-           face:            Abaqus Face object. The face on which to apply the 
-                                traction.
-           names:           The names associated with the model on which this
-                                function will operate.
+           point:           A point which lies on, or very near, the face on which
+                                to apply the traction.
+           model_to_copy:   The name of the model to copy. This model should
+                                exist and contain the result of a simulation. In
+                                particular, it is assumed that a .odb file was
+                                used to create the model, and that the orphan
+                                mesh was mapped to a geometry. 
            mdb_metadata:    Metadata associated with the MDB. 
            commit_phase_md: Metadata associated with the commitment phase.
            mdb:             Abaqus MDB object. The MDB to use.
@@ -345,7 +350,18 @@ def _do_boilerplate_traction_app_sim_ops(traction: geom.Vec3D,
            None.
     """
 
-    initial_geom_part = mdb.models[names.new_model_name].parts[names.pre_tool_pass_part_name]
+    if not shim.check_standard_model(True, model_to_copy, mdb):
+        raise RuntimeError("The model to copy is in an unexpected state.")
+
+    names = naming.ModelNames(naming.ModelTypes.TRACTION_APP, mdb_metadata)
+    
+    shim.copy_model(model_to_copy, names.new_model_name, mdb_metadata, mdb)
+
+    initial_geom_part = mdb.models[names.new_model_name].parts[names.deformed_part_name]
+
+    shim.create_material(commit_phase_md.init_part.material, names.new_model_name, mdb)
+    shim.create_section(names.new_model_name, mdb)
+    shim.assign_section_to_whole_part(names.deformed_part_name, names.new_model_name, mdb)
 
     shim.assign_only_section_to_part(initial_geom_part, names.new_model_name, mdb)
 
@@ -353,7 +369,7 @@ def _do_boilerplate_traction_app_sim_ops(traction: geom.Vec3D,
 
     # The instance is independent so that meshing can be done in the Assembly
     #    module.
-    initial_geom_instance = shim.instance_part_into_assembly(names.pre_tool_pass_part_name, 
+    initial_geom_instance = shim.instance_part_into_assembly(names.deformed_part_name, 
                                                              initial_geom_part, 
                                                              False, 
                                                              names.new_model_name, 
@@ -367,7 +383,9 @@ def _do_boilerplate_traction_app_sim_ops(traction: geom.Vec3D,
     last_step_name = model_metadata.step_names[-1]
     shim.create_step(names.traction_step_name, last_step_name, names.new_model_name, 
                      mdb_metadata, mdb)
-     
+    
+    face = shim.get_closest_face([point], initial_geom_instance)
+
     shim.create_traction(shim.STANDARD_SURFACE_TRACTION_NAME, names.traction_step_name,
                          traction, face, names.new_model_name, mdb) 
 
@@ -515,7 +533,7 @@ def estimate_residual_stresses(commitment_phase_md: md.CommitmentPhaseMetadata,
            None.
     """
 
-    return recover_constant_residual_stress(commitment_phase_md, path)
+    return _recover_constant_residual_stress(commitment_phase_md, path)
 
 
 
@@ -536,8 +554,6 @@ def _recover_constant_residual_stress(commit_phase_md: md.CommitmentPhaseMetadat
            path:            Absolute path to directory. Any MDBs which need
                                 to be created in order to recover the residual
                                 stresses are placed this directory.
-                            This directory should not be reused for multiple
-                                calls of this method.
 
        Returns:
            The residual stress field in the material that was removed by the
@@ -547,15 +563,15 @@ def _recover_constant_residual_stress(commit_phase_md: md.CommitmentPhaseMetadat
            None.
     """
     
-    if commit_phase_md.committed_tpp is not None:
-        raise RuntimeError("No tool pass plan was committed to, so no stresses \
-                            can be recovered yet.")
+    if commit_phase_md.committed_tpp is None:
+        raise RuntimeError("No tool pass plan was committed to, so no stresses "
+                           "can be recovered yet.")
 
     if len(commit_phase_md.committed_tpp[1]) != 1:
-        raise RuntimeError("If more than one tool pass happened, then this \
-                            the method that this function implements cannot \
-                            hope to recover the stresses which existed in \
-                            the regions of material removal.")
+        raise RuntimeError("If more than one tool pass happened, then "
+                           "the method that this function implements cannot "
+                           "hope to recover the stresses which existed in "
+                           "the regions of material removal.")
     
     # Step 1:
     # Create a new MDB for running the necessary simulations for this technique.
@@ -568,20 +584,19 @@ def _recover_constant_residual_stress(commit_phase_md: md.CommitmentPhaseMetadat
     # Use the metadata about the commitment phase to retrieve the path 
     #     of the ODB which resulted from the committed tool pass plan being
     #     simulated.
-    committed_tpp_mdb_md = commit_phase_md.committed_tpp_mdb_metadata
-    odb_name = naming.last_odb_file_name(committed_tpp_mdb_md)
+    odb_name = naming.last_odb_file_name(commit_phase_md.committed_tpp_mdb_metadata)
     committed_tpp_dir = commit_phase_md.committed_tpp_mdb_metadata.mdb_dir()
     odb_path = os.path.join(committed_tpp_dir, odb_name) 
 
     # Create a new MDB which contains the deformed part, as produced by the
     #     simulation of the committed tool pass plan.
-    mdb, mdb_metadata, names = create_mdb_from_odb(path, STRESS_RECOVERY_MDB_NAME, odb_path)
-    commit_phase_md.stress_estimate_mdb_metadata.append(mdb_metadata)
+    mdb, mdb_metadata, _ = create_mdb_from_odb(STRESS_RECOVERY_MDB_NAME, path, odb_path)
+    commit_phase_md.stress_estimate_mdb_metadata = mdb_metadata
 
     # Step 2:
     # Find the face of the trench.
-    tool_pass = commit_phase_md.committed_tool_pass_plan.plan[0]
-    trench_face = _find_trench(tool_pass, mdb.models[names.new_model_name].parts[names.new])
+    tool_pass = commit_phase_md.committed_tpp[1].plan[0]
+    trench_point = _find_trench_point(tool_pass) 
 
     # Step 3:
     # Choose some special points at which the linear relationships will be
@@ -589,7 +604,7 @@ def _recover_constant_residual_stress(commit_phase_md: md.CommitmentPhaseMetadat
 
     # Step 4:
     # Recover the linear relationships for the face of the trench.
-    _recover_linear_relationships()
+    _recover_linear_relationships(None, trench_point, mdb_metadata, commit_phase_md, mdb, path)
 
     # Step 5:
     # Use the linear relationship to minimize a measure of geometric dissimilarity.
@@ -598,10 +613,13 @@ def _recover_constant_residual_stress(commit_phase_md: md.CommitmentPhaseMetadat
     # Map the "good traction vector" to the components of the stress tensor
     #     assuming a constant state of stress.
 
+    # TODO
+    return None
+
+
 
 def _recover_linear_relationships(points: list[geom.Point3D], 
-                                  face: Any,
-                                  names: naming.ModelNames, 
+                                  face_point: geom.Point3D,
                                   mdb_metadata: abq_md.AbaqusMdbMetadata,
                                   commit_phase_md: md.CommitmentPhaseMetadata, 
                                   mdb: Any,
@@ -613,9 +631,13 @@ def _recover_linear_relationships(points: list[geom.Point3D],
 
        Args:
            points:          The points at which to recover the linear relationships.
-           face:            Abaqus Face object. The face to apply the tractions to.
-                                Must be planar. 
-           names:           The names associated with the target model. 
+           face_point:      A point which is on the face on which tractions will
+                                be applied. You might ask: Why not just pass in
+                                the face itself? The reason is that an Abaqus Face
+                                object is associated with a particular part/assembly
+                                in a model. Since this function creates a model
+                                for each traction which is applied, the Abaqus Face
+                                object would be invalid for these new models.
            mdb_metadata:    Metadata associated with the MDB.
            commit_phase_md: Metadata associated with the commitment phase.
            mdb:             Abaqus MDB object. The MDB containing the part which has the
@@ -647,49 +669,32 @@ def _recover_linear_relationships(points: list[geom.Point3D],
     orig_cwd = os.getcwd()
     os.chdir(path)
 
-    x = np.array([1, 0, 0])
-    x_traction = geom.Vec3D(x)
-
-    _do_boilerplate_traction_app_sim_ops(x_traction, face, names, mdb_metadata, commit_phase_md, mdb)
-
-    job = shim.create_job(names.new_model_name, mdb_metadata, mdb)
-    shim.run_job(job)
-
-    y = np.array([0, 1, 0])
-    y_traction = geom.Vec3D(y)
-
-    # Need new names for new model!
-    names = naming.ModelNames(naming.ModelTypes.FIRST_TRACTION_APP_IN_MDB, mdb_metadata)
-
-    _do_boilerplate_traction_app_sim_ops(y_traction, face, names, mdb_metadata, commit_phase_md, mdb)
-
-    job = shim.create_job(names.new_model_name, mdb_metadata, mdb)
-    shim.run_job(job)
-
-    z = np.array([0, 0, 1])
-    z_traction = geom.Vec3D(z)
-
-    # Need new names for new model!
-    names = naming.ModelNames(naming.ModelTypes.NTH_TRACTION_APP_IN_MDB, mdb_metadata)
-
-    _do_boilerplate_traction_app_sim_ops(z_traction, face, names, mdb_metadata, commit_phase_md, mdb)
+    TRACTION_JOB_NAME_PREFIX = "Traction_App-" 
+    x = geom.Vec3D(np.array([1, 0, 0]))
+    y = geom.Vec3D(np.array([0, 1, 0]))
+    z = geom.Vec3D(np.array([0, 0, 1]))
+    traction_vecs = (x, y, z)
     
-    # Don't permanently change CWD.
+    for i, vec in enumerate(traction_vecs):
+        _do_boilerplate_traction_app_sim_ops(vec, face_point, shim.STANDARD_MODEL_NAME, mdb_metadata, commit_phase_md, mdb)
+        job = shim.create_job(TRACTION_JOB_NAME_PREFIX + str(i), mdb_metadata, mdb)
+        shim.run_job(job)
+
     os.chdir(orig_cwd)
 
     # TODO: Actually recover the linear relationships.
+    return None
    
 
      
-def _find_trench(toolpass: tp.ToolPass, obj: Any) -> Any:
-    """Finds the face of a tool pass which is the trench.
+def _find_trench_point(toolpass: tp.ToolPass) -> geom.Point3D:
+    """Finds a point on the trench of a tool pass.
 
        Args:
            toolpass: The tool pass for which to find the trench.
-           obj:      Abaqus Part object or Abaqus PartInstance object.
     
        Returns:
-           Abaqus Face object.
+           Point which is on the trench of a tool pass.
     
        Raises:
            None.
@@ -700,7 +705,7 @@ def _find_trench(toolpass: tp.ToolPass, obj: Any) -> Any:
     median_index = int(len(toolpass.path.v_list) / 2)
     point_on_trench = toolpass.path.v_list[median_index]
 
-    return shim.get_closest_face([point_on_trench], obj)
+    return point_on_trench 
 
 
 
