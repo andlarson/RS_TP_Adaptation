@@ -132,7 +132,8 @@ def _get_step_keyword(kwb: Any) -> int:
 
 
 
-def get_closest_face(points: list[geom.Point3D], obj: Any) -> Any:
+def get_closest_face(points: list[geom.Point3D], obj: Any,
+                     want_seq: bool) -> Any:
     """Gets the face closest to the centroid of some points.
 
        This function is a workaround to writing/calling nasty geometric routines. 
@@ -143,11 +144,16 @@ def get_closest_face(points: list[geom.Point3D], obj: Any) -> Any:
        Note that Abaqus may throw an exception if no face is found.
 
        Args:
-           points: A nonzero number of points. 
-           obj:    Abaqus Part object or Abaqus PartInstance object.
+           points:   A nonzero number of points. 
+           obj:      Abaqus Part object or Abaqus PartInstance object.
+           want_seq: Flag which specifies the type of the return. When True, this
+                         function will return an Abaqus Face Array object
+                         consisting of exactly one face. When False, this
+                         will return an Abaqus Face object.
 
        Returns:
-           Abaqus Face object.
+           Abaqus Face object or Abaqus Face Array object, depending on the
+               value of want_seq.
 
        Raises:
            None.
@@ -157,11 +163,15 @@ def get_closest_face(points: list[geom.Point3D], obj: Any) -> Any:
         raise ValueError("There should be a nonzero number of points.")
 
     centroid = geom.find_centroid(points)
-    face_and_point = obj.faces.getClosest([centroid.components()])
 
-    face = face_and_point[0][0]
-
-    return face
+    if not want_seq:
+        face_and_point = obj.faces.getClosest([centroid.components()])
+        face = face_and_point[0][0]
+        return face
+    else:
+        face_seq = obj.faces.findAt(((centroid.components(), )))      
+        assert len(face_seq) == 1, "Unexpectedly found more than one face!"
+        return face_seq
     
 
 
@@ -1771,7 +1781,7 @@ def _find_face_ngon_lives_on(ngon: geom.NGon3D, obj: Any) -> Any:
 
     # Assume that the face closest to points which make up the ngon is the face
     #    that the ngon lives on.
-    face_ngon_belongs_to = get_closest_face(ngon.vertices, obj)
+    face_ngon_belongs_to = get_closest_face(ngon.vertices, obj, False)
 
     return face_ngon_belongs_to
 
@@ -1899,7 +1909,7 @@ def partition_face(ngon: geom.NGon3D, part: Optional[Any] = None,
 
 
 
-def create_traction(name: str, step_name: str, traction: geom.Vec3D, face: Any, 
+def create_traction(name: str, step_name: str, traction: geom.Vec3D, face_seq: Any, 
                     model_name: str, mdb: Any) -> None:
     """Creates a surface traction on a face. 
         
@@ -1909,12 +1919,12 @@ def create_traction(name: str, step_name: str, traction: geom.Vec3D, face: Any,
                            at a later point in time.
            step_name:  The name of the step in which to apply the traction.
            traction:   The traction vector to apply.
-           face:       Abaqus Face object. The face must be a face on a part
-                           instance in the root assembly, not a face from a 
-                           part. This is because tractions are created in the 
-                           load application step, which operates on the root 
-                           assembly. This face is the face on which the traction 
-                           is applied.
+           face_seq:   Abaqus Face Array object consisting of exactly one face. 
+                           The face must be a face on a part instance in the root 
+                           assembly, not a face from a part. This is because 
+                           tractions are created in the load application step, 
+                           which operates on the root assembly. This face is 
+                           the face on which the traction is applied.
            model_name: The name of the model in which the traction is created.
            mdb:        Abaqus MDB object.
     
@@ -1925,13 +1935,16 @@ def create_traction(name: str, step_name: str, traction: geom.Vec3D, face: Any,
            None.
     """
 
+    if len(face_seq) != 1:
+        raise RuntimeError("A traction can only be applied to a single face.")
+
     # The chosen face does not matter.
     # This surface gets a default name.
-    surface = mdb.models[model_name].rootAssembly.Surface(side1Faces=(face,), name=name)
+    surface = mdb.models[model_name].rootAssembly.Surface(side1Faces=face_seq, name=name)
 
     mdb.models[model_name].SurfaceTraction(name=name, createStepName=step_name,
-                                           region=surface, magnitude=traction.len,
-                                           directionVector=((0, 0, 0), traction.components),
+                                           region=surface, magnitude=traction.len(),
+                                           directionVector=((0, 0, 0), traction.components()),
                                            distributionType=UNIFORM, traction=GENERAL)
 
 

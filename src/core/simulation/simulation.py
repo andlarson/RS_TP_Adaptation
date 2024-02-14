@@ -315,15 +315,14 @@ def _do_boilerplate_tp_sim_ops(tool_pass: tp.ToolPass,
 
 
 
-def _do_boilerplate_traction_app_sim_ops(traction: geom.Vec3D,
-                                         point: geom.Point3D, 
-                                         model_to_copy: str,
-                                         mdb_metadata: abq_md.AbaqusMdbMetadata,
-                                         commit_phase_md: md.CommitmentPhaseMetadata,
-                                         mdb: Any) -> None:
+def _simulate_traction_app(traction: geom.Vec3D,
+                          point: geom.Point3D, 
+                          model_to_copy: str,
+                          mdb_metadata: abq_md.AbaqusMdbMetadata,
+                          commit_phase_md: md.CommitmentPhaseMetadata,
+                          mdb: Any) -> None:
     """Does some operations such as instancing, section assignment, traction 
-           creation, meshing, etc. which are boilerplate (i.e. they need to be 
-           done for just about any simulation of applied traction).
+           creation, meshing, etc. and then runs the job.
 
        Implementation Detail:
        By assuming that the model to copy already has a geometry associated with
@@ -384,12 +383,16 @@ def _do_boilerplate_traction_app_sim_ops(traction: geom.Vec3D,
     shim.create_step(names.traction_step_name, last_step_name, names.new_model_name, 
                      mdb_metadata, mdb)
     
-    face = shim.get_closest_face([point], initial_geom_instance)
+    face = shim.get_closest_face([point], initial_geom_instance, True)
 
     shim.create_traction(shim.STANDARD_SURFACE_TRACTION_NAME, names.traction_step_name,
                          traction, face, names.new_model_name, mdb) 
 
     shim.mesh(initial_geom_instance, 20, names.new_model_name, mdb)
+
+    job = shim.create_job(names.new_model_name, mdb_metadata, mdb)
+
+    shim.run_job(job)
 
 
 
@@ -581,15 +584,13 @@ def _recover_constant_residual_stress(commit_phase_md: md.CommitmentPhaseMetadat
     if pathlib.Path(new_mdb_path).exists():
         raise RuntimeError("The path for the stress recovery MDB is already occupied!")
 
-    # Use the metadata about the commitment phase to retrieve the path 
-    #     of the ODB which resulted from the committed tool pass plan being
-    #     simulated.
+    # Retrieve the path of the ODB which resulted from the committed tool pass 
+    #     plan being simulated.
     odb_name = naming.last_odb_file_name(commit_phase_md.committed_tpp_mdb_metadata)
     committed_tpp_dir = commit_phase_md.committed_tpp_mdb_metadata.mdb_dir()
     odb_path = os.path.join(committed_tpp_dir, odb_name) 
 
-    # Create a new MDB which contains the deformed part, as produced by the
-    #     simulation of the committed tool pass plan.
+    # Create a new MDB which contains the deformed part.
     mdb, mdb_metadata, _ = create_mdb_from_odb(STRESS_RECOVERY_MDB_NAME, path, odb_path)
     commit_phase_md.stress_estimate_mdb_metadata = mdb_metadata
 
@@ -669,18 +670,18 @@ def _recover_linear_relationships(points: list[geom.Point3D],
     orig_cwd = os.getcwd()
     os.chdir(path)
 
-    TRACTION_JOB_NAME_PREFIX = "Traction_App-" 
     x = geom.Vec3D(np.array([1, 0, 0]))
     y = geom.Vec3D(np.array([0, 1, 0]))
     z = geom.Vec3D(np.array([0, 0, 1]))
     traction_vecs = (x, y, z)
     
-    for i, vec in enumerate(traction_vecs):
-        _do_boilerplate_traction_app_sim_ops(vec, face_point, shim.STANDARD_MODEL_NAME, mdb_metadata, commit_phase_md, mdb)
-        job = shim.create_job(TRACTION_JOB_NAME_PREFIX + str(i), mdb_metadata, mdb)
-        shim.run_job(job)
+    for vec in traction_vecs:
+        _simulate_traction_app(vec, face_point, shim.STANDARD_MODEL_NAME, mdb_metadata, commit_phase_md, mdb)
 
     os.chdir(orig_cwd)
+
+    # DEBUG
+    shim.save_mdb_as("/home/andlars/Desktop/traction_sims.cae", mdb)
 
     # TODO: Actually recover the linear relationships.
     return None

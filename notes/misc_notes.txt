@@ -131,3 +131,13 @@ When "abaqus make" runs it can produce a .so file containing user subroutines.
 *** RUNNING A PYTHON SCRIPT ***
 Use the command "abaqus cae script=/path/to/script.py -mesa" to run a script
     in interactive mode. 
+
+
+
+*** "SEQUENCES" OF OBJECTS IN ABAQUS DOCUMENTATION ***
+In the Abaqus documentation, it often says that a function takes in a sequence
+    of objects. The documentation makes it sound like you can construct a tuple
+    or a list of the objects and then just pass them in. I've found that sometimes
+    this is the case. Other times, it's necessary to constuct a ObjectArray
+    such as a FaceArray, VertexArray, etc. Not doing this will lead to obscure
+    runtime failure with generic error messages like "Feature creation failed.".
