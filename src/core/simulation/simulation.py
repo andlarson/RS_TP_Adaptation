@@ -5,6 +5,7 @@ Provides top-level functionality to do simulations of interest in Abaqus.
 import os
 from typing import Optional, Any
 import pathlib
+import random
 
 from abaqus import *
 from abaqusConstants import * 
@@ -316,11 +317,11 @@ def _do_boilerplate_tp_sim_ops(tool_pass: tp.ToolPass,
 
 
 def _simulate_traction_app(traction: geom.Vec3D,
-                          point: geom.Point3D, 
-                          model_to_copy: str,
-                          mdb_metadata: abq_md.AbaqusMdbMetadata,
-                          commit_phase_md: md.CommitmentPhaseMetadata,
-                          mdb: Any) -> None:
+                           point: geom.Point3D, 
+                           model_to_copy: str,
+                           mdb_metadata: abq_md.AbaqusMdbMetadata,
+                           commit_phase_md: md.CommitmentPhaseMetadata,
+                           mdb: Any) -> str:
     """Does some operations such as instancing, section assignment, traction 
            creation, meshing, etc. and then runs the job.
 
@@ -343,7 +344,7 @@ def _simulate_traction_app(traction: geom.Vec3D,
            mdb:             Abaqus MDB object. The MDB to use.
     
        Returns:
-           None.
+           The name of the job which was run. This is not an absolute path.
     
        Raises:
            None.
@@ -393,6 +394,10 @@ def _simulate_traction_app(traction: geom.Vec3D,
     job = shim.create_job(names.new_model_name, mdb_metadata, mdb)
 
     shim.run_job(job)
+
+    job_name = mdb_metadata.models_metadata[names.new_model_name].job_name
+
+    return job_name 
 
 
 
@@ -583,6 +588,15 @@ def _recover_constant_residual_stress(commit_phase_md: md.CommitmentPhaseMetadat
     new_mdb_path = os.path.join(path, STRESS_RECOVERY_MDB_NAME)
     if pathlib.Path(new_mdb_path).exists():
         raise RuntimeError("The path for the stress recovery MDB is already occupied!")
+    
+    # TODO:
+    # The source of the deformed part should be either real-life data or a
+    #     a geometry which comes from a distinct Abaqus simulation process.
+    # Major Problem: There is, in general, no relationship between the mesh
+    #     of the post-tool pass plan part (constructed via a scan) and the
+    #     mesh of the pre-tool pass part (constructed via a distinct scan).
+    # Also, it's necessary to find the face of the trench in the post-tool
+    #     pass geometry that was scanned. This shouldn't be too hard.
 
     # Retrieve the path of the ODB which resulted from the committed tool pass 
     #     plan being simulated.
@@ -599,18 +613,44 @@ def _recover_constant_residual_stress(commit_phase_md: md.CommitmentPhaseMetadat
     tool_pass = commit_phase_md.committed_tpp[1].plan[0]
     trench_point = _find_trench_point(tool_pass) 
 
+    # TODO:
+    # The nodes picked in step 3 come from the ODB produced by the committed tpp.
+    # The nodes which get displaced during traction vector application exist
+    #     in a distinct model/mdb, and therefore the meshes may be slightly
+    #     different.
+    # 
+
     # Step 3:
-    # Choose some special points at which the linear relationships will be
-    #     recovered.
+    # Pick some nodes at random from mesh of the committed tool pass plan. The
+    #     nodes are chosen from the post-deformation mesh.
+    # Note that when these nodes will not exactly match up with nodes generated
+    #     during the traction vector application. They should be close to some
+    #     nodes which are generated during traction vector application, though.
+    points = shim.pick_nodes_randomly(20, odb_path)
 
     # Step 4:
-    # Recover the linear relationships for the face of the trench.
-    _recover_linear_relationships(None, trench_point, mdb_metadata, commit_phase_md, mdb, path)
+    # Recover the linear relationships for a traction applied to the face of
+    #     the trench.
+    # Careful! The linear relationships are correct for nodes which are close
+    #     to the passed points. They may not be exactly correct for the passed
+    #     points.
+    linear_relations = _recover_linear_relationships(points, trench_point, mdb_metadata, commit_phase_md, mdb, path)
 
     # Step 5:
-    # Use the linear relationship to minimize a measure of geometric dissimilarity.
+    # Determine the displacements of the picked nodes in the meshed, post
+    #     deformation part.
+    committed_tpp_displacements = shim.read_displacements(points, odb_path) 
 
+    # Since these are the displacements due to the tool pass plan, it's necessary
+    #     to negate them to get the displacements which would force the deformed
+    #     workpiece back to its undeformed state.
+    
     # Step 6:
+    # Use the linear relationships to determine a traction vector which, when
+    #     applied to the trench, minimizes a measure of geometric dis-similarity.
+
+
+    # Step 7:
     # Map the "good traction vector" to the components of the stress tensor
     #     assuming a constant state of stress.
 
@@ -619,13 +659,13 @@ def _recover_constant_residual_stress(commit_phase_md: md.CommitmentPhaseMetadat
 
 
 
-def _recover_linear_relationships(points: list[geom.Point3D], 
+def _recover_linear_relationships(points: list[geom.Point3D, ...], 
                                   face_point: geom.Point3D,
                                   mdb_metadata: abq_md.AbaqusMdbMetadata,
                                   commit_phase_md: md.CommitmentPhaseMetadata, 
                                   mdb: Any,
                                   path: str
-                                 ) -> tuple[Any, ...]:
+                                 ) -> list[Any, ...]:
     """Applies test tractions to some face of a workpiece to recover the linear 
            relationships which exist between applied traction and the displacement 
            of some points.
@@ -649,11 +689,11 @@ def _recover_linear_relationships(points: list[geom.Point3D],
                                 (.odb, etc.) will be dumped.
     
        Returns:
-           Tuple of 3 x 3 numpy arrays which describe the linear relationships
+           List of 3 x 3 numpy arrays which describe the linear relationships
                between the applied tractions and the displacements of the
                points. 
            For each matrix M, the matrix M relates the quantities: M * t = d. 
-               In this equation, t is a traction vector and d is a displacment vector.
+               In this equation, t is a traction vector and d is a displacement vector.
            The number of matrices equals the number of points passed to this
                function.
            Note that these linear relationships only hold when tractions are
@@ -674,18 +714,41 @@ def _recover_linear_relationships(points: list[geom.Point3D],
     y = geom.Vec3D(np.array([0, 1, 0]))
     z = geom.Vec3D(np.array([0, 0, 1]))
     traction_vecs = (x, y, z)
-    
+   
+    job_paths = []
     for vec in traction_vecs:
-        _simulate_traction_app(vec, face_point, shim.STANDARD_MODEL_NAME, mdb_metadata, commit_phase_md, mdb)
+        job_name = _simulate_traction_app(vec, face_point, shim.STANDARD_MODEL_NAME, mdb_metadata, commit_phase_md, mdb)
+        job_paths.append(os.path.join(path, job_name))
 
     os.chdir(orig_cwd)
+    
+    displacements = []
+    for p in job_paths:
+        odb_path = p + ".odb"
+        points_to_nodes = shim.read_displacements(points, odb_path)
+        displacements.append(points_to_nodes)
 
-    # DEBUG
-    shim.save_mdb_as("/home/andlars/Desktop/traction_sims.cae", mdb)
+    # Useful for understanding difference between points passed in and the nodes
+    #     at which the linear relationships are computed.
+    for d in displacements:
+        dp("For a dictionary of displacements: ")
+        for key in d:
+            dp("At point " + str(key) + " the closest node is " + str(d[key][0]) + " and the displacement of this node is " + str(d[key][1])) 
+    
+    # And compute the linear relationship for each point. 
+    linear_relationships = []
+    for point in points: 
+        # Get the displacement of the point for each traction vector application. 
+        disps = []
+        for d in displacements:
+            disps.append(d[point][1])
 
-    # TODO: Actually recover the linear relationships.
-    return None
-   
+        # Use the displacements to compute the linear relationship.
+        M = _compute_linear_relationship(traction_vecs, tuple(disps))
+        linear_relationships.append(M)
+
+    return linear_relationships 
+         
 
      
 def _find_trench_point(toolpass: tp.ToolPass) -> geom.Point3D:
@@ -707,6 +770,51 @@ def _find_trench_point(toolpass: tp.ToolPass) -> geom.Point3D:
     point_on_trench = toolpass.path.v_list[median_index]
 
     return point_on_trench 
+
+
+
+def _compute_linear_relationship(tractions: tuple[geom.Vec3D, geom.Vec3D, geom.Vec3D],
+                                 displacements: tuple[geom.Vec3D, geom.Vec3D, geom.Vec3D]
+                                ) -> Any:
+    """Computes the linear relationship which relates an applied traction to
+           the displacement of a point.
+        
+       Args:
+           tractions:     Three linearly independent traction vectors.
+           displacements: Three displacments of a single point. The displacements
+                              produced by the applied tractions.
+    
+       Returns:
+           Numpy Array object of size 3x3. If this matrix is called M, then it
+               can be used to do M * t = d, where t is a traction vector and
+               d is a displacement vector.
+    
+       Raises:
+           None.
+    """
+
+    # Normalize the tractions.
+    tractions = (tractions[0].normalize(), tractions[1].normalize(), tractions[2].normalize())
+
+    # Check that the tractions are linearly independent.
+    tractions = np.stack((tractions[0].components(), tractions[1].components(), tractions[2].components()), axis=-1)
+    try:
+        np.linalg.inv(tractions)
+    except BaseException as e:
+        raise RuntimeError("Tractions are linearly dependent!") 
+
+    # Solve for the matrix.
+    displacements = np.stack((displacements[0].components(), displacements[1].components(), displacements[2].components()), axis=-1)
+    res = np.linalg.solve(tractions.T, displacements.T).T
+
+    return res
+
+
+
+
+
+
+
 
 
 

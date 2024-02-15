@@ -131,7 +131,7 @@ class AbaqusModelMetadata:
         #    ordering of these lists mirror the ordering in the Abaqus Model.
         self.step_names = [shim.STANDARD_INITIAL_STEP_NAME]
         self.part_names = [shim.STANDARD_INIT_GEOM_PART_NAME]
-        self.job_name = None      # Assume 1-to-1 mapping of model to job.
+        self.job_name: str # Assume 1-to-1 mapping of model to job.
 
 
 

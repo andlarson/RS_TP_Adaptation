@@ -10,9 +10,11 @@ import math
 
 def dp(message: str) -> None:
     """Prints a message to the standard error stream."""
-
-    sys.__stderr__.write(message + "\n")
-
+    
+    # Since stderr is set to a stream (presumably by Abaqus setup code) which
+    #     ends up being dumped in Abaqus CAE GUI, it's necessary to print
+    #     to the original stream that stderr referred to. 
+    print(message, file=sys.__stderr__)
 
 
 def dump_exception() -> None:

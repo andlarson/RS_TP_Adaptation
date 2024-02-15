@@ -108,12 +108,12 @@ if __name__ == "__main__":
         machining_process.sim_potential_tool_passes(plan, tool_pass_plan_names[0], TOOL_PASS_ROOT_DIR)
 
         # ----- Second tool pass plan -----
+        """
         p1 = geom.Point3D(np.array((5, 5, 300)))
         p2 = geom.Point3D(np.array((5, 5, 200)))
         path = geom.PlanarCubicC2Spline3D([p1, p2])
         tp1 = tp.ToolPass(path, 2, 10)
         
-        """
         p1 = geom.Point3D(np.array((5, 5, 300)))
         p2 = geom.Point3D(np.array((35, 5, 300)))
         path = geom.PlanarCubicC2Spline3D([p1, p2])
@@ -123,11 +123,11 @@ if __name__ == "__main__":
         p2 = geom.Point3D(np.array((35, 5, 200)))
         path = geom.PlanarCubicC2Spline3D([p1, p2])
         tp3 = tp.ToolPass(path, 2, 10)
-        """
 
         plan = tp.ToolPassPlan([tp1])
 
         machining_process.sim_potential_tool_passes(plan, tool_pass_plan_names[1], TOOL_PASS_ROOT_DIR)
+        """
 
         # ----- Committing to a Plan -----
         machining_process.commit_tool_passes(plan, tool_pass_plan_names[2], TOOL_PASS_ROOT_DIR)

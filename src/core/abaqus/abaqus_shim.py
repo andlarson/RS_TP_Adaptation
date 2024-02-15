@@ -39,6 +39,7 @@ While all of the above is true, it's completely fine to use the Abaqus API
 
 from typing import Any, Optional
 import time
+import random
 
 from abaqus import *
 from abaqusConstants import * 
@@ -294,6 +295,160 @@ def get_bc_cnt(model_name: str, mdb: Any) -> int:
     """Gets the number of boundary conditions present in a model."""
 
     return len(mdb.models[model_name].boundaryConditions)
+
+
+
+def read_displacements(points: list[geom.Point3D, ...], path_to_odb: str
+                      ) -> dict[geom.Point3D, tuple[geom.Point3D, geom.Vec3D]]:
+    """Reads an ODB to determine the displacements of some points.
+
+       Assumes that the ODB contains a single non-initial step and a single
+           meshed part instance. The displacements are computed for this single
+           step.
+        
+       Args:
+           points:      The points of interest. If these points do not match
+                            nodes in the mesh of the single part instance, then 
+                            only approximate displacements can be found. See 
+                            the caveat in the return.
+           path_to_odb: Absolute path to a .odb file.
+    
+       Returns:
+           Dictionary which maps each point to a node and a displacement vector.     
+               The node is the node in the mesh closest to the point and the
+               displacement vector is the displacement of that node.
+
+       Raises:
+           None.
+    """
+
+    odb = odbAccess.openOdb(path=path_to_odb, readOnly=True)
+    
+    if len(odb.steps) != 1:
+        raise RuntimeError("The ODB does not contain exactly one step!") 
+
+    name = odb.steps.keys()[0]
+
+    # The step potentially contains many frames.
+    # Since we care about the displacement of the points across the whole step,
+    #     it's necessary to find the first and last frames in the step.
+    step = odb.steps[name]
+    smallest_increment_number = step.frames[0].incrementNumber
+    largest_increment_number = step.frames[0].incrementNumber
+    for frame in step.frames: 
+        if frame.incrementNumber < smallest_increment_number:
+            smallest_increment_number = frame.incrementNumber
+        elif frame.incrementNumber > largest_increment_number:
+            largest_increment_number = frame.incrementNumber
+    first_frame = step.frames[smallest_increment_number]
+    last_frame = step.frames[largest_increment_number]
+
+    assert "U" in first_frame.fieldOutputs, "No displacement measurements in frame!"
+    assert "U" in last_frame.fieldOutputs, "No displacement measurements in frame!"
+    
+    # Technically there is a displacement in the first frame of a step.
+    #     This is taken into account.
+    first_frame_displacements = first_frame.fieldOutputs["U"]
+    last_frame_displacements = last_frame.fieldOutputs["U"]
+
+    # Since displacements are only computed at nodal points, figure out which
+    #     nodal point each point is closest to.
+
+    # Start by computing the distance from every point to the first node.
+    assert len(odb.rootAssembly.instances) == 1, "Not exactly one part instance in the assembly!"
+    instance_name = odb.rootAssembly.instances.keys()[0]
+    nodes = odb.rootAssembly.instances[instance_name].nodes
+    first_node = geom.Point3D(np.array(nodes[0].coordinates))
+    closest_nodes = []
+    for point in points:
+        # Record the index of the closest node and the distance from the closest
+        #     node to the point.
+        closest_nodes.append((1, geom.distance(first_node, point)))
+
+    # Then, for each node, compare it to the closest node for each point.
+    #     If it is closer, record as such.
+    for node in nodes:
+        node_id = node.label
+        node_point = geom.Point3D(np.array(node.coordinates))
+        for idx, point in enumerate(points):
+            dist = geom.distance(node_point, point)
+            if dist < closest_nodes[idx][1]:
+                # This node is closer to the point! Record as such!
+                closest_nodes[idx] = (node_id, dist)
+                 
+    ret = {}
+    for idx, point in enumerate(points):
+        closest_node_id = closest_nodes[idx][0]
+        
+        # The node closest to the point.
+        # Careful! The node ids go from 1 -> N, so the 0th entry in the list
+        #     of nodes corresponds to node with id 1.
+        closest_node = geom.Point3D(np.array(nodes[closest_node_id - 1].coordinates))
+
+        # Assumes the field displacement ouputs are ordered according to the 
+        #     ids of the nodes.
+        init_disp = geom.Vec3D(np.array(first_frame_displacements.values[closest_node_id - 1].data))
+        final_disp = geom.Vec3D(np.array(last_frame_displacements.values[closest_node_id - 1].data))
+        disp = final_disp - init_disp
+
+        ret[point] = (closest_node, disp)
+         
+    odb.close()
+
+    return ret 
+
+
+
+def pick_nodes_randomly(cnt: int, path_to_odb: str) -> list[geom.Point3D]:
+    """Picks some nodes at random from a mesh via the content of an ODB.
+
+       Assumes that the ODB contains a single non-initial step. The nodes are 
+           picked from nodes in the last frame of the step. 
+        
+       Args:
+           cnt:         The number of nodes to pick.
+           path_to_odb: Absolute path to .odb file.
+    
+       Returns:
+           A list of the nodes chosen at random.
+    
+       Raises:
+           None.
+    """
+
+    odb = odbAccess.openOdb(path=path_to_odb, readOnly=True)
+
+    if len(odb.steps) != 1:
+        raise RuntimeError("The ODB does not contain exactly one step!") 
+
+    name = odb.steps.keys()[0]
+    
+    # Figure out which frame is last.
+    step = odb.steps[name]
+    largest_increment_number = step.frames[0].incrementNumber
+    for frame in step.frames: 
+        if frame.incrementNumber > largest_increment_number:
+            largest_increment_number = frame.incrementNumber
+    last_frame = step.frames[largest_increment_number]
+
+    assert "U" in last_frame.fieldOutputs, "No displacement measurements in frame!"
+    last_frame_displacements = last_frame.fieldOutputs["U"]
+    
+    # For the displacement field, there is one value at each node in the mesh.
+    node_cnt = len(last_frame_displacements.values)
+    indices = random.choices(range(node_cnt), k=cnt)
+
+    ret = []
+    for idx in indices:
+        # This is weird, but I'm pretty sure it's necessary.
+        # An alternative approach would be to use the .inp file generated by
+        #     the job. Using the ODB seems easier.
+        nodes = last_frame_displacements.values[idx].instance.nodes
+        ret.append(geom.Point3D(np.array(nodes[idx].coordinates))) 
+
+    odb.close()
+
+    return ret
 
 
 

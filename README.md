@@ -1,16 +1,21 @@
-# Mitigating workpiece warpage caused by residual stress during machining!
+# Improving Machining Yield in the Presence of Residual Stress
 
-This repository currently contains infrastructure which makes it easy to simulate
-sequences of tool paths.
+This repository contains software that makes it easy to:
+1. Estimate the residual stress state of a workpiece by utilizing data about 
+   its deformation.
+2. Simulate sequences of potential tool passes. 
 
-It will eventually contain additional infrastructure which makes it easy to estimate
-the residual stress profile of a part given measurements of the part's deformation.
+This software supports the larger, project-level goal of improving machining 
+yield for blanks which have problematic residual stress fields (i.e. residual
+stress fields that cause the workpiece to deform during and after machining
+into a geometry that does not satisfy allowed tolerances).
+
 
 ---
 
 ## Simulating Sequences of Tool Paths ##
 
-### Current Assumptions / Limitations:
+### Current Assumptions and Limitations:
 
 1. The space of potential toolpaths is exactly the set of toolpaths which can be 
    taken by the machine. The set of toolpaths which can be taken by the machine 
@@ -35,8 +40,7 @@ the residual stress profile of a part given measurements of the part's deformati
    
 2. Meshes are always constructed with tetrahedrons and the Free meshing technique. 
    Starting from some heuristically chosen density, the mesh is made more dense 
-   until the part is successfully meshed. Currently, there is no concern about 
-   mesh quality. 
+   until the part is successfully meshed. Currently, mesh quality is not considered.
 
 3. TODO: 
    All simulations include an initial step which allows any residual stress 

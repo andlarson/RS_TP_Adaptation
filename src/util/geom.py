@@ -81,6 +81,10 @@ class Point3D:
 
         return (self.rep[0], self.rep[1], self.rep[2])
 
+    def __str__(self) -> str:
+        """Overloads string conversion."""
+        return str(self.components())
+
 
 Point = TypeVar("Point", Point3D, Point2D)
 
@@ -200,6 +204,19 @@ class Vec3D:
         """Returns the components of the vector."""
 
         return (self.rep[0], self.rep[1], self.rep[2])
+
+    
+    def __sub__(self, other: "Vec3D") -> "Vec3D":
+        """Overloads subtraction."""
+        op1 = self.components()
+        op2 = other.components()
+        return Vec3D(np.array((op1[0] - op2[0], op1[1] - op2[1], op1[2] - op2[2])))
+
+
+    def __str__(self) -> str:
+        """Overloading string representation."""
+        return str(self.components())
+    
 
 
 Vec = TypeVar("Vec", Vec3D, Vec2D)
@@ -798,6 +815,23 @@ def seq_points(points: Sequence[Sequence[float]]) -> Sequence[Point]:
 
     return l
 
+
+
+def distance(p1: Point, p2: Point) -> float:
+    """Computes the distance between two points."""
+
+    p1_rep = p1.components()
+    p2_rep = p2.components()
+
+    if len(p1_rep) == 3:
+        dx = p1_rep[0] - p2_rep[0]
+        dy = p1_rep[1] - p2_rep[1]
+        dz = p1_rep[2] - p2_rep[2]
+        return (dx**2+dy**2+dz**2)**(.5)
+    elif len(p1_rep) == 2:
+        dx = p1_rep[0] - p2_rep[0]
+        dy = p1_rep[1] - p2_rep[1]
+        return (dx**2+dy**2)**(.5)
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
