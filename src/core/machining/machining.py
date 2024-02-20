@@ -27,10 +27,12 @@ import src.core.residual_stress.residual_stress as rs
 from src.util.debug import *
 
 
+STRESS_RECOVERY_MDB_NAME = "recover_residual_stresses.cae"
+TARGET_GEOMETRY_MDB_NAME = "target_geometry.cae"
 
 class MachiningProcess:
 
-    def __init__(self, init_part: part.Part, boundary_conditions: list[bc.BC]) -> None:
+    def __init__(self, init_part: part.InitialPart, boundary_conditions: list[bc.BC]) -> None:
         """Defines the machining process for a single part.
    
            Args:
@@ -57,17 +59,9 @@ class MachiningProcess:
         self.stress_profile_estimates = []
         self.boundary_conditions = boundary_conditions 
 
-        if isinstance(init_part, part.UserDefinedPart):
-            # When this is supported, it's expected that a UserDefinedPart is
-            #    first constructed in an MDB so the method of setting up the
-            #    metadata is the same as the AbaqusDefinedPart.
-            raise AssertionError("Not yet supported.")
-        elif isinstance(init_part, part.AbaqusDefinedPart):
-            first_tp_metadata = md.CommitmentPhaseMetadata(init_part, init_part.path_to_mdb, boundary_conditions)
-            first_tp_metadata.first_commitment_phase = True
-            self.commitment_phase_metadata.append(first_tp_metadata)
-        else:
-            raise AssertionError("Unrecognized part type.")
+        first_tp_metadata = md.CommitmentPhaseMetadata(init_part, init_part.path_to_mdb, boundary_conditions)
+        first_tp_metadata.first_commitment_phase = True
+        self.commitment_phase_metadata.append(first_tp_metadata)
 
 
 
@@ -83,10 +77,6 @@ class MachiningProcess:
                tool pass plan is just the way that the user tells this library
                that they are content with this set of tool passes. 
 
-           TODO: When real-life data is available, the user just needs to supply 
-               the geometries of the tool passes which were performed and the
-               real-life shape of the part after the tool pass was performed.
-           
            Implementation Details:
            If this exact tool pass plan was already simulated in this commitment 
                phase, no additional simulations are done. If this tool pass plan 
@@ -119,7 +109,7 @@ class MachiningProcess:
 
         committment_phase_md = self.commitment_phase_metadata[-1]
         committment_phase_md.committed_tpp = (save_name, tool_pass_plan, save_dir)
-        committment_phase_md.committed_tpp_mdb_metadata = abq_md.AbaqusMdbMetadata(committment_phase_md.path_initial_mdb) 
+        committment_phase_md.committed_tpp_mdb_metadata = abq_md.AbaqusMdbMetadata(committment_phase_md.init_part.path_to_mdb) 
         
         self._lazy_sim_potential_tool_passes(tool_pass_plan, save_name, save_dir)
 
@@ -152,7 +142,7 @@ class MachiningProcess:
         committment_phase_md = self.commitment_phase_metadata[-1]
         new_dir_path = os.path.join(save_dir, save_name)
         committment_phase_md.potential_tpps.append((save_name, tool_pass_plan, new_dir_path))
-        mdb_metadata = abq_md.AbaqusMdbMetadata(committment_phase_md.path_initial_mdb)
+        mdb_metadata = abq_md.AbaqusMdbMetadata(committment_phase_md.init_part.path_to_mdb)
         committment_phase_md.potential_tpp_mdb_metadata.append(mdb_metadata)
 
         self._simulate_tpp(tool_pass_plan, save_name, save_dir)
@@ -201,6 +191,9 @@ class MachiningProcess:
     def estimate_stress_via_last_tool_pass(self, path: str) -> rs.ConstantResidualStressField:
         """Estimates the residual stress tensor field which existed in the region
                of material removal due to the last committed tool pass.
+           
+           This function should only be called if the last committed tool pass
+               plan contains exactly one committed tool pass.
 
            Args:
                path: Absolute path to a directory. Since some simulations are
@@ -214,8 +207,82 @@ class MachiningProcess:
            Raises:
                None.
         """
+
+        if len(self.commitment_phase_metadata[-1].committed_tpp[2]) != 1:
+            raise RuntimeError("The committed tool pass plan doesn't contain "
+                               "exactly one committed tool pass.")
+        tool_pass = self.commitment_phase_metadata[-1].committed_tpp[1].plan[0]
+
+        # TODO: Right now, the MDBs are copied along with their metadata. None of
+        #     this is recorded in the commitment phase metadata, so it cannot be 
+        #     recovered when this function returns.
+
+        # The post-committed tool pass geometry always comes from the current
+        #     commitment phase.
+        cur_commit_phase_md = self.commitment_phase_metadata[-1]
+        stress_recovery_mdb_path = os.path.join(path, STRESS_RECOVERY_MDB_NAME)
+        shutil.copyfile(cur_commit_phase_md.real_world_part.path_to_mdb, stress_recovery_mdb_path)
+        stress_recovery_mdb = shim.use_mdb(stress_recovery_mdb_path)
+        stress_recovery_mdb_md = copy.deepcopy(cur_commit_phase_md.real_world_part_mdb_md)
         
-        return sim.estimate_residual_stresses(self.commitment_phase_metadata[-1], path)
+        # In the first commitment phase, the target geometry comes from the
+        #     initial part. In all other commitment phases, the target geometry
+        #     comes from the real world data of the previous commitment
+        #     phase.
+        target_geometry_mdb_path = os.path.join(path, TARGET_GEOMETRY_MDB_NAME)
+        if len(self.commitment_phase_metadata) == 1:
+            shutil.copyfile(cur_commit_phase_md.init_part.path_to_mdb, target_geometry_mdb_path) 
+            target_geometry_mdb_md = abq_md.AbaqusMdbMetadata(target_geometry_mdb_path)
+        else:
+            prev_commit_phase_md = self.commitment_phase_metadata[-2]
+            shutil.copyfile(prev_commit_phase_md.real_world_part.path_to_mdb, target_geometry_mdb_path)
+            target_geometry_mdb_md = copy.deepcopy(prev_commit_phase_md.real_world_part_mdb_md)
+        target_geometry_mdb = shim.use_mdb(target_geometry_mdb_path)
+        
+        return sim.estimate_residual_stresses(stress_recovery_mdb, stress_recovery_mdb_md,
+                                              target_geometry_mdb, target_geometry_mdb_md,
+                                              tool_pass, cur_commit_phase_md, path)
+
+
+
+    def add_real_world_machining_data(self, part_from_real_life: part.MinimalPart) -> None:
+        """Supplies real-world machining data for the LAST commitment phase. Should
+               not be called in the first commitment phase and should not be called
+               twice for the same commitment phase.
+
+           The part passed to this function should be the part which resulted
+               from a scan (in real life) of the part which resulted from the
+               last committed tool pass plan.
+           
+           Args:
+               part_from_real_life: The result of performing the last committed 
+                                        tool pass plan in real life. The geometric
+                                        model should be constructed based on
+                                        data collected from real life (such as
+                                        an in-maching scan).
+        
+           Returns:
+               None.
+        
+           Raises:
+               None.
+        """
+
+        if len(self.commitment_phase_metadata) <= 1:
+            raise RuntimeError("Real world machining data should only be passed"
+                               " after the first commitment phase.")
+
+        last_commitment_phase_md = self.commitment_phase_metadata[-2]
+
+        if hasattr(last_commitment_phase_md, "real_world_part"):
+            raise RuntimeError("The last commitment phase already had real world"
+                               " data supplied for it!")
+
+        last_commitment_phase_md.real_world_part = part_from_real_life
+
+        # This MDB needs metadata and it is in the default initial state. 
+        mdb_md = abq_md.AbaqusMdbMetadata(part_from_real_life.path_to_mdb) 
+        last_commitment_phase_md.real_world_part_mdb_md = mdb_md
 
 
 
@@ -407,7 +474,7 @@ class MachiningProcess:
 
         # The starting point for the next commitment phase.
         new_mdb_path = os.path.join(new_subdir_path, save_name)
-        abaqus_part = part.AbaqusDefinedPart(save_name, new_mdb_path, material)
+        abaqus_part = part.InitialPart(save_name, new_mdb_path, material)
 
         # The initial state of the next commitment phase depends on the result
         #     of the simulation. 

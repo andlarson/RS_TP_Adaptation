@@ -12,7 +12,7 @@ import src.core.tool_pass.tool_pass as tp
 
 class CommitmentPhaseMetadata:
 
-    def __init__(self, init_part: part.AbaqusDefinedPart, path_to_mdb: str, 
+    def __init__(self, init_part: part.InitialPart, path_to_mdb: str, 
                  BCs: list[bc.BC]) -> None:
         """Creates a data structure associated with a single commitment phase.
 
@@ -68,9 +68,9 @@ class CommitmentPhaseMetadata:
         
         # The state of the part as it exists at the beginning of this commitment 
         #     phase.
-        self.init_part: part.AbaqusDefinedPart = init_part
-
-        self.path_initial_mdb: str = path_to_mdb
+        self.init_part: part.InitialPart = init_part
+        
+        # The boundary conditions for this commitment phase.
         self.BCs: list[bc.BC] = BCs
 
 
@@ -90,13 +90,13 @@ class CommitmentPhaseMetadata:
         self.potential_tpps: list[tuple[str, tp.ToolPassPlan, str]] = [] 
 
 
-        # ----- Committed Tool Pass Plans -----
+        # ----- Committed Tool Pass Plan -----
         
         # The committed tool pass plan must also be simulated in an MDB.
         self.committed_tpp_mdb_metadata: abq_md.AbaqusMdbMetadata
 
         # The tool pass plan which was committed to for this commitment phase.
-        # The name, tool pass plan, and absolute path to directory of simualtion
+        # The name, tool pass plan, and absolute path to directory of simulation
         #     results.
         self.committed_tpp: tuple[str, tp.ToolPassPlan, str]
 
@@ -104,8 +104,22 @@ class CommitmentPhaseMetadata:
         # ----- Stress Estimation -----
 
         # The process of estimating the stress in a region of material removal
-        #     requires running simualtions, and therefore requires an MDB.
+        #     requires running simulations, and therefore requires an MDB.
         self.stress_estimate_mdb_metadata: abq_md.AbaqusMdbMetadata
+
+
+        # ----- Real World Data -----
+       
+        # A representation of the part that resulted from performing the committed
+        #     tool pass plan.
+        self.real_world_part: part.MinimalPart
+
+        # The real world part exists in an MDB.
+        self.real_world_part_mdb_md: abq_md.AbaqusMdbMetadata
+
+
+
+        
 
 
 

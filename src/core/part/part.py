@@ -9,26 +9,7 @@ import src.core.material_properties.material_properties as mp
 import src.core.abaqus.abaqus_shim as shim
 
 
-class Part(metaclass=ABCMeta):
-    
-    @abstractmethod
-    def update_part_with_real_data(self) -> None:
-        """Updates the representation of a part with data from the real world."""
-
-
-
-class UserDefinedPart(Part):
-    
-    def __init__(self, name, part_rep, material_properties):
-        raise RuntimeError("Can't handle user defined parts right now...")
-
-    def update_part_with_real_data(self) -> None:
-        """Updates the representation of a part with data from the real world."""
-        raise RuntimeError("Not yet implemented.")
-
-
-
-class AbaqusDefinedPart(Part):
+class InitialPart():
     
     def __init__(self, name: str, path: str, material: mp.ElasticMaterial) -> None:
         """Creates a part based on one which exists in Abaqus.
@@ -48,9 +29,39 @@ class AbaqusDefinedPart(Part):
                None.
         """
 
+        mdb = shim.use_mdb(path)
+
+        if not shim.check_basic_geom(True, mdb):
+            raise RuntimeError("The part, as it exists in Abaqus, is not basic!")
+
+        shim.close_mdb(mdb)
+
         self.name = name
         self.path_to_stress_subroutine = None
         self.material = material
+        self.path_to_mdb = path
+
+
+
+
+
+class MinimalPart():
+    
+    def __init__(self, name: str, path: str) -> None:
+        """Creates a part based on one which exists in Abaqus. This part is
+               minimally defined - it is just a geometry and has no material,
+               stress subroutine, etc. associated with it.
+            
+           Args:
+               name: The name of the part.
+               path: Absolute path to .cae file defining the part.
+        
+           Returns:
+               None.
+        
+           Raises:
+               None.
+        """
 
         mdb = shim.use_mdb(path)
 
@@ -59,8 +70,7 @@ class AbaqusDefinedPart(Part):
 
         shim.close_mdb(mdb)
 
+        self.name = name
         self.path_to_mdb = path
 
-    def update_part_with_real_data(self) -> None:
-        """Updates the representation of a part with data from the real world."""
-        raise RuntimeError("Not yet implemented.")
+

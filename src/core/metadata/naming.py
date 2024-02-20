@@ -13,6 +13,7 @@ class ModelTypes(Enum):
     FIRST_TOOL_PASS_IN_MDB = 1
     NTH_TOOL_PASS_IN_MDB = 2
     TRACTION_APP = 3
+    TARGET_GEOM = 4
 
 
 
@@ -69,7 +70,7 @@ class ModelNames:
             #     the name of the part is, by default, in all caps.
             last_model_name = mdb_metadata.model_names[-1]  
             self.pre_tool_pass_part_name = mdb_metadata.models_metadata[last_model_name].part_names[-1].upper()     
-            
+
             # Assumed to be chosen. 
             self.post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX 
             self.new_model_name = shim.STANDARD_MODEL_NAME_PREFIX + str(model_cnt + 1) 
@@ -87,6 +88,18 @@ class ModelNames:
             # Assumed to be chosen.
             self.new_model_name = shim.STANDARD_MODEL_NAME_PREFIX + str(model_cnt + 1)
             self.traction_step_name = shim.STANDARD_TRACTION_STEP_NAME
+
+        elif model_type is ModelTypes.TARGET_GEOM:
+            # It is assumed that a model with a target geometry contains a
+            #     a part geometry in a model and nothing more. 
+            
+            # Assumed to already exist at call time.
+            self.target_model_name = shim.STANDARD_MODEL_NAME
+            self.target_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
+            
+            # Assumed to be chosen.
+            self.new_model_name = shim.STANDARD_VOL_DIFF_MODEL_PREFIX + str(model_cnt + 1)
+            self.post_traction_part_name = shim.STANDARD_VOL_DIFF_PART_NAME
 
 
 
