@@ -26,68 +26,53 @@ from src.util.debug import *
 
 
 def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, target_dir: str, 
-                       commitment_phase_md: md.CommitmentPhaseMetadata, 
+                       commit_phase_md: md.CommitmentPhaseMetadata,
+                       mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any,
                        stress_subroutine: Optional[str] = None) -> None:
     """Simulates consecutive tool passes and saves off the results.
     
        Args:
-           tool_pass_plan:      The tool pass plan to simulate. 
-           name:                Desired name of the MDB which results from all the tool 
-                                    path simulations. Also, the desired name of the
-                                    subdirectory containing the simulation artifacts. 
-           target_dir:          Absolute path to directory. In this directory, a 
-                                    subdirectory is created and named name. The
-                                    simulation artifacts (.cae, .odb, .msg, etc.)
-                                    are generated in this subdirectory.
-                                If a subdirectory with name name already exists
-                                    in this directory, no new subdirectory is created.
-                                    In this case, this pre-existing subdirectory
-                                    is used.
-           commitment_phase_md: The metadata associated with the current commitment
-                                    phase.
-           stress_subroutine:   Abolsute path to stress subroutine. If this argument is not 
-                                    specified, then the initial stress state of the 
-                                    part will be sourced from the last simulation in 
-                                    the previous commitment phase. If this argument 
-                                    is specified, it is used instead.
+           tool_pass_plan:    The tool pass plan to simulate. 
+           name:              Desired name of the MDB which results from all the tool 
+                                  path simulations. Also, the desired name of the
+                                  subdirectory containing the simulation artifacts. 
+           target_dir:        Absolute path to directory. This directory should
+                                  have a subdirectory with name name created in
+                                  it already.
+           commit_phase_md:   The metadata associated with the commitment phase
+                                  in which to simulate the tool pass plan.
+           mdb_md:            Metadata for the MDB.
+           mdb:               Abaqus MDB object. The MDB in which to do the
+                                  simulations. Note that this MDB is saved as.
+                                  This MDB need not be empty, but the tool passes
+                                  are simulated on top of whatever content it
+                                  has.
+           stress_subroutine: Absolute path to stress subroutine. If this argument is not 
+                                  specified, then the initial stress state of the 
+                                  part will be sourced from the last simulation in 
+                                  the previous commitment phase. If this argument 
+                                  is specified, it is used instead.
        
        Returns:
            None.
 
        Raises:
-           RuntimeError: The path of the new subdirectory is already occupied,
-                             but it's not occupied by a directory!
+           None.
     """
-
-    # When this function is called in the context of a new commitment phase,
-    #     which is not the very first one, no new subdirectory needs to 
-    #     be created. One must already exist and it will be populated by the 
-    #     .cae file which contains the information propagated from the last 
-    #     commitment phase.
-    new_dir_path = os.path.join(target_dir, name)
-    fs_path = pathlib.Path(new_dir_path)
-    if len(commitment_phase_md.potential_tpps) == 0 and \
-       not commitment_phase_md.first_commitment_phase:
-        assert fs_path.exists() and fs_path.is_dir()
-    else:
-        os.mkdir(new_dir_path)
-            
-    # And set the CWD to this directory. Now all simulation artifacts will be placed
-    #    in this directory.
+    
+    # Change the CWD to the directory which should already exist for simulation
+    #     results.
     cwd = os.getcwd()
-    os.chdir(new_dir_path)
+    sim_result_dir = os.path.join(target_dir, name)
+    os.chdir(sim_result_dir)
     
-    # The MDB is located in this new directory.
-    new_mdb_path = os.path.join(new_dir_path, name)
-    
-    mdb = shim.use_mdb(commitment_phase_md.init_part.path_to_mdb)
-
     for tool_pass in tool_pass_plan.plan:
-        _sim_single_tool_pass(tool_pass, commitment_phase_md, mdb, stress_subroutine)    
+        _sim_single_tool_pass(tool_pass, commit_phase_md, mdb_md, mdb, stress_subroutine)    
         tool_pass_plan.pop()
-
+    
+    # Save the MDB which has all the simulated tool passes in it.
+    new_mdb_path = os.path.join(sim_result_dir, name)
     shim.save_mdb_as(new_mdb_path, mdb)
-    shim.close_mdb(mdb)
 
     # Don't permanently change the CWD.
     os.chdir(cwd)
@@ -95,7 +80,8 @@ def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, target_dir: s
 
 
 def _sim_single_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentPhaseMetadata, 
-                          mdb: Any, stress_subroutine: Optional[str] = None) -> None:
+                          mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any,
+                          stress_subroutine: Optional[str] = None) -> None:
     """Simulates a single tool pass. This tool pass may be the first tool pass
            in a tool pass plan, or the nth tool pass in a tool pass plan.
 
@@ -103,6 +89,7 @@ def _sim_single_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.Commitment
            tool_pass:         The tool path to simulate.
            commit_metadata:   The record associated with the search for a good next 
                                   tool pass to do.
+           mdb_md:            Metadata for the MDB.
            mdb:               Abaqus MDB object. The MDB in which the tool pass
                                   will be simulated. The MDB may already contain
                                   simulated tool passes.
@@ -116,33 +103,25 @@ def _sim_single_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.Commitment
            None.
 
        Raises:
-           AssertionError: The MDB is not in a particular recognized state.
+           AssertionError: The MDB is not in a recognized state.
     """
-
-    # The way that the next tool pass is simulated depends on the content of
-    #    the MDB.
-    # If the MDB contains a single model which represents an initial
-    #    geometry, then we simulate the first tool pass. 
-    # If the MDB contains n (where n > 1) models and the last model to be 
-    #    added contains an orphan mesh, then we're simulating an nth tool pass
-    #    (where n > 1).
-    mdb_metadata = commit_metadata.potential_tpp_mdb_metadata[-1]
-    last_model_name = mdb_metadata.model_names[-1]
-
+    
+    # The way that the MDB is simulated depends on its content.
     if shim.check_basic_geom(False, mdb):
         if stress_subroutine is not None:
-            _sim_first_tool_pass(tool_pass, commit_metadata, mdb, stress_subroutine)
+            _sim_first_tool_pass(tool_pass, commit_metadata, mdb_md, mdb, stress_subroutine)
         else:
-            _sim_first_tool_pass(tool_pass, commit_metadata, mdb)  
-    elif shim.check_multiple_steps(False, last_model_name, mdb):
-        _sim_nth_tool_pass(tool_pass, commit_metadata, mdb)
+            _sim_first_tool_pass(tool_pass, commit_metadata, mdb_md, mdb)  
+    elif shim.check_multiple_models(False, mdb):
+        _sim_nth_tool_pass(tool_pass, commit_metadata, mdb_md, mdb)
     else:
         raise AssertionError("Can't figure out how to do next tool pass...")
 
 
 
 def _sim_first_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentPhaseMetadata, 
-                         mdb: Any, stress_subroutine: Optional[str] = None) -> None:
+                         mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any, 
+                         stress_subroutine: Optional[str] = None) -> None:
     """Simulates the first tool pass in an MDB. The MDB is assumed to not contain
            any tool pass simulations.
        
@@ -152,6 +131,7 @@ def _sim_first_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentP
                                   tool pass to do.
            mdb:               Abaqus MDB object. The MDB in which the tool pass
                                   will be simulated. 
+           mdb_md:            The metadata for the MDB.
            stress_subroutine: Path to stress subroutine. If this argument is not 
                                   specified, then the initial stress state of the 
                                   part will be sourced from the last simulation in 
@@ -169,16 +149,14 @@ def _sim_first_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentP
     if not shim.check_basic_geom(False, mdb):
         raise RuntimeError("The MDB is not in the expected state.")
 
-    mdb_metadata = commit_metadata.potential_tpp_mdb_metadata[-1]
-
-    names = naming.ModelNames(naming.ModelTypes.FIRST_TOOL_PASS_IN_MDB, mdb_metadata)
+    names = naming.ModelNames(naming.ModelTypes.FIRST_TOOL_PASS_IN_MDB, mdb_md)
 
     # Do material and section creation.
     shim.create_material(commit_metadata.init_part.material, names.new_model_name, mdb)
     shim.create_section(names.new_model_name, mdb)
     shim.assign_section_to_whole_part(names.pre_tool_pass_part_name, names.new_model_name, mdb)
 
-    _do_boilerplate_tp_sim_ops(tool_pass, names, mdb_metadata, commit_metadata, mdb)
+    _do_boilerplate_tp_sim_ops(tool_pass, names, mdb_md, commit_metadata, mdb)
 
     if stress_subroutine is not None:
         # Since this modifies the input file directly, this should be the last
@@ -187,14 +165,13 @@ def _sim_first_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentP
     else:
         # Use the stress state from the last toolpath in the previous commit.
         path_sim_file = commit_metadata.path_last_commit_sim_file
-
         assert path_sim_file is not None
 
         # Since this modifies the input file directly, this should be the last
         #    thing that happens before the job is submitted and runs.
         shim.inp_map_stress(path_sim_file, names.new_model_name, mdb)
 
-    job = shim.create_job(names.new_model_name, mdb_metadata, mdb) 
+    job = shim.create_job(names.new_model_name, mdb_md, mdb) 
 
     if stress_subroutine is not None:
         # Associate the user subroutine with the job.
@@ -205,7 +182,7 @@ def _sim_first_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentP
 
 
 def _sim_nth_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentPhaseMetadata, 
-                      mdb: Any) -> None:
+                       mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
     """Simulates the nth tool pass in an MDB. The MDB is assumed to already
            contain at least one tool pass simulation.
 
@@ -214,11 +191,12 @@ def _sim_nth_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentPha
            the initial stress state for the current simulation.
 
        Args:
-           tool_pass:         The tool pass to simulate.
-           commit_metadata:   The record associated with the search for a good next 
-                                  tool pass to do.
-           mdb:               Abaqus MDB object. The MDB in which the tool pass
-                                  will be simulated. 
+           tool_pass:       The tool pass to simulate.
+           commit_metadata: The record associated with the search for a good next 
+                                tool pass to do.
+           mdb_md:          The metadata for the MDB.
+           mdb:             Abaqus MDB object. The MDB in which the tool pass
+                                will be simulated. 
 
        Returns:
            None.
@@ -227,17 +205,15 @@ def _sim_nth_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentPha
            None.
     """
 
-    mdb_metadata = commit_metadata.potential_tpp_mdb_metadata[-1]
-
-    names = naming.ModelNames(naming.ModelTypes.NTH_TOOL_PASS_IN_MDB, mdb_metadata)
-    last_odb_file_name = naming.last_odb_file_name(mdb_metadata)
+    names = naming.ModelNames(naming.ModelTypes.NTH_TOOL_PASS_IN_MDB, mdb_md)
+    last_odb_file_name = naming.last_odb_file_name(mdb_md)
 
     # The .sim file contains the stress information which resulted from the last
     #    simulation.
-    last_sim_file_name = naming.last_sim_file_name(mdb_metadata)
+    last_sim_file_name = naming.last_sim_file_name(mdb_md)
 
     # Create the new model with the deformed part in it from the ODB. 
-    shim.create_model_and_part_from_odb(names.pre_tool_pass_part_name, names.new_model_name, last_odb_file_name, mdb_metadata, mdb)
+    shim.create_model_and_part_from_odb(names.pre_tool_pass_part_name, names.new_model_name, last_odb_file_name, mdb_md, mdb)
 
     # Do material and section creation.
     shim.create_material(commit_metadata.init_part.material, names.new_model_name, mdb)
@@ -249,7 +225,7 @@ def _sim_nth_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentPha
     #    geometry. This cannot be done before mapping to a geometry. 
     shim.assign_section_to_whole_part(names.pre_tool_pass_part_name, names.new_model_name, mdb)
 
-    _do_boilerplate_tp_sim_ops(tool_pass, names, mdb_metadata, commit_metadata, mdb)
+    _do_boilerplate_tp_sim_ops(tool_pass, names, mdb_md, commit_metadata, mdb)
 
     # Map the stress profile which existed at the end of the last simulation
     #    onto the new geometry. 
@@ -258,7 +234,7 @@ def _sim_nth_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentPha
     shim.inp_map_stress(last_sim_file_name, names.new_model_name, mdb)
 
     # Create the job and submit it.
-    job = shim.create_job(names.new_model_name, mdb_metadata, mdb) 
+    job = shim.create_job(names.new_model_name, mdb_md, mdb) 
     shim.run_job(job)
 
 

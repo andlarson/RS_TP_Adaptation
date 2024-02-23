@@ -12,6 +12,7 @@ import shutil
 import os
 import pathlib
 import copy
+from typing import Any
 
 import src.core.part.part as part
 import src.core.simulation.simulation as sim
@@ -77,11 +78,6 @@ class MachiningProcess:
                tool pass plan is just the way that the user tells this library
                that they are content with this set of tool passes. 
 
-           Implementation Details:
-           If this exact tool pass plan was already simulated in this commitment 
-               phase, no additional simulations are done. If this tool pass plan 
-               has not yet been simulated, it is simulated. 
-    
            Args:
                tool_pass_plan: The tool pass plan to commit to. 
                save_name:      The name of the subdirectory in which the simulation 
@@ -107,11 +103,30 @@ class MachiningProcess:
         if len(self.stress_profile_estimates) < len(self.commitment_phase_metadata):
             self.stress_profile_estimates.append(None)
 
-        committment_phase_md = self.commitment_phase_metadata[-1]
-        committment_phase_md.committed_tpp = (save_name, tool_pass_plan, save_dir)
-        committment_phase_md.committed_tpp_mdb_metadata = abq_md.AbaqusMdbMetadata(committment_phase_md.init_part.path_to_mdb) 
+        if self._time_for_new_commitment_phase():
+            self._start_new_commitment_phase(save_name, save_dir) 
+        else:
+            # To make things symmetric, it's necessary to create a directory here
+            #     like one is created when starting a new commitment phase.
+            new_subdir_path = os.path.join(save_dir, save_name)
+            os.mkdir(new_subdir_path)
         
-        self._lazy_sim_potential_tool_passes(tool_pass_plan, save_name, save_dir)
+        done, mdb_md = self._lazy_tpp_sim(tool_pass_plan, save_name, save_dir)
+        if done:
+            commit_phase_md = self.commitment_phase_metadata[-1]
+            commit_phase_md.committed_tpp = (save_name, tool_pass_plan, save_dir)
+            commit_phase_md.committed_tpp_mdb_metadata = mdb_md 
+        else:
+            commit_phase_md = self.commitment_phase_metadata[-1]
+            path_to_mdb = commit_phase_md.init_part.path_to_mdb
+            mdb_md = abq_md.AbaqusMdbMetadata(path_to_mdb)
+
+            mdb = shim.use_mdb(path_to_mdb)
+            self._simulate_tpp(tool_pass_plan, save_name, save_dir, mdb_md, mdb)            
+            shim.close_mdb(mdb)
+            
+            commit_phase_md.committed_tpp = (save_name, tool_pass_plan, save_dir)
+            commit_phase_md.committed_tpp_mdb_metadata = mdb_md 
 
 
 
@@ -138,14 +153,26 @@ class MachiningProcess:
            Raises:
                None.
         """
+        
+        if self._time_for_new_commitment_phase():
+            self._start_new_commitment_phase(save_name, save_dir) 
+        else:
+            # To make things symmetric, it's necessary to create a directory here
+            #     like one is created when starting a new commitment phase.
+            new_subdir_path = os.path.join(save_dir, save_name)
+            os.mkdir(new_subdir_path)
 
-        committment_phase_md = self.commitment_phase_metadata[-1]
+        commit_phase_md = self.commitment_phase_metadata[-1]
+        path_to_mdb = commit_phase_md.init_part.path_to_mdb
+        mdb_md = abq_md.AbaqusMdbMetadata(path_to_mdb)
+
+        mdb = shim.use_mdb(path_to_mdb)
+        self._simulate_tpp(tool_pass_plan, save_name, save_dir, mdb_md, mdb)            
+        shim.close_mdb(mdb)
+        
         new_dir_path = os.path.join(save_dir, save_name)
-        committment_phase_md.potential_tpps.append((save_name, tool_pass_plan, new_dir_path))
-        mdb_metadata = abq_md.AbaqusMdbMetadata(committment_phase_md.init_part.path_to_mdb)
-        committment_phase_md.potential_tpp_mdb_metadata.append(mdb_metadata)
-
-        self._simulate_tpp(tool_pass_plan, save_name, save_dir)
+        commit_phase_md.potential_tpps.append((save_name, tool_pass_plan, new_dir_path))
+        commit_phase_md.potential_tpp_mdb_metadata.append(mdb_md)
 
 
 
@@ -188,12 +215,14 @@ class MachiningProcess:
 
 
 
-    def estimate_stress_via_last_tool_pass(self, path: str) -> rs.ConstantResidualStressField:
+    def estimate_stress(self, path: str) -> rs.ConstantResidualStressField:
         """Estimates the residual stress tensor field which existed in the region
-               of material removal due to the last committed tool pass.
+               of material removal due to the last committed tool pass plan.
            
            This function should only be called if the last committed tool pass
-               plan contains exactly one committed tool pass.
+               plan contains exactly one committed tool pass. The underlying
+               technique for the estimation is ineffective if the tool pass plan
+               contains more than a single committed tool pass.
 
            Args:
                path: Absolute path to a directory. Since some simulations are
@@ -214,8 +243,8 @@ class MachiningProcess:
         tool_pass = self.commitment_phase_metadata[-1].committed_tpp[1].plan[0]
 
         # TODO: Right now, the MDBs are copied along with their metadata. None of
-        #     this is recorded in the commitment phase metadata, so it cannot be 
-        #     recovered when this function returns.
+        #     this is recorded in the commitment phase metadata, so it is not
+        #     tracked at all.
 
         # The post-committed tool pass geometry always comes from the current
         #     commitment phase.
@@ -246,9 +275,12 @@ class MachiningProcess:
 
 
     def add_real_world_machining_data(self, part_from_real_life: part.MinimalPart) -> None:
-        """Supplies real-world machining data for the LAST commitment phase. Should
-               not be called in the first commitment phase and should not be called
-               twice for the same commitment phase.
+        """Supplies real-world machining data for the LAST committed tool pass
+               plan. 
+           
+           Should not be called before the first tool pass plan is committed. Should
+               not be called when the committed tool pass plan contains many
+               non-contiguous or very large tool passes.
 
            The part passed to this function should be the part which resulted
                from a scan (in real life) of the part which resulted from the
@@ -286,37 +318,39 @@ class MachiningProcess:
 
 
 
-    def _lazy_sim_potential_tool_passes(self, tool_pass_plan: tp.ToolPassPlan, 
-                                        save_name: str, save_dir: str) -> None:
-        """Simulates a tool pass plan if it hasn't already been simulated. If the 
-               toolpass plan was already simulated, copies the results into a new 
-               directory and the names are updated accordingly. 
+    def _lazy_tpp_sim(self, tpp: tp.ToolPassPlan, save_name: str, save_dir: str
+                     ) -> tuple[bool, None | abq_md.AbaqusMdbMetadata]:
+        """Simulates a tool pass plan if it has already been simulated in the
+               commitment phase. If this exact tool pass plan has not been
+               simulated in this commitment phase, this function doesn't do
+               anything.
            
            Args:
-               tool_pass_plan: The tool pass plan which may or may not need to be 
-                                  re-simulated.
-               save_name:      The name of the subdirectory in which the simulation 
-                                   artifacts (.odb file, .sim file, etc. and the 
-                                   final .cae file) will be placed. Also, the name 
-                                   of the artifacts themselves.
-               save_dir:       Absolute path to a directory. In this directory,
-                                   a subdirectory with name save_name will be 
-                                   created.
+               tpp:       The tool pass plan. 
+               save_name: The name of the subdirectory in which the simulation 
+                              artifacts (.odb file, .sim file, etc. and the 
+                              final .cae file) will be placed. Also, the name 
+                              of the artifacts themselves.
+               save_dir:  Absolute path to a directory. In this directory,
+                              a subdirectory with name save_name will be 
+                              created.
            
            Returns:
-               None. 
+               Boolean which indicates if an exact copy was found and, if one
+                   was found, the metadata associated with the mdb that was
+                   copied.
 
            Raises:
                None.
         """
-
-        match = False
+        
+        commitment_phase_md = self.commitment_phase_metadata[-1]
         tpps_done = self.commitment_phase_metadata[-1].potential_tpps
         for i, simulated_tpp in enumerate(tpps_done):
             name = simulated_tpp[0]
             plan = simulated_tpp[1]
             dir_ = simulated_tpp[2]
-            if tp.compare_tool_pass_plans(tool_pass_plan, plan):
+            if tp.compare_tool_pass_plans(tpp, plan):
 
                 new_dir_name = os.path.join(save_dir, save_name)
 
@@ -334,10 +368,7 @@ class MachiningProcess:
                 new_jnl_path = os.path.join(new_dir_name, save_name + ".jnl")
                 shutil.move(old_jnl_path, new_jnl_path)
 
-                match = True
-
                 num_commits = len(self.commitment_phase_metadata)
-
                 dump_banner("COMMITTED TOOL PASS PLAN WAS ALREADY SIMULATED")
                 dp("")
                 dp("For commit " + str(num_commits) + ", the tool pass plan was "
@@ -346,27 +377,18 @@ class MachiningProcess:
                 dp("")
                 dump_banner_end()
 
-                # Even when the tool pass plan has already been simulated, it's
-                #     still necessary to record the metadata about the new
-                #     MDB that was just copied. 
-                commitment_phase_md = self.commitment_phase_metadata[-1]
-                mdb_metadata = copy.deepcopy(commitment_phase_md.potential_tpp_mdb_metadata[i])
-                mdb_metadata.path_to_mdb = new_mdb_path
-                commitment_phase_md.committed_tpp_mdb_metadata = mdb_metadata
-                commitment_phase_md.committed_tpp = (name, copy.deepcopy(plan), dir_)
-                break
+                return True, copy.deepcopy(commitment_phase_md.potential_tpp_mdb_metadata[i])
 
-        # Simulate the plan if necessary.
-        if not match:
-            self._simulate_tpp(tool_pass_plan, save_name, save_dir)
+        return False, None
 
 
 
     def _simulate_tpp(self, tool_pass_plan: tp.ToolPassPlan, save_name: str, 
-                      save_dir: str) -> None:
-        """Simulates a tool pass plan. Does not make assumptions about the tool
-               pass plan being a committed tool pass plan or a potential tool
-               pass plan.
+                      save_dir: str, mdb_md: abq_md.AbaqusMdbMetadata,
+                      mdb: Any) -> None:
+        """Simulates a tool pass plan in the current commitment phase. Does 
+               not make assumptions about the tool pass plan being a committed 
+               tool pass plan or a potential tool pass plan.
             
            Args:
                tool_pass_plan: The tool pass plan to simulate.
@@ -380,6 +402,9 @@ class MachiningProcess:
                                If this path is already occupied (i.e. something
                                    exists there) the behavior of this function is
                                    undefined. 
+               mdb:            Abaqus MDB object. The MDB in which to simulate
+                                   the tool pass plan. This MDB need not be empty.
+               mdb_md:         The metadata associated with the MDB.
         
            Returns:
                None. 
@@ -397,18 +422,15 @@ class MachiningProcess:
             raise RuntimeError("A user-specified stress profile must be supplied \
                                   for the first commitment phase!")
 
-        # If necessary, start a new commitment phase.
-        if self._is_new_commitment_phase():
-            self._start_new_commitment_phase(save_name, save_dir) 
-
         commit_metadata = self.commitment_phase_metadata[-1]
 
-        # If there is an estimated stress profile for this commitment phase, use it.
         if len(self.commitment_phase_metadata) == len(self.stress_profile_estimates):
-            sim.sim_tool_pass_plan(tool_pass_plan, save_name, save_dir, 
-                                   commit_metadata, self.stress_profile_estimates[-1])
+            # If there is an estimated stress profile for this commitment phase, use it.
+            sim.sim_tool_pass_plan(tool_pass_plan, save_name, save_dir, commit_metadata, 
+                                   mdb_md, mdb, self.stress_profile_estimates[-1])
         else:
-            sim.sim_tool_pass_plan(tool_pass_plan, save_name, save_dir, commit_metadata)
+            sim.sim_tool_pass_plan(tool_pass_plan, save_name, save_dir, commit_metadata,
+                                   mdb_md, mdb)
 
 
 
@@ -419,7 +441,7 @@ class MachiningProcess:
            Among other things, this means that the part geometry and the state
                of stress of the part, as they existed after the last tool
                pass in the last commitment phase, are propagated into an
-               MDB which is the starting point for this commitment phase.
+               MDB which is the starting point for this new commitment phase.
 
            Args:
                save_name: The name of the subdirectory and .cae file (MDB) created
@@ -459,7 +481,7 @@ class MachiningProcess:
             raise RuntimeError("The subdirectory already exists!")
         
         # Retrieve the path to the ODB which contains the result of the committed
-        #     tool pass plan in the last committment phase.
+        #     tool pass plan in the current commitment phase. 
         odb_name = naming.last_odb_file_name(committed_tpp_mdb_md)
         odb_path = os.path.join(path_committed_tpp, odb_name)
 
@@ -482,23 +504,15 @@ class MachiningProcess:
         self.commitment_phase_metadata.append(new_phase_md)
 
         # Record the stress state which resulted from the committed tool pass 
-        #     plan. 
+        #     plan in this new commitment phase.
         self.commitment_phase_metadata[-1].path_last_commit_sim_file = sim_file_path
 
 
 
-    def _is_new_commitment_phase(self) -> bool:
-        """Checks if the last commitment phase contains committed tool passes.
-               This function can be used to check if a new commitment phase has
-               started."""
+    def _time_for_new_commitment_phase(self) -> bool:
+        """Determines if a new commitment phase needs to be started."""
 
         last_commitment_phase_md = self.commitment_phase_metadata[-1]
         if hasattr(last_commitment_phase_md, "committed_tpp"):
             return True
         return False
-
-
-
-
-
-

@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
         # ----- Specifying the initial geometry -----
         material = mp.ElasticMaterial(.3, 10**(9))
-        abaqus_part = part.AbaqusDefinedPart(PART_NAME, PATH_TO_CAE, material)
+        abaqus_part = part.InitialPart(PART_NAME, PATH_TO_CAE, material)
 
         # ----- Specifying the clamping setup (aka the boundary conditions) ----- 
 

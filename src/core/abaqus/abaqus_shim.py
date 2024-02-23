@@ -509,12 +509,24 @@ def check_multiple_steps(should_print: bool, model_name: str, mdb: Any) -> bool:
             dp("failure 1")
         return False
 
-    if len(mdb.models[model_name].steps) > 1:
+    if len(mdb.models[model_name].steps) == 1:
         if should_print:
             dp("failure 2")
-        return True
+        return False 
 
-    return False
+    return True 
+
+
+
+def check_multiple_models(should_print: bool, mdb: Any) -> bool:
+    """Checks if an MDB contains multiple models."""
+
+    if len(mdb.models) <= 1: 
+        if should_print:
+            dp("failure 1")
+        return False
+
+    return True
 
 
 
