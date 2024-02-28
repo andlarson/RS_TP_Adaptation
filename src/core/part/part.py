@@ -11,14 +11,13 @@ import src.core.abaqus.abaqus_shim as shim
 
 class InitialPart():
     
-    def __init__(self, name: str, path: str, material: mp.ElasticMaterial) -> None:
+    def __init__(self, path: str, material: mp.ElasticMaterial) -> None:
         """Creates a part based on one which exists in Abaqus.
 
            Assumes that the part, as it is defined in Abaqus, is defined in a basic
                way.
 
            Args:
-               name:     The name of the part.
                path:     Absolute path to .cae file defining the part. 
                material: The material that the part is made out of.
 
@@ -36,8 +35,6 @@ class InitialPart():
 
         shim.close_mdb(mdb)
 
-        self.name = name
-        self.path_to_stress_subroutine = None
         self.material = material
         self.path_to_mdb = path
 
@@ -47,13 +44,12 @@ class InitialPart():
 
 class MinimalPart():
     
-    def __init__(self, name: str, path: str) -> None:
-        """Creates a part based on one which exists in Abaqus. This part is
-               minimally defined - it is just a geometry and has no material,
+    def __init__(self, path: str) -> None:
+        """Creates a part based on one which exists in Abaqus. This part should
+               be minimally defined - it is just a geometry and has no material,
                stress subroutine, etc. associated with it.
             
            Args:
-               name: The name of the part.
                path: Absolute path to .cae file defining the part.
         
            Returns:
@@ -70,7 +66,6 @@ class MinimalPart():
 
         shim.close_mdb(mdb)
 
-        self.name = name
         self.path_to_mdb = path
 
 

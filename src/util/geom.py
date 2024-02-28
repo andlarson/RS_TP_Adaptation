@@ -828,7 +828,7 @@ def distance(p1: Point, p2: Point) -> float:
         dy = p1_rep[1] - p2_rep[1]
         dz = p1_rep[2] - p2_rep[2]
         return (dx**2+dy**2+dz**2)**(.5)
-    elif len(p1_rep) == 2:
+    else:
         dx = p1_rep[0] - p2_rep[0]
         dy = p1_rep[1] - p2_rep[1]
         return (dx**2+dy**2)**(.5)

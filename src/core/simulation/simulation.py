@@ -33,9 +33,8 @@ def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, target_dir: s
     
        Args:
            tool_pass_plan:    The tool pass plan to simulate. 
-           name:              Desired name of the MDB which results from all the tool 
-                                  path simulations. Also, the desired name of the
-                                  subdirectory containing the simulation artifacts. 
+           name:              Desired name of the MDB and the files which result
+                                  from the tool path simulations. 
            target_dir:        Absolute path to directory. This directory should
                                   have a subdirectory with name name created in
                                   it already.
@@ -67,25 +66,27 @@ def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, target_dir: s
     os.chdir(sim_result_dir)
     
     for tool_pass in tool_pass_plan.plan:
-        _sim_single_tool_pass(tool_pass, commit_phase_md, mdb_md, mdb, stress_subroutine)    
+        _sim_single_tool_pass(name, tool_pass, commit_phase_md, mdb_md, mdb, stress_subroutine)    
         tool_pass_plan.pop()
     
+    # Don't permanently change the CWD.
+    os.chdir(cwd)
+
     # Save the MDB which has all the simulated tool passes in it.
     new_mdb_path = os.path.join(sim_result_dir, name)
     shim.save_mdb_as(new_mdb_path, mdb)
 
-    # Don't permanently change the CWD.
-    os.chdir(cwd)
 
 
-
-def _sim_single_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentPhaseMetadata, 
+def _sim_single_tool_pass(job_name: str, tool_pass: tp.ToolPass, 
+                          commit_metadata: md.CommitmentPhaseMetadata, 
                           mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any,
                           stress_subroutine: Optional[str] = None) -> None:
     """Simulates a single tool pass. This tool pass may be the first tool pass
            in a tool pass plan, or the nth tool pass in a tool pass plan.
 
        Args:
+           job_name:          Desired name of the job.
            tool_pass:         The tool path to simulate.
            commit_metadata:   The record associated with the search for a good next 
                                   tool pass to do.
@@ -109,23 +110,25 @@ def _sim_single_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.Commitment
     # The way that the MDB is simulated depends on its content.
     if shim.check_basic_geom(False, mdb):
         if stress_subroutine is not None:
-            _sim_first_tool_pass(tool_pass, commit_metadata, mdb_md, mdb, stress_subroutine)
+            _sim_first_tool_pass(job_name, tool_pass, commit_metadata, mdb_md, mdb, stress_subroutine)
         else:
-            _sim_first_tool_pass(tool_pass, commit_metadata, mdb_md, mdb)  
+            _sim_first_tool_pass(job_name, tool_pass, commit_metadata, mdb_md, mdb)  
     elif shim.check_multiple_models(False, mdb):
-        _sim_nth_tool_pass(tool_pass, commit_metadata, mdb_md, mdb)
+        _sim_nth_tool_pass(job_name, tool_pass, commit_metadata, mdb_md, mdb)
     else:
         raise AssertionError("Can't figure out how to do next tool pass...")
 
 
 
-def _sim_first_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentPhaseMetadata, 
+def _sim_first_tool_pass(job_name: str, tool_pass: tp.ToolPass, 
+                         commit_metadata: md.CommitmentPhaseMetadata, 
                          mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any, 
                          stress_subroutine: Optional[str] = None) -> None:
     """Simulates the first tool pass in an MDB. The MDB is assumed to not contain
            any tool pass simulations.
        
        Args:
+           job_name:          The desired name of the job.
            tool_pass:         The tool path to simulate.
            commit_metadata:   The record associated with the search for a good next 
                                   tool pass to do.
@@ -151,7 +154,6 @@ def _sim_first_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentP
 
     names = naming.ModelNames(naming.ModelTypes.FIRST_TOOL_PASS_IN_MDB, mdb_md)
 
-    # Do material and section creation.
     shim.create_material(commit_metadata.init_part.material, names.new_model_name, mdb)
     shim.create_section(names.new_model_name, mdb)
     shim.assign_section_to_whole_part(names.pre_tool_pass_part_name, names.new_model_name, mdb)
@@ -165,13 +167,12 @@ def _sim_first_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentP
     else:
         # Use the stress state from the last toolpath in the previous commit.
         path_sim_file = commit_metadata.path_last_commit_sim_file
-        assert path_sim_file is not None
 
         # Since this modifies the input file directly, this should be the last
         #    thing that happens before the job is submitted and runs.
         shim.inp_map_stress(path_sim_file, names.new_model_name, mdb)
 
-    job = shim.create_job(names.new_model_name, mdb_md, mdb) 
+    job = shim.create_job(job_name, names.new_model_name, mdb_md, mdb) 
 
     if stress_subroutine is not None:
         # Associate the user subroutine with the job.
@@ -181,7 +182,8 @@ def _sim_first_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentP
 
 
 
-def _sim_nth_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentPhaseMetadata, 
+def _sim_nth_tool_pass(job_name: str, tool_pass: tp.ToolPass, 
+                       commit_metadata: md.CommitmentPhaseMetadata, 
                        mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
     """Simulates the nth tool pass in an MDB. The MDB is assumed to already
            contain at least one tool pass simulation.
@@ -191,6 +193,7 @@ def _sim_nth_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentPha
            the initial stress state for the current simulation.
 
        Args:
+           job_name:        Desired name of the job.
            tool_pass:       The tool pass to simulate.
            commit_metadata: The record associated with the search for a good next 
                                 tool pass to do.
@@ -234,7 +237,7 @@ def _sim_nth_tool_pass(tool_pass: tp.ToolPass, commit_metadata: md.CommitmentPha
     shim.inp_map_stress(last_sim_file_name, names.new_model_name, mdb)
 
     # Create the job and submit it.
-    job = shim.create_job(names.new_model_name, mdb_md, mdb) 
+    job = shim.create_job(job_name, names.new_model_name, mdb_md, mdb) 
     shim.run_job(job)
 
 
@@ -366,7 +369,7 @@ def _simulate_traction_app(traction: geom.Vec3D,
 
     shim.mesh(initial_geom_instance, 20, names.new_model_name, mdb)
 
-    job = shim.create_job(names.new_model_name, mdb_metadata, mdb)
+    job = shim.create_job(names.traction_job_name, names.new_model_name, mdb_metadata, mdb)
 
     shim.run_job(job)
 
@@ -602,8 +605,6 @@ def _recover_constant_residual_stress(stress_recovery_mdb: Any,
     # Step 6:
     # Map the "good traction vector" to the components of the stress tensor
     #     assuming a constant state of stress.
-
-    return None
          
 
      

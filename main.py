@@ -19,45 +19,68 @@ import src.core.part.part as part
 import src.core.tool_pass.tool_pass as tp
 import src.core.boundary_conditions.boundary_conditions as bc
 import src.core.material_properties.material_properties as mp
+import src.core.simulation.simulation as sim
+import src.core.abaqus.abaqus_shim as shim
 
+import src.util.all_in_simulation as all_in_sim
 from src.util.debug import *
+
+
+
+def nuke_and_remake(path: str) -> None:
+    """Deletes the directory tree rooted at path and then recreates is."""
+
+    fs_path = pathlib.Path(path)
+    if fs_path.exists():
+        if fs_path.is_dir():
+            shutil.rmtree(fs_path)
+        else:
+            raise RuntimeError("Something exists but it's not a directory!") 
+    os.mkdir(fs_path)
+
+
 
 if __name__ == "__main__":
 
     try:
-        # ----- Desired names and some paths ----- 
-        PATH_TO_CAE = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/test_initial_geometry_cae/test_initial_geometry.cae" 
-        TOOL_PASS_ROOT_DIR = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/test_initial_geometry_cae/"
-        TOOL_PASS_STRESS_RECOVERY_DIR = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/test_initial_geometry_cae/stress_estimation"
-        tool_pass_plan_names = ["first_plan", "second_plan", "committed_plan"]
-        PART_NAME = "an_example_part"
-        PATH_TO_SUBROUTINE = "/home/andlars/Desktop/RS_TP_Adaptation/src/core/user_subroutines/def_stress.cpp"
 
-        # ----- Delete any directories which already exist at the desired paths. -----
+        # ************
+        #   FS Setup
+        # ************
 
-        # Delete any directories matching those for tool passes.
-        for name in tool_pass_plan_names:
-            full_path = os.path.join(TOOL_PASS_ROOT_DIR, name) 
-            fs_path = pathlib.Path(full_path)
-            if fs_path.exists():
-                if fs_path.is_dir():
-                    shutil.rmtree(fs_path)
-                else:
-                    raise RuntimeError("Something exists but it's not a directory!") 
+        # ----- Main Sim: FS Paths ----- 
+        INIT_CAE = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/initial_geometry.cae" 
+        TP_DIR = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/stress_estimation/"
+        TP_STRESS_ESTIMATION_DIR = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/stress_estimation/recover_stresses/"
+        potential_tpp_names = ["first_pass", "second_pass", "first_committed_pass", "third_pass"]
+        committed_tpp_names = ["first_committed_pass", "second_committed_pass"]
+        STRESS_FIELD_ESTIMATE = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/stress_fields/stress_field_estimate/stress_field_estimate-std.o"
 
-        fs_path = pathlib.Path(TOOL_PASS_STRESS_RECOVERY_DIR)
-        if fs_path.exists():
-            if fs_path.is_dir():
-                shutil.rmtree(fs_path)
-            else:
-                raise RuntimeError("Something exists but it's not a directory!") 
-        os.mkdir(fs_path)
+        # ----- Main Sim: Directory Cleanup -----
+        nuke_and_remake(TP_DIR)
+        nuke_and_remake(TP_STRESS_ESTIMATION_DIR)
 
-        # ----- Specifying the initial geometry -----
+        # ----- Real Life Sim: FS Paths -----
+        PARALLEL_TP_DIR = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/in_real_life/"
+        ACTUAL_STRESS_FIELD = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/stress_fields/actual_stress_field/actual_stress_field-std.o"
+        real_life_cae_names = committed_tpp_names
+
+        # ----- Real Life Sim: Directory Cleanup -----
+        nuke_and_remake(PARALLEL_TP_DIR)
+
+
+        # **********************
+        #   Simulation Setup 
+        # **********************
+
+        # ----- Main Sim: Specifying Initial Geometry -----
         material = mp.ElasticMaterial(.3, 10**(9))
-        abaqus_part = part.InitialPart(PART_NAME, PATH_TO_CAE, material)
+        main_sim_init_part = part.InitialPart(INIT_CAE, material)
 
-        # ----- Specifying the clamping setup (aka the boundary conditions) ----- 
+        # ----- Real Life Sim: Specifying Initial Geometry -----
+        real_life_init_part = part.InitialPart(INIT_CAE, material)
+
+        # ----- Both: Boundary Conditions ----- 
 
         # Clamp on one side of bar.
         v1 = geom.Point3D(np.array([0, 10, 0]))
@@ -83,32 +106,36 @@ if __name__ == "__main__":
 
         BCs = [BC1, BC2]
 
-        # ----- Building the top-level machining object -----
-        machining_process = mach.MachiningProcess(abaqus_part, BCs)
+        # ----- Real Life Sim: Top Level Machining Object -----
+        real_life_machining = mach.MachiningProcess(real_life_init_part, BCs)
 
-        # ----- Specifying the stress profile for the first commitment phase -----
+        # ----- Main Sim: Top Level Machining Object -----
+        main_machining = mach.MachiningProcess(main_sim_init_part, BCs)
 
-        # The stress profile comes from a user subroutine.
-        # We associate the stress profile with the part, then when a simulation is
-        #    done using the part, the user subroutine is automatically invoked to
-        #    imbue the stress profile. The user subroutine is inherently invoked at
-        #    simulation runtime, so only setup can be done defore that.
-        machining_process.record_estimated_stress_profile(PATH_TO_SUBROUTINE)
+        # ----- Real Life Sim: Specifying Actual Stress Profile ----- 
+        real_life_machining.use_stress_profile(ACTUAL_STRESS_FIELD)
 
-        # ----- First tool pass plan -----
+        # ----- Main Sim: Specifying Initial Estimated Stress Profile -----
+        main_machining.use_stress_profile(STRESS_FIELD_ESTIMATE)
+
+        
+        # ********************************
+        #        First Committed TPP 
+        # ********************************
+
+        # ----- Main Sim: Simulate First Potential TPP -----
         p1 = geom.Point3D(np.array((-10, 5, 100)))
         p2 = geom.Point3D(np.array((0, 5, 90)))
         p3 = geom.Point3D(np.array((10, 5, 120)))
         p4 = geom.Point3D(np.array((30, 5, 150)))
-
         path = geom.PlanarCubicC2Spline3D([p1, p2, p3, p4])
         tp1 = tp.ToolPass(path, 1, 10)
-        plan = tp.ToolPassPlan([tp1])
 
-        machining_process.sim_potential_tool_passes(plan, tool_pass_plan_names[0], TOOL_PASS_ROOT_DIR)
+        potential_tpp_1 = tp.ToolPassPlan([tp1])
 
-        # ----- Second tool pass plan -----
-        """
+        main_machining.sim_potential_tool_passes(potential_tpp_1, potential_tpp_names[0], TP_DIR)
+
+        # ----- Main Sim: Simulate Second Potential TPP -----
         p1 = geom.Point3D(np.array((5, 5, 300)))
         p2 = geom.Point3D(np.array((5, 5, 200)))
         path = geom.PlanarCubicC2Spline3D([p1, p2])
@@ -119,24 +146,64 @@ if __name__ == "__main__":
         path = geom.PlanarCubicC2Spline3D([p1, p2])
         tp2 = tp.ToolPass(path, 2, 10)
 
-        p1 = geom.Point3D(np.array((35, 5, 300)))
-        p2 = geom.Point3D(np.array((35, 5, 200)))
+        potential_tpp_2 = tp.ToolPassPlan([tp1, tp2])
+
+        main_machining.sim_potential_tool_passes(potential_tpp_2, potential_tpp_names[1], TP_DIR)
+
+        # ----- Main Sim: Commit to a TPP -----
+        committed_plan = potential_tpp_1
+        main_machining.commit_tool_passes(committed_plan, committed_tpp_names[0], TP_DIR)
+        
+        # ----- Real Life Sim: Simulate Committed TPP -----
+
+        # TODO: Need to increase mesh density to better simulate real life. 
+        real_life_machining.commit_tool_passes(committed_plan, committed_tpp_names[0], PARALLEL_TP_DIR)
+        odb_path = os.path.join(PARALLEL_TP_DIR, committed_tpp_names[0] + ".odb")
+
+        # Convert the results of the simulation to a .cae file.
+        # If this were actually occuring in real life, the data collected
+        #     in-machine would be converted to a 3D geometric model and
+        #     used.
+        # TODO: This is bit hacky. Using a non-public function. 
+        mdb = sim.create_mdb_from_odb(real_life_cae_names[0], PARALLEL_TP_DIR, odb_path)[0]
+        all_in_sim.rename_model(mdb)        
+        shim.save_mdb(mdb)
+        shim.close_mdb(mdb)
+
+        # ----- Main Sim: Pass in the results from real life -----
+        real_life_mdb_path = os.path.join(PARALLEL_TP_DIR, real_life_cae_names[0])
+        minimal_part = part.MinimalPart(real_life_mdb_path) 
+        main_machining.add_real_world_machining_data(minimal_part)
+
+        # ----- Main Sim: Estimate Stresses -----
+        _ = main_machining.estimate_stress(TP_STRESS_ESTIMATION_DIR)
+
+        # ----- Main Sim: Provide Estimate of Whole Stress Field -----
+
+        # TODO: This will eventually be produced by some technique that fuses
+        #     all of the stress estimates together to yield a whole-field
+        #     estimate.
+        main_machining.use_stress_profile(STRESS_FIELD_ESTIMATE)
+
+
+        # *******************************
+        #   Searching For Next Good TPP 
+        # *******************************
+
+        # ----- Main Sim: Simulate Second Potential TPP -----
+        p1 = geom.Point3D(np.array((20, 5, -50)))
+        p2 = geom.Point3D(np.array((20, 5, 120)))
         path = geom.PlanarCubicC2Spline3D([p1, p2])
-        tp3 = tp.ToolPass(path, 2, 10)
+        tp3 = tp.ToolPass(path, 1, 10)
 
-        plan = tp.ToolPassPlan([tp1])
+        potential_tpp_3 = tp.ToolPassPlan([tp3])
 
-        machining_process.sim_potential_tool_passes(plan, tool_pass_plan_names[1], TOOL_PASS_ROOT_DIR)
-        """
+        main_machining.sim_potential_tool_passes(potential_tpp_3, potential_tpp_names[2], TP_DIR)
 
-        # ----- Committing to a Plan -----
-        machining_process.commit_tool_passes(plan, tool_pass_plan_names[2], TOOL_PASS_ROOT_DIR)
+        # ----- Main Sim: Commit to a TPP -----
+        committed_plan = potential_tpp_3
+        main_machining.commit_tool_passes(committed_plan, committed_tpp_names[1], TP_DIR)
 
-        # ----- Estimating Residual Stress Due to Committed Tool Pass -----
-        _ = machining_process.estimate_stress_via_last_tool_pass(TOOL_PASS_STRESS_RECOVERY_DIR)
 
     except BaseException as e:
         dump_exception()       
-
-
-

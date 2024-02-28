@@ -88,6 +88,7 @@ class ModelNames:
             # Assumed to be chosen.
             self.new_model_name = shim.STANDARD_MODEL_NAME_PREFIX + str(model_cnt + 1)
             self.traction_step_name = shim.STANDARD_TRACTION_STEP_NAME
+            self.traction_job_name = shim.STANDARD_JOB_PREFIX + str(model_cnt + 1)
 
         elif model_type is ModelTypes.TARGET_GEOM:
             # It is assumed that a model with a target geometry contains a

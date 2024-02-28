@@ -57,12 +57,12 @@ class MachiningProcess:
             raise RuntimeError("At least one boundary condition must be supplied.")
 
         self.commitment_phase_metadata = []
-        self.stress_profile_estimates = []
         self.boundary_conditions = boundary_conditions 
 
-        first_tp_metadata = md.CommitmentPhaseMetadata(init_part, init_part.path_to_mdb, boundary_conditions)
-        first_tp_metadata.first_commitment_phase = True
-        self.commitment_phase_metadata.append(first_tp_metadata)
+        first_commit_md = md.CommitmentPhaseMetadata(init_part, init_part.path_to_mdb, boundary_conditions)
+        first_commit_md.first_commitment_phase = True
+
+        self.commitment_phase_metadata.append(first_commit_md)
 
 
 
@@ -98,11 +98,6 @@ class MachiningProcess:
                None.
         """
 
-        # If the user did not supply a stress profile estimate for this commitment 
-        #    phase, record as such.
-        if len(self.stress_profile_estimates) < len(self.commitment_phase_metadata):
-            self.stress_profile_estimates.append(None)
-
         if self._time_for_new_commitment_phase():
             self._start_new_commitment_phase(save_name, save_dir) 
         else:
@@ -113,10 +108,16 @@ class MachiningProcess:
         
         done, mdb_md = self._lazy_tpp_sim(tool_pass_plan, save_name, save_dir)
         if done:
+            # The tool pass plan was already conducted, so its metadata
+            #     can just be copied.
             commit_phase_md = self.commitment_phase_metadata[-1]
             commit_phase_md.committed_tpp = (save_name, tool_pass_plan, save_dir)
             commit_phase_md.committed_tpp_mdb_metadata = mdb_md 
         else:
+            # This is inelegant but necessary. The simulation process causes the
+            #     MDB to be modified, and we want to keep track of the modifications.
+            #     Thus, the metadata data structure must be created in advance of
+            #     the modifications.
             commit_phase_md = self.commitment_phase_metadata[-1]
             path_to_mdb = commit_phase_md.init_part.path_to_mdb
             mdb_md = abq_md.AbaqusMdbMetadata(path_to_mdb)
@@ -125,6 +126,7 @@ class MachiningProcess:
             self._simulate_tpp(tool_pass_plan, save_name, save_dir, mdb_md, mdb)            
             shim.close_mdb(mdb)
             
+            # The tool pass plan was simulated, so record the metadata. 
             commit_phase_md.committed_tpp = (save_name, tool_pass_plan, save_dir)
             commit_phase_md.committed_tpp_mdb_metadata = mdb_md 
 
@@ -161,7 +163,11 @@ class MachiningProcess:
             #     like one is created when starting a new commitment phase.
             new_subdir_path = os.path.join(save_dir, save_name)
             os.mkdir(new_subdir_path)
-
+        
+        # This is inelegant but necessary. The simualtion process causes the
+        #     MDB to be modified, and we want to keep track of the modifications.
+        #     Thus, the metadata data structure must be created in advance of
+        #     the modifications.
         commit_phase_md = self.commitment_phase_metadata[-1]
         path_to_mdb = commit_phase_md.init_part.path_to_mdb
         mdb_md = abq_md.AbaqusMdbMetadata(path_to_mdb)
@@ -170,31 +176,31 @@ class MachiningProcess:
         self._simulate_tpp(tool_pass_plan, save_name, save_dir, mdb_md, mdb)            
         shim.close_mdb(mdb)
         
+        # The tool pass plan was simualted, so record the metadata. 
         new_dir_path = os.path.join(save_dir, save_name)
         commit_phase_md.potential_tpps.append((save_name, tool_pass_plan, new_dir_path))
         commit_phase_md.potential_tpp_mdb_metadata.append(mdb_md)
 
 
 
-    def record_estimated_stress_profile(self, path: str):
+    def use_stress_profile(self, path: str):
         """Records a stress profile to be used as the initial stress state for
-               the current commitment phase.
+               all the simulations until (and including) the next tool pass
+               plan to be committed.
+           
+           If a stress profile is provided, it should only be provided in some
+               circumstances:
+               1) Before doing any simulations.
+               2) Right after committing to a tool pass plan, and before
+                      simulating another pass plan.
+           
+           If no stress profile is provided after committing to a tool pass
+               plan, then all simulations until, and including, the next 
+               committed tool pass plan will use the stress profile which 
+               Abaqus produced from the committed tool pass plan. Since the
+               user is required to specify an initial stress profile, this makes
+               it possible to only ever specify the very initial stress state.
 
-           By default, the stress profile for the start point of the current 
-               commitment phase comes from the output of last simulation in 
-               the previous commitment phase. This function overrides that 
-               default behavior!!
-           
-           At the beginning of each commitment phase, the part needs to have some 
-               stress profile associated with it. By default, the part's stress 
-               profile is sourced from the output of the last simulation in the 
-               previous commitment phase. This doesn't work in the first 
-               commitment phase. Also, it's possible to glean information from 
-               deformations observed in real-life to improve stress profile 
-               estimates.
-           
-           Each commitment phase should have, at most, one initial stress state.
-              
            Args:
                path: Path to the object file produced by compiling the stress
                          subroutine which defines the desired stress profile.
@@ -206,12 +212,20 @@ class MachiningProcess:
                None.
         """
 
-        if len(self.stress_profile_estimates) >= len(self.commitment_phase_metadata):
-            raise RuntimeError("Trying to pass too many estimated stress \
-                                profiles. Each commitment phase should have, at \
-                                most, one accompanying estimated stress profile!")
+        cur_commit_phase_md = self.commitment_phase_metadata[-1]
 
-        self.stress_profile_estimates.append(path)
+        if cur_commit_phase_md.first_commitment_phase and cur_commit_phase_md.committed_tpp is None:
+            cur_commit_phase_md.init_stress = path
+        else:
+            if cur_commit_phase_md.committed_tpp is None:
+                raise RuntimeError("A stress profile should only be passed after a \
+                                    tool pass plan has been committed.")
+
+            if cur_commit_phase_md.next_phase_init_stress is not None:
+                raise RuntimeError("A stress profile was already provided for the \
+                                    last tool pass plan to be committed.")
+        
+            cur_commit_phase_md.next_phase_init_stress = path
 
 
 
@@ -219,8 +233,21 @@ class MachiningProcess:
         """Estimates the residual stress tensor field which existed in the region
                of material removal due to the last committed tool pass plan.
            
+           TODO: The wording below is slightly incorrect. The user can only
+               do stress estimation for the current commitment phase, when
+               the current commitment phase contains a valid (committed tool
+               pass plan, real world data) pair. This means that a usage
+               pattern like, from the caller's perspective, commit_tpp() ->
+               upload_real_world_data() -> simulate_potential_tpp() ->
+               estimate_stress() will fail because the estimate_stress() call
+               will cause a new commitment phase to start.
+
+           This function should only be called after a tool pass plan has been
+               committed and the real world data associated with the committed 
+               tool pass plan has been collected and passed to this library.
+           
            This function should only be called if the last committed tool pass
-               plan contains exactly one committed tool pass. The underlying
+               plan contains exactly one tool pass. The underlying
                technique for the estimation is ineffective if the tool pass plan
                contains more than a single committed tool pass.
 
@@ -236,19 +263,28 @@ class MachiningProcess:
            Raises:
                None.
         """
+        
+        # The post-committed tool pass geometry always comes from the current
+        #     commitment phase.
+        cur_commit_phase_md = self.commitment_phase_metadata[-1]
 
-        if len(self.commitment_phase_metadata[-1].committed_tpp[2]) != 1:
+        if not hasattr(cur_commit_phase_md, "committed_tpp"):
+            raise RuntimeError("A tool pass plan needs to be committed.")
+
+        if len(cur_commit_phase_md.committed_tpp[2]) != 1:
             raise RuntimeError("The committed tool pass plan doesn't contain "
                                "exactly one committed tool pass.")
+
+        if not hasattr(cur_commit_phase_md, "real_world_part"):
+            raise RuntimeError("The real world data associated with the committed "
+                               "tool pass plan has not been passed.")
+
         tool_pass = self.commitment_phase_metadata[-1].committed_tpp[1].plan[0]
 
         # TODO: Right now, the MDBs are copied along with their metadata. None of
         #     this is recorded in the commitment phase metadata, so it is not
         #     tracked at all.
 
-        # The post-committed tool pass geometry always comes from the current
-        #     commitment phase.
-        cur_commit_phase_md = self.commitment_phase_metadata[-1]
         stress_recovery_mdb_path = os.path.join(path, STRESS_RECOVERY_MDB_NAME)
         shutil.copyfile(cur_commit_phase_md.real_world_part.path_to_mdb, stress_recovery_mdb_path)
         stress_recovery_mdb = shim.use_mdb(stress_recovery_mdb_path)
@@ -291,7 +327,7 @@ class MachiningProcess:
                                         tool pass plan in real life. The geometric
                                         model should be constructed based on
                                         data collected from real life (such as
-                                        an in-maching scan).
+                                        an in-machine scan).
         
            Returns:
                None.
@@ -417,19 +453,17 @@ class MachiningProcess:
         """
 
         # For the first commitment phase, the user must supply a stress profile.
-        if len(self.commitment_phase_metadata) == 1 and \
-           len(self.stress_profile_estimates) == 0:
+        cur_commit_md = self.commitment_phase_metadata[-1]
+        if cur_commit_md.first_commitment_phase and cur_commit_md.init_stress is None:
             raise RuntimeError("A user-specified stress profile must be supplied \
-                                  for the first commitment phase!")
+                                before any simulations can run!")
 
-        commit_metadata = self.commitment_phase_metadata[-1]
-
-        if len(self.commitment_phase_metadata) == len(self.stress_profile_estimates):
+        if cur_commit_md.init_stress is not None:
             # If there is an estimated stress profile for this commitment phase, use it.
-            sim.sim_tool_pass_plan(tool_pass_plan, save_name, save_dir, commit_metadata, 
-                                   mdb_md, mdb, self.stress_profile_estimates[-1])
+            sim.sim_tool_pass_plan(tool_pass_plan, save_name, save_dir, cur_commit_md, 
+                                   mdb_md, mdb, cur_commit_md.init_stress)
         else:
-            sim.sim_tool_pass_plan(tool_pass_plan, save_name, save_dir, commit_metadata,
+            sim.sim_tool_pass_plan(tool_pass_plan, save_name, save_dir, cur_commit_md,
                                    mdb_md, mdb)
 
 
@@ -459,14 +493,10 @@ class MachiningProcess:
                                 already exists at the path.
         """
     
-        cur_commitment_phase_md = self.commitment_phase_metadata[-1]
-        committed_tpp_mdb_md = cur_commitment_phase_md.committed_tpp_mdb_metadata
+        old_commit_phase_md = self.commitment_phase_metadata[-1]
+        committed_tpp_mdb_md = old_commit_phase_md.committed_tpp_mdb_metadata
 
-        committed_tpp = cur_commitment_phase_md.committed_tpp
-        path_committed_tpp = cur_commitment_phase_md.committed_tpp_mdb_metadata.mdb_dir()
-
-        assert committed_tpp is not None
-        assert path_committed_tpp is not None
+        path_committed_tpp = old_commit_phase_md.committed_tpp_mdb_metadata.mdb_dir()
 
         # Record the path of the .sim file. The .sim file may be used in the
         #     next commitment phase to set the initial stress state.
@@ -496,16 +526,21 @@ class MachiningProcess:
 
         # The starting point for the next commitment phase.
         new_mdb_path = os.path.join(new_subdir_path, save_name)
-        abaqus_part = part.InitialPart(save_name, new_mdb_path, material)
+        abaqus_part = part.InitialPart(new_mdb_path, material)
 
         # The initial state of the next commitment phase depends on the result
         #     of the simulation. 
         new_phase_md = md.CommitmentPhaseMetadata(abaqus_part, abaqus_part.path_to_mdb, self.boundary_conditions)
         self.commitment_phase_metadata.append(new_phase_md)
+        
+        new_commit_phase_md = self.commitment_phase_metadata[-1]
 
         # Record the stress state which resulted from the committed tool pass 
         #     plan in this new commitment phase.
-        self.commitment_phase_metadata[-1].path_last_commit_sim_file = sim_file_path
+        new_commit_phase_md.path_last_commit_sim_file = sim_file_path
+
+        # Propagate the user-defined stress profile.
+        new_commit_phase_md.init_stress = old_commit_phase_md.next_phase_init_stress
 
 
 

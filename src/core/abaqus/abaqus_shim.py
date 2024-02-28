@@ -1280,17 +1280,17 @@ def create_step(name: str, name_step_to_follow: str, model_name: str,
 
 
 
-def create_job(model_name: str, mdb_metadata: abq_md.AbaqusMdbMetadata, 
+def create_job(job_name: str, model_name: str, mdb_metadata: abq_md.AbaqusMdbMetadata, 
                mdb: Any) -> Any:
     """Creates a job via a standard naming scheme.
 
-       Note that the name of a job dictates the names of the various files
-           (.odb, .dat, etc.) produced by the job when it runs.
-    
        Configures the job to emit a .sim file, in addition to the standard
            .odb file, when it runs.
 
        Args:
+           job_name:     Name of the job. This dictates the names of the files
+                             (.odb, .dat, etc.) produced by the job when it
+                             runs.
            model_name:   Name of the model in which to create the job.
            mdb_metadata: Metadata for this MDB.
            mdb:          Abaqus MDB object.
@@ -1301,8 +1301,6 @@ def create_job(model_name: str, mdb_metadata: abq_md.AbaqusMdbMetadata,
        Raises:
            None.
     """
-
-    job_name = STANDARD_JOB_PREFIX + str(_get_model_cnt(mdb))
 
     # The "resultsFormat=BOTH" causes Abaqus to generate .odb and .sim files
     #    when the simulation runs. This functionality is currently undocumented
@@ -1337,12 +1335,10 @@ def add_user_subroutine(job: Any, path_to_subroutine: str) -> None:
                              subroutine file for a particular job!
     """
     
-    """
     if job.userSubroutine != "":
         raise RuntimeError("Overwriting a previous user subroutine file...")
 
     job.setValues(userSubroutine=path_to_subroutine)
-    """
 
 
 

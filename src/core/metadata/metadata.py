@@ -74,6 +74,14 @@ class CommitmentPhaseMetadata:
         self.BCs: list[bc.BC] = BCs
 
 
+        # ----- User-Provided Initial Stress State -----
+        
+        # Absolute path to object file defining a state of stress.
+        # The state of stress used as initial state of stress for all simultions
+        #     in this commitment phase.
+        self.init_stress: str | None = None
+
+
         # ----- Potential Tool Pass Plans -----
 
         # Each potential tool pass plan is simulated in an MDB. This stores
@@ -98,10 +106,10 @@ class CommitmentPhaseMetadata:
         # The tool pass plan which was committed to for this commitment phase.
         # The name, tool pass plan, and absolute path to directory of simulation
         #     results.
-        self.committed_tpp: tuple[str, tp.ToolPassPlan, str]
+        self.committed_tpp: tuple[str, tp.ToolPassPlan, str] | None = None
 
 
-        # ----- Stress Estimation -----
+        # ----- Estimating Stress -----
 
         # The process of estimating the stress in a region of material removal
         #     requires running simulations, and therefore requires an MDB.
@@ -116,6 +124,19 @@ class CommitmentPhaseMetadata:
 
         # The real world part exists in an MDB.
         self.real_world_part_mdb_md: abq_md.AbaqusMdbMetadata
+
+
+        # ----- User-Provided Stress State For Next Commitment Phase -----
+        
+        # Absolute path to object file defining a state of stress.
+        # This is state of stress for the NEXT commitment phase.
+        # When the next commitment phase starts, this is copied into the metadata
+        #     for that new commitment phase. 
+        # Yes, this design is inelegant. It results from the fact that metadata
+        #     for the next commitment phase is only created when the next commitment
+        #     phase actually starts, and the next commitment phase only starts
+        #     when a tool pass simulation happens.
+        self.next_phase_init_stress: str | None = None
 
 
 

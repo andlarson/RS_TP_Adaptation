@@ -17,37 +17,17 @@ Simulating Material Removal - Short Term TODO:
    As part of this, account for the case when the user specifies a stress profile
       which is far from equilbirium. 
 
-3) Create a small library of examples illustrating current functionality.
-
-4) If the user supplies their own estimated residual stress profile, it's necessary
-      to allow the part, embued by this stress field which may not be in equilibirum, 
-      to deform to achieve mechanical equilibrium. This is necessary only in the case
-      when the user supplies an estimated stress profile.
-
-
 
 General - Short Term TODO:
 
-1) The add_user_subroutine() function currently doesn't do anything due to the
-       (potential bug) in Abaqus 2024 which causes the .o files produced by 
-       "abaqus make" to be useless.
-   This means that recording an estimated stress profile via record_estimated_stress
-       _profile() will not do anything.
-
-2) Rule out and write up alternative technique for material removal using the
-       additive manufacturing stuff in Abaqus.
-
-3) Update the README and add a diagram documenting the metadata / naming data
-       flow.
-
-4) Add functionality to save execution state upon an excpetion and some functionality
-       to resume from that state. This will be time-saving debug feature.
-
+1) Add step which allows relaxation to equilibrium whenever a user-defined stress
+      profile is used.
+ 
 
 
 General - Long Term TODO:
 
-Code Organization / Structure TODO:
+Code Organization / Structure / Documentation TODO:
 
     *** MINGLING STRESS EQUILIBRATION AND MACHINING PROCEDURES ***
     It also feels brittle to intermingle the stress equilibration and the machining
@@ -62,18 +42,18 @@ Code Organization / Structure TODO:
       deal with exceptional conditions when an MDB is open and needs to be closed.
       Using a "with" statement might be very useful to do this.
 
-    *** ISOLATION OF CALLS INTO ABAQUS API ***
-    I've decided that all calls into the Abaqus API should be located in the
-      abaqus_shim.py file. However, many of these functions return Abaqus-native
-      objects, which are passed around in functions outside of abaqus_shim.py. Is
-      this clean? Is the restriction of making Abaqus API calls in abaqus_shim.py
-      really necessary?
-        Solution: Eliminate the simple getter functions? 
-
     *** TUPLES VS. LISTS ***
     Tuples should be passed as arguments when the function will not need to modify.
       Passing a list to a function is dangerous because the function may modify the
       list.
+    
+    *** WRITE UP ALTERANTIVE TECHNIQUE FOR MATERIAL REMOVAL ***
+    Rule out and write up alternative technique for material removal using the
+        additive manufacturing stuff in Abaqus.
+    
+    *** DOCUMENTATION UPDATE ***
+    Update the README and add a diagram documenting the metadata / naming data
+        flow.
 
 
 Adding/Modifying Features TODO:
@@ -86,10 +66,6 @@ Adding/Modifying Features TODO:
     Make meshing more robust. Currently we just try some parameters (seed density,
       mesh shape, etc.) and if those parameters don't work we try some other
       parameters.
-    Use a bounding splien based on the tool pass geometry instead of a bounding
-       box. One potential approach is to trace the centroid of the tool along
-       the spline, then simply using a larger radius for the bounding spline will 
-       do the trick.    
 
     *** MAPPING ORPHAN MESH TO GEOEMTRY ***
     There is an awful lot of runtime spent mapping an orphan mesh to a new geometry.
@@ -130,13 +106,10 @@ Adding/Modifying Features TODO:
     *** SUPPORTING USER DEFINED PARTS ***
     Support user-defined parts. These part geometries will come from in-machine scans.
 
-    *** SUPPORTING REAL-LIFE MEASUREMENT DATA ***
-    Add support for real-life measurement data.
-
-    *** ACCOUNTING FOR STRESS PROFILES NOT IN EQUILBIRIUM ***
-    Account for case when user-specified stress profile is far from equilibrium.
-       This necessitates adding a simulation to find equilibrium. Probably requires
-       updating list of assumptions.
+    *** SAVING STATE AND RESUMING IN THE FUTURE ***
+    Often during debugging some simualtions will run and then something will fail.
+       It would be very nice to have some easy way to resume at the state of failure
+       to minimize time wasted re-doing things that already work.
 
     *** WORKAROUND FOR INTERACTIVE MODE ***
     Figure out a workaround so we don't have to run Abaqus in interactive mode.
