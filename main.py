@@ -3,12 +3,23 @@ This file is a testbed for the library in development. If you wish to use the
    library, this file demonstrates how to use it. 
 """
 
-# Necessary hack for Abaqus PDE debugging.
+# *******
+# Necessary *modifications* for Abaqus PDE debugging.
+
+# Make importing work.
 import sys
 sys.path.append("/home/andlars/Desktop/RS_TP_Adaptation")
 
-import pathlib
+# Workaround for bug in Abaqus 2024 that makes .o files produced from the
+#     "Abaqus make" utility unusable. 
 import os
+os.environ["ABA_DISABLE_DSL_USUB_CHECK"] = "1"
+
+# *******
+
+
+
+import pathlib
 import shutil
 
 import numpy as np
@@ -52,8 +63,8 @@ if __name__ == "__main__":
         INIT_CAE = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/initial_geometry.cae" 
         TP_DIR = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/stress_estimation/"
         TP_STRESS_ESTIMATION_DIR = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/stress_estimation/recover_stresses/"
-        potential_tpp_names = ["first_pass", "second_pass", "first_committed_pass", "third_pass"]
-        committed_tpp_names = ["first_committed_pass", "second_committed_pass"]
+        potential_tpp_names = ["first_plan", "second_plan", "third_plan"]
+        committed_tpp_names = ["first_committed_plan", "second_committed_plan"]
         STRESS_FIELD_ESTIMATE = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/stress_fields/stress_field_estimate/stress_field_estimate-std.o"
 
         # ----- Main Sim: Directory Cleanup -----
@@ -158,20 +169,20 @@ if __name__ == "__main__":
 
         # TODO: Need to increase mesh density to better simulate real life. 
         real_life_machining.commit_tool_passes(committed_plan, committed_tpp_names[0], PARALLEL_TP_DIR)
-        odb_path = os.path.join(PARALLEL_TP_DIR, committed_tpp_names[0] + ".odb")
+        odb_path = os.path.join(os.path.join(PARALLEL_TP_DIR, committed_tpp_names[0]), committed_tpp_names[0] + ".odb")
 
         # Convert the results of the simulation to a .cae file.
         # If this were actually occuring in real life, the data collected
         #     in-machine would be converted to a 3D geometric model and
         #     used.
         # TODO: This is bit hacky. Using a non-public function. 
-        mdb = sim.create_mdb_from_odb(real_life_cae_names[0], PARALLEL_TP_DIR, odb_path)[0]
+        mdb = sim.create_mdb_from_odb(real_life_cae_names[0] + ".cae", PARALLEL_TP_DIR, odb_path)[0]
         all_in_sim.rename_model(mdb)        
         shim.save_mdb(mdb)
         shim.close_mdb(mdb)
 
         # ----- Main Sim: Pass in the results from real life -----
-        real_life_mdb_path = os.path.join(PARALLEL_TP_DIR, real_life_cae_names[0])
+        real_life_mdb_path = os.path.join(PARALLEL_TP_DIR, real_life_cae_names[0] + ".cae")
         minimal_part = part.MinimalPart(real_life_mdb_path) 
         main_machining.add_real_world_machining_data(minimal_part)
 
@@ -187,7 +198,7 @@ if __name__ == "__main__":
 
 
         # *******************************
-        #   Searching For Next Good TPP 
+        #   Searching For 2nd Good TPP 
         # *******************************
 
         # ----- Main Sim: Simulate Second Potential TPP -----

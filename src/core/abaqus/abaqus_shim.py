@@ -80,7 +80,7 @@ STANDARD_BC_PREFIX = "Boundary_Condition_"
 # For tool pass simulations.
 STANDARD_TOOL_PASS_PART_PREFIX = "Tool_Pass_"
 STANDARD_POST_TOOL_PASS_PART_PREFIX = "Post_Tool_Pass_"
-STANDARD_EQUIL_STEP_PREFIX = "Equilibrium"
+STANDARD_EQUIL_STEP_NAME = "Equilibrium"
 STANDARD_INIT_GEOM_WITH_BBOX_NAME = "Initial_Geometry_With_Bounding_Box"
 
 # For surface traction application.
@@ -328,6 +328,28 @@ def create_mdb(name: str, path: str) -> Any:
 
 
 
+def copy_mdb(src: str, dest: str) -> None:
+    """Copies an MDB. 
+        
+       Args:
+           src:  Absolute path to MDB (.cae file). The MDB to copy. Assumed 
+                     that this MDB is not already open.
+           dest: Absolute path to desired save location. Assumed to end with
+                     .cae.
+    
+       Returns:
+           None.
+    
+       Raises:
+           None.
+    """
+
+    to_copy = use_mdb(src)
+    save_mdb_as(dest, to_copy)
+    close_mdb(to_copy)
+
+
+
 def assign_only_section_to_part(part: Any, model_name: str, mdb: Any) -> None:
     """Assigns the only section in a model to the entirety of a part.
 
@@ -522,6 +544,18 @@ def check_multiple_models(should_print: bool, mdb: Any) -> bool:
     """Checks if an MDB contains multiple models."""
 
     if len(mdb.models) <= 1: 
+        if should_print:
+            dp("failure 1")
+        return False
+
+    return True
+
+
+
+def check_job_submissions(should_print: bool, mdb: Any) -> bool:
+    """Checks if an MDB has at least one job submission."""
+
+    if len(mdb.jobs) < 1:
         if should_print:
             dp("failure 1")
         return False
@@ -1649,11 +1683,6 @@ def add_virtual_topology(part: Any) -> None:
        In general, it can be useful to call createVirtualTopology recursively on
            a part. Each call may eliminate more geometric features.
 
-       Note that Abaqus > Abaqus/CAE > Using Toolsets > The Virtual Topology Toolset >
-           Creating virtual topology based on geometric features says that the
-           ignoreRedundantEntities removes edges that separate an otherwise planar
-           or curved surface. 
-
        In general, introducing a virtual geometry can change the geometry 
            significantly! Beware! To this end, different policies can be used 
            to create the virtual topology, some more conservative than others.
@@ -1672,22 +1701,38 @@ def add_virtual_topology(part: Any) -> None:
     """
 
     try:
-        ARBITRARY_LARGE_THRESHOLD = 1000
+        # Simplify the geometry as much as possible until no further simplification
+        #     is possible. When no further simplifiction is possible, Abaqus will
+        #     issue an exception.
+        dump_banner("Geometry Simplification Started.")
+        dp("")
+        cnt = 0
+        while True:
+            dp("Attempting simplification number " + str(cnt))
 
-        # Very liberal!
-        # part.createVirtualTopology(ignoreRedundantEntities=True, mergeShortEdges=True, 
-        #                           shortEdgeThreshold=ARBITRARY_LARGE_THRESHOLD, 
-        #                           mergeSmallFaces=True, smallFaceAreaThreshold=ARBITRARY_LARGE_THRESHOLD)
+            # All of these magic numbers are the defaults that Abaqus uses when it
+            #     automatically generates a virtual topology.
+            part.createVirtualTopology(ignoreRedundantEntities=True, 
+                                       mergeShortEdges=True, shortEdgeThreshold=.15, 
+                                       mergeSmallFaces=True, smallFaceAreaThreshold=.11,
+                                       mergeSliverFaces=True, faceAspectRatioThreshold=10.0,
+                                       mergeSmallAngleFaces=True, smallFaceCornerAngleThreshold=10,
+                                       mergeThinStairFaces=True, thinStairFaceThreshold=.03)
 
-        # Somewhat conservative!
-        part.createVirtualTopology(ignoreRedundantEntities=True, mergeSmallAngleFaces=True, smallFaceCornerAngleThreshold=.5)
+            dp("Simplification number " + str(cnt) + " succeeded.")
+            cnt += 1
 
-        # Very conservative!
-        # part.createVirtualTopology(ignoreRedundantEntities=True)
+            # Somewhat conservative!
+            # part.createVirtualTopology(ignoreRedundantEntities=True, mergeSmallAngleFaces=True, smallFaceCornerAngleThreshold=.5)
+
+            # Very conservative!
+            # part.createVirtualTopology(ignoreRedundantEntities=True)
 
     except AbaqusException as e:
-        # If a virtual topology does not remove any entities, then an exception
-        #    is sometimes issued!
+        dp("")
+        dump_banner_end()
+        
+        # Dump the exception because no further exception is possible. 
         dump_exception()
 
 

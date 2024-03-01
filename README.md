@@ -1,8 +1,8 @@
 # Improving Machining Yield in the Presence of Residual Stress
 
 This repository contains software that makes it easy to:
-1. Estimate the residual stress state of a workpiece by utilizing data about 
-   its deformation.
+1. Estimate the residual stress state of a workpiece by utilizing real-world
+   measurement data collected after the workpiece has deformed due to machining.
 2. Simulate sequences of potential tool passes. 
 
 This software supports the larger, project-level goal of improving machining 
@@ -13,9 +13,27 @@ into a geometry that does not satisfy allowed tolerances).
 
 ---
 
+## General Assumptions and Limitations ##
+
+*These assumptions and limitations are relevant to both (1) and (2) above.*
+
+1. Meshes are always constructed with tetrahedrons and the Free meshing technique. 
+   Starting from some heuristically chosen density, the mesh is made more dense 
+   until the part is successfully meshed. Currently, mesh quality is not considered.
+
+2. The user is required to provide the initial part geometry via a .cae file. 
+
+3. The only material properties which we care about are Young's Modulus and 
+   Poisson's Ratio. We assume the material behaves fully elastically.
+
+---
+
+
+---
+
 ## Simulating Sequences of Tool Paths ##
 
-### Current Assumptions and Limitations:
+### Assumptions and Limitations: ###
 
 1. The space of potential toolpaths is exactly the set of toolpaths which can be 
    taken by the machine. The set of toolpaths which can be taken by the machine 
@@ -30,21 +48,17 @@ into a geometry that does not satisfy allowed tolerances).
    must be as **exact** as possible. 
 
    The simulation engine is currently able to represent toolpaths created by 
-   cylindrical tools which follow cubic splines in 3D and are **not self-intersecting**. 
-   Note that multiple toolpaths may intersect one another, but a single toolpath 
-   should not intersect itself. Furthermore, the tool orientation with respect 
-   to the toolpath is currently fixed and unchangeable. For all toolpaths, the 
-   axis of rotational symmetry of the cylindrical tool is fixed and positioned 
-   parallel to the y axis. See `notes/toolpath/toolpath_orientation_1.jpg` and 
+   cylindrical tools which follow cubic C2, planar splines in 3D and are 
+   **not self-intersecting**. Note that multiple toolpaths may intersect one 
+   another, but a single toolpath should not intersect itself. Furthermore, the 
+   tool orientation with respect to the toolpath is currently fixed and 
+   unchangeable. For all toolpaths, the axis of rotational symmetry of the 
+   cylindrical tool is fixed and positioned parallel to the y axis. See 
+   `notes/toolpath/toolpath_orientation_1.jpg` and 
    `notes/toolpath/toolpath_orientation_2.jpg` for more information.
    
-2. Meshes are always constructed with tetrahedrons and the Free meshing technique. 
-   Starting from some heuristically chosen density, the mesh is made more dense 
-   until the part is successfully meshed. Currently, mesh quality is not considered.
-
-3. TODO: 
-   All simulations include an initial step which allows any residual stress 
-   profile to relax to equilibrium. 
+2. All tool pass simulations include an initial step which allows any residual 
+   stress profile to relax to equilibrium. 
 
    If everything is being done in simulation (i.e. there is no real-world machining 
    process going on), there are exactly three sources of residual stress profiles: 
@@ -70,9 +84,7 @@ into a geometry that does not satisfy allowed tolerances).
    we assume that such deformations are small and have negligible effect on the 
    fidelity of our simulations.
    
-4. The user provides the initial part geometry via a .cae file. 
-
-5. The clamping setup is represented as boundary conditions which exist in the 
+3. The clamping setup is represented as boundary conditions which exist in the 
    same coordinate system as the initial part geometry. For now, we only allow 
    displacement boundary conditions (restricting at most displacement in x, y, 
    and z directions and rotation in x, y, and z directions). We also expect that 
@@ -80,21 +92,26 @@ into a geometry that does not satisfy allowed tolerances).
    that we only allow clamping setups where the clamps are applied to surfaces 
    without curvature.
 
-6. The only material properties which we care about are Young's Modulus and 
-   Poisson's Ratio.
-
-7. The user has the option to inject their own estimate of the entire residual 
+4. The user has the option to inject their own estimate of the entire residual 
    stress profile of a part after a tool pass plan has been committed (and potentially 
    conducted in real life). However, by default, the stress profile which resulted 
    from the simulation of the last committed tool pass plan is the stress profile 
-   used as the starting stress profile of the part in the next commitment phase. 
----
-
+   used as the starting stress profile for all subsequent simulations. 
 
 ---
-## Estimating Residual Stress via Deformation Measurements
 
-TODO....
+
+---
+
+## Estimating Residual Stress via Measures of Deformation ##
+
+### Technique ###
+
+TODO.
+
+### Assumptions and Limitations ### 
+
+TODO.
 
 ---
 

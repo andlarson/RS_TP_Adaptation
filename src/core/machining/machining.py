@@ -28,7 +28,7 @@ import src.core.residual_stress.residual_stress as rs
 from src.util.debug import *
 
 
-STRESS_RECOVERY_MDB_NAME = "recover_residual_stresses.cae"
+DEFORMED_GEOMETRY_MDB_NAME = "recover_residual_stresses.cae"
 TARGET_GEOMETRY_MDB_NAME = "target_geometry.cae"
 
 class MachiningProcess:
@@ -239,7 +239,7 @@ class MachiningProcess:
                pass plan, real world data) pair. This means that a usage
                pattern like, from the caller's perspective, commit_tpp() ->
                upload_real_world_data() -> simulate_potential_tpp() ->
-               estimate_stress() will fail because the estimate_stress() call
+               estimate_stress() will fail because the simulate_potential_tpp() call
                will cause a new commitment phase to start.
 
            This function should only be called after a tool pass plan has been
@@ -264,31 +264,33 @@ class MachiningProcess:
                None.
         """
         
-        # The post-committed tool pass geometry always comes from the current
-        #     commitment phase.
         cur_commit_phase_md = self.commitment_phase_metadata[-1]
-
-        if not hasattr(cur_commit_phase_md, "committed_tpp"):
+        
+        if cur_commit_phase_md.committed_tpp is None:
             raise RuntimeError("A tool pass plan needs to be committed.")
 
-        if len(cur_commit_phase_md.committed_tpp[2]) != 1:
-            raise RuntimeError("The committed tool pass plan doesn't contain "
-                               "exactly one committed tool pass.")
+        if len(cur_commit_phase_md.committed_tpp[1]) != 1:
+            raise RuntimeError("The committed tool pass plan doesn't contain \
+                                exactly one committed tool pass.")
 
-        if not hasattr(cur_commit_phase_md, "real_world_part"):
-            raise RuntimeError("The real world data associated with the committed "
-                               "tool pass plan has not been passed.")
+        if cur_commit_phase_md.real_world_part is None:
+            raise RuntimeError("The real world data associated with the committed \
+                                tool pass plan has not been passed.")
 
         tool_pass = self.commitment_phase_metadata[-1].committed_tpp[1].plan[0]
 
         # TODO: Right now, the MDBs are copied along with their metadata. None of
         #     this is recorded in the commitment phase metadata, so it is not
         #     tracked at all.
+        
+        # The real world data for this commitment phase is the deformed geometry.
+        deformed_geometry_mdb_path = os.path.join(path, DEFORMED_GEOMETRY_MDB_NAME)
+        to_copy = cur_commit_phase_md.real_world_part.path_to_mdb
+        shim.copy_mdb(to_copy, deformed_geometry_mdb_path)
 
-        stress_recovery_mdb_path = os.path.join(path, STRESS_RECOVERY_MDB_NAME)
-        shutil.copyfile(cur_commit_phase_md.real_world_part.path_to_mdb, stress_recovery_mdb_path)
-        stress_recovery_mdb = shim.use_mdb(stress_recovery_mdb_path)
-        stress_recovery_mdb_md = copy.deepcopy(cur_commit_phase_md.real_world_part_mdb_md)
+        # Reuse the metadata and update it. 
+        deformed_geometry_mdb_md = copy.deepcopy(cur_commit_phase_md.real_world_part_mdb_md)
+        deformed_geometry_mdb_md.path_to_mdb = deformed_geometry_mdb_path
         
         # In the first commitment phase, the target geometry comes from the
         #     initial part. In all other commitment phases, the target geometry
@@ -296,16 +298,26 @@ class MachiningProcess:
         #     phase.
         target_geometry_mdb_path = os.path.join(path, TARGET_GEOMETRY_MDB_NAME)
         if len(self.commitment_phase_metadata) == 1:
-            shutil.copyfile(cur_commit_phase_md.init_part.path_to_mdb, target_geometry_mdb_path) 
+            # The initial workpiece geometry is the target geometry. 
+            to_copy = cur_commit_phase_md.init_part.path_to_mdb
+            shim.copy_mdb(to_copy, target_geometry_mdb_path)
+
+            # The MDB containing the initial part has no metadata associated
+            #     with it.
             target_geometry_mdb_md = abq_md.AbaqusMdbMetadata(target_geometry_mdb_path)
+            
         else:
+            # The real world data from the last commitment phase is the target
+            #     geometry.
             prev_commit_phase_md = self.commitment_phase_metadata[-2]
-            shutil.copyfile(prev_commit_phase_md.real_world_part.path_to_mdb, target_geometry_mdb_path)
+            to_copy = prev_commit_phase_md.real_world_part.path_to_mdb
+            shim.copy_mdb(to_copy, target_geometry_mdb_path)
+            
+            # Reuse the metadata and update it.
             target_geometry_mdb_md = copy.deepcopy(prev_commit_phase_md.real_world_part_mdb_md)
-        target_geometry_mdb = shim.use_mdb(target_geometry_mdb_path)
+            target_geometry_mdb_md.path_to_mdb = target_geometry_mdb_path
         
-        return sim.estimate_residual_stresses(stress_recovery_mdb, stress_recovery_mdb_md,
-                                              target_geometry_mdb, target_geometry_mdb_md,
+        return sim.estimate_residual_stresses(deformed_geometry_mdb_md, target_geometry_mdb_md,
                                               tool_pass, cur_commit_phase_md, path)
 
 
@@ -316,7 +328,8 @@ class MachiningProcess:
            
            Should not be called before the first tool pass plan is committed. Should
                not be called when the committed tool pass plan contains many
-               non-contiguous or very large tool passes.
+               non-contiguous or very large tool passes. Must be called between
+               committing a tool pass plan and simulating another tool pass plan.
 
            The part passed to this function should be the part which resulted
                from a scan (in real life) of the part which resulted from the
@@ -336,30 +349,28 @@ class MachiningProcess:
                None.
         """
 
-        if len(self.commitment_phase_metadata) <= 1:
-            raise RuntimeError("Real world machining data should only be passed"
-                               " after the first commitment phase.")
+        cur_commitment_phase_md = self.commitment_phase_metadata[-1]
 
-        last_commitment_phase_md = self.commitment_phase_metadata[-2]
+        if cur_commitment_phase_md.committed_tpp is None:
+            raise RuntimeError("Real world machining data should only be passed \
+                                after a tool pass plan is committed!")
 
-        if hasattr(last_commitment_phase_md, "real_world_part"):
-            raise RuntimeError("The last commitment phase already had real world"
-                               " data supplied for it!")
+        if cur_commitment_phase_md.real_world_part is not None:
+            raise RuntimeError("Real world data was already supplied for the \
+                                most recent committed tool pass plan!")
 
-        last_commitment_phase_md.real_world_part = part_from_real_life
+        cur_commitment_phase_md.real_world_part = part_from_real_life
 
         # This MDB needs metadata and it is in the default initial state. 
         mdb_md = abq_md.AbaqusMdbMetadata(part_from_real_life.path_to_mdb) 
-        last_commitment_phase_md.real_world_part_mdb_md = mdb_md
+        cur_commitment_phase_md.real_world_part_mdb_md = mdb_md
 
 
 
     def _lazy_tpp_sim(self, tpp: tp.ToolPassPlan, save_name: str, save_dir: str
                      ) -> tuple[bool, None | abq_md.AbaqusMdbMetadata]:
-        """Simulates a tool pass plan if it has already been simulated in the
-               commitment phase. If this exact tool pass plan has not been
-               simulated in this commitment phase, this function doesn't do
-               anything.
+        """Copies the results of a simulation if it has already been done in 
+               this commitment phase. 
            
            Args:
                tpp:       The tool pass plan. 
@@ -369,7 +380,10 @@ class MachiningProcess:
                               of the artifacts themselves.
                save_dir:  Absolute path to a directory. In this directory,
                               a subdirectory with name save_name will be 
-                              created.
+                              created if one does not already exist. If a directory
+                              with save_name already exists, this function
+                              copies into that subdirectory, overwriting files
+                              as necessary.
            
            Returns:
                Boolean which indicates if an exact copy was found and, if one
@@ -389,17 +403,16 @@ class MachiningProcess:
             if tp.compare_tool_pass_plans(tpp, plan):
 
                 new_dir_name = os.path.join(save_dir, save_name)
-
-                # Copy the results of the already-simulated tool pass plan
-                #     into a new directory.
-                shutil.copytree(dir_, new_dir_name)
                 
-                # Rename the .cae file in this new directory.
+                # Copy the already-produced results.
+                shutil.copytree(dir_, new_dir_name, dirs_exist_ok=True)
+                
+                # Rename the .cae file. 
                 old_mdb_path = os.path.join(new_dir_name, name + ".cae") 
                 new_mdb_path = os.path.join(new_dir_name, save_name + ".cae")
                 shutil.move(old_mdb_path, new_mdb_path)
 
-                # Rename the .jnl file in this new directory.
+                # Rename the .jnl file.
                 old_jnl_path = os.path.join(new_dir_name, name + ".jnl")
                 new_jnl_path = os.path.join(new_dir_name, save_name + ".jnl")
                 shutil.move(old_jnl_path, new_jnl_path)
@@ -547,7 +560,7 @@ class MachiningProcess:
     def _time_for_new_commitment_phase(self) -> bool:
         """Determines if a new commitment phase needs to be started."""
 
-        last_commitment_phase_md = self.commitment_phase_metadata[-1]
-        if hasattr(last_commitment_phase_md, "committed_tpp"):
+        cur_commitment_phase_md = self.commitment_phase_metadata[-1]
+        if cur_commitment_phase_md.committed_tpp is not None:
             return True
         return False

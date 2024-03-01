@@ -59,8 +59,8 @@ class ModelNames:
             
             # Assumed to be chosen. 
             self.tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX 
-            self.post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX 
-            self.equil_step_name = shim.STANDARD_EQUIL_STEP_PREFIX 
+            self.post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(model_cnt)
+            self.equil_step_name = shim.STANDARD_EQUIL_STEP_NAME
 
         elif model_type is ModelTypes.NTH_TOOL_PASS_IN_MDB:
             # Assumed to already exist at call time. 
@@ -72,10 +72,10 @@ class ModelNames:
             self.pre_tool_pass_part_name = mdb_metadata.models_metadata[last_model_name].part_names[-1].upper()     
 
             # Assumed to be chosen. 
-            self.post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX 
+            self.post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(model_cnt + 1)
             self.new_model_name = shim.STANDARD_MODEL_NAME_PREFIX + str(model_cnt + 1) 
             self.tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX 
-            self.equil_step_name = shim.STANDARD_EQUIL_STEP_PREFIX 
+            self.equil_step_name = shim.STANDARD_EQUIL_STEP_NAME 
 
         elif model_type is ModelTypes.TRACTION_APP:
             # It is assumed that a model which includes traction application

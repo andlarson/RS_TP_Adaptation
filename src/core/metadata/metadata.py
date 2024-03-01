@@ -64,7 +64,7 @@ class CommitmentPhaseMetadata:
         # This is really a convenience. It would not be hard to lookup the
         #     the .sim file which resulted from the committed tool pass plan in 
         #     the commitment phase which precedes this one.
-        self.path_last_commit_sim_file: str
+        self.path_last_commit_sim_file: str | None = None
         
         # The state of the part as it exists at the beginning of this commitment 
         #     phase.
@@ -101,7 +101,7 @@ class CommitmentPhaseMetadata:
         # ----- Committed Tool Pass Plan -----
         
         # The committed tool pass plan must also be simulated in an MDB.
-        self.committed_tpp_mdb_metadata: abq_md.AbaqusMdbMetadata
+        self.committed_tpp_mdb_metadata: abq_md.AbaqusMdbMetadata | None = None
 
         # The tool pass plan which was committed to for this commitment phase.
         # The name, tool pass plan, and absolute path to directory of simulation
@@ -113,17 +113,17 @@ class CommitmentPhaseMetadata:
 
         # The process of estimating the stress in a region of material removal
         #     requires running simulations, and therefore requires an MDB.
-        self.stress_estimate_mdb_metadata: abq_md.AbaqusMdbMetadata
+        self.stress_estimate_mdb_metadata: abq_md.AbaqusMdbMetadata | None = None
 
 
         # ----- Real World Data -----
        
         # A representation of the part that resulted from performing the committed
         #     tool pass plan.
-        self.real_world_part: part.MinimalPart
+        self.real_world_part: part.MinimalPart | None = None
 
         # The real world part exists in an MDB.
-        self.real_world_part_mdb_md: abq_md.AbaqusMdbMetadata
+        self.real_world_part_mdb_md: abq_md.AbaqusMdbMetadata | None = None
 
 
         # ----- User-Provided Stress State For Next Commitment Phase -----

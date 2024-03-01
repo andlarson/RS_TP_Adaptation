@@ -2,6 +2,7 @@
 
 Recovering Residual Stress - Short Term TODO:
 
+1) Finish up 3D geometric comparsion functionality.
 
 
 Simulating Material Removal - Short Term TODO:
@@ -22,6 +23,9 @@ General - Short Term TODO:
 
 1) Add step which allows relaxation to equilibrium whenever a user-defined stress
       profile is used.
+
+2) Fix the mypy " | None" issue that is causing it to generate lots of false-
+      positives.
  
 
 

@@ -113,7 +113,7 @@ def _sim_single_tool_pass(job_name: str, tool_pass: tp.ToolPass,
             _sim_first_tool_pass(job_name, tool_pass, commit_metadata, mdb_md, mdb, stress_subroutine)
         else:
             _sim_first_tool_pass(job_name, tool_pass, commit_metadata, mdb_md, mdb)  
-    elif shim.check_multiple_models(False, mdb):
+    elif shim.check_job_submissions(False, mdb):
         _sim_nth_tool_pass(job_name, tool_pass, commit_metadata, mdb_md, mdb)
     else:
         raise AssertionError("Can't figure out how to do next tool pass...")
@@ -481,9 +481,7 @@ def _orphan_mesh_to_geometry(part_name: str, model_name: str, mdb: Any) -> None:
 
 
 
-def estimate_residual_stresses(stress_recovery_mdb: Any,
-                               stress_recovery_mdb_md: abq_md.AbaqusMdbMetadata,
-                               target_geometry_mdb: Any,
+def estimate_residual_stresses(deformed_geometry_mdb_md: abq_md.AbaqusMdbMetadata,
                                target_geometry_mdb_md: abq_md.AbaqusMdbMetadata,
                                tool_pass: tp.ToolPass,
                                commit_phase_md: md.CommitmentPhaseMetadata,
@@ -493,25 +491,19 @@ def estimate_residual_stresses(stress_recovery_mdb: Any,
            which was removed and caused a deformation of the workpiece.
        
        Args:
-           stress_recovery_mdb:    Abaqus MDB object. MDB which contains the 
-                                       geometry of the part after the committed 
-                                       tool pass. Should be based on real world 
-                                       data. 
-           stress_recovery_mdb_md: Metadata associated with the MDB containing 
-                                       the part after the committed tool pass. 
-           target_geometry_mdb:    Abaqus MDB object. MDB which contains the 
-                                       geometry of the part before the committed 
-                                       tool pass. Should be based on real world 
-                                       data.
-           target_geometry_mdb_md: Metadata associated with MDB containing the 
-                                       part before the committed tool pass.
-           tool_pass:              The tool pass that removed material.
-           commit_phase_md:        The commitment phase during which the tool 
-                                       pass was committed to.
-           path:                   Absolute path to directory. Any MDBs which 
-                                       need to be created in order to recover 
-                                       the residual stresses are placed in this 
-                                       directory.
+           deformed_geometry_mdb_md: Metadata associated with the MDB containing 
+                                         the part after the it underwent some
+                                         deformation due to material removal.
+           target_geometry_mdb_md:   Metadata associated with MDB containing the 
+                                         part before it underwent some deformation
+                                         due to material removal.
+           tool_pass:                The tool pass that removed material.
+           commit_phase_md:          The commitment phase during which the tool 
+                                         pass was committed to.
+           path:                     Absolute path to directory. Any MDBs which 
+                                         need to be created in order to recover 
+                                         the residual stresses are placed in this 
+                                         directory.
     
        Returns:
            The residual stress field in the material that was removed by the
@@ -521,15 +513,12 @@ def estimate_residual_stresses(stress_recovery_mdb: Any,
            None.
     """
 
-    return _recover_constant_residual_stress(stress_recovery_mdb, stress_recovery_mdb_md,
-                                             target_geometry_mdb, target_geometry_mdb_md,
+    return _recover_constant_residual_stress(deformed_geometry_mdb_md, target_geometry_mdb_md,
                                              tool_pass, commit_phase_md, path)
 
 
 
-def _recover_constant_residual_stress(stress_recovery_mdb: Any,
-                                      stress_recovery_mdb_md: abq_md.AbaqusMdbMetadata,
-                                      target_geometry_mdb: Any,
+def _recover_constant_residual_stress(deformed_geometry_mdb_md: abq_md.AbaqusMdbMetadata,
                                       target_geometry_mdb_md: abq_md.AbaqusMdbMetadata,
                                       tool_pass: tp.ToolPass,
                                       commit_phase_md: md.CommitmentPhaseMetadata,
@@ -542,25 +531,19 @@ def _recover_constant_residual_stress(stress_recovery_mdb: Any,
            the region of material was constant before it was removed.
         
        Args:
-           stress_recovery_mdb:    Abaqus MDB object. MDB which contains the 
-                                       geometry of the part after the committed 
-                                       tool pass. Should be based on real world 
-                                       data. 
-           stress_recovery_mdb_md: Metadata associated with the MDB containing 
-                                       the part after the committed tool pass. 
-           target_geometry_mdb:    Abaqus MDB object. MDB which contains the 
-                                       geometry of the part before the committed 
-                                       tool pass. Should be based on real world 
-                                       data.
-           target_geometry_mdb_md: Metadata associated with MDB containing the 
-                                       part before the committed tool pass.
-           tool_pass:              The tool pass that removed material.
-           commit_phase_md:        The commitment phase during which the tool 
-                                       pass was committed to.
-           path:                   Absolute path to directory. Any MDBs which 
-                                       need to be created in order to recover 
-                                       the residual stresses are placed in this 
-                                       directory.
+           deformed_geometry_mdb_md: Metadata associated with the MDB containing 
+                                         the part after the it underwent some
+                                         deformation due to material removal.
+           target_geometry_mdb_md:   Metadata associated with MDB containing the 
+                                         part before it underwent some deformation
+                                         due to material removal.
+           tool_pass:                The tool pass that removed material.
+           commit_phase_md:          The commitment phase during which the tool 
+                                         pass was committed to.
+           path:                     Absolute path to directory. Any MDBs which 
+                                         need to be created in order to recover 
+                                         the residual stresses are placed in this 
+                                         directory.
 
        Returns:
            The residual stress field in the material that was removed by the
@@ -589,9 +572,9 @@ def _recover_constant_residual_stress(stress_recovery_mdb: Any,
     # Apply a test traction and estimate the gradient of the volumetric difference
     #     function.
     start_traction = geom.Vec3D(np.array([1, 2, 3]))
-    _, _ = _estimate_gradient_volume(start_traction, trench_point,
-                                     stress_recovery_mdb, stress_recovery_mdb_md,
-                                     target_geometry_mdb, target_geometry_mdb_md,
+    _, _ = _estimate_gradient_volume(start_traction, trench_point, 
+                                     deformed_geometry_mdb_md, 
+                                     target_geometry_mdb_md,
                                      commit_phase_md, path)
 
     # Step 4:
@@ -599,8 +582,6 @@ def _recover_constant_residual_stress(stress_recovery_mdb: Any,
 
     # Step 5:
     # Save off the MDBs so they appear in the filesystem.
-    shim.save_mdb(stress_recovery_mdb)
-    shim.save_mdb(target_geometry_mdb)
 
     # Step 6:
     # Map the "good traction vector" to the components of the stress tensor
@@ -632,9 +613,7 @@ def _find_trench_point(toolpass: tp.ToolPass) -> geom.Point3D:
 
 def _estimate_gradient_volume(at: geom.Vec3D, 
                               point_near_face: geom.Point3D,
-                              deformed_mdb: Any,
                               deformed_mdb_md: abq_md.AbaqusMdbMetadata,
-                              target_geometry_mdb: Any,
                               target_geometry_mdb_md: abq_md.AbaqusMdbMetadata,
                               commit_phase_md: md.CommitmentPhaseMetadata,
                               path: str,
@@ -658,13 +637,7 @@ def _estimate_gradient_volume(at: geom.Vec3D,
                                        estimated.
            point_near_face:        Point very near the face on which to apply the
                                        tractions.
-           deformed_mdb:           Abaqus MDB object. The MDB which contains the
-                                       deformed geometry to which the traction
-                                       is applied.
            deformed_mdb_md:        Metadata associated with deformed MDB.
-           target_geometry_mdb:    Abaqus MDB object. The MDB which contains the
-                                       target geometry (i.e. the ideal geometry
-                                       after traction vector application).
            target_geometry_mdb_md: Metadata associated with the target geometry
                                        MDB.
            commit_phase_md:        Metadata associated with the commitment phase
@@ -690,26 +663,39 @@ def _estimate_gradient_volume(at: geom.Vec3D,
     orig_cwd = os.getcwd()
     os.chdir(path)
     
+    # Need to be disciplined about opening and closing the MDB because only a
+    #     single MDB can be open at once and there are two MDBs that we are
+    #     dealing with in this function.
+    deformed_mdb = shim.use_mdb(deformed_mdb_md.path_to_mdb)
+
     # Step 1:
     # Simulate the traction application.
     job_name = _simulate_traction_app(at, point_near_face, shim.STANDARD_MODEL_NAME,
                                       deformed_mdb_md, commit_phase_md, deformed_mdb)
+
+    # Step 2:
+    # Clean up. Now the ODB produced by the job can be used.
+    shim.save_mdb(deformed_mdb)
+    shim.close_mdb(deformed_mdb)
+
     # Restore the CWD.
     os.chdir(orig_cwd)
 
     path_to_odb = os.path.join(path, job_name)
     
-    # Step 2:
+    # Step 3:
     # Make a copy of the model containing the target geometry in the target
-    #     geometry MDB.
+    #     geometry MDB using the ODB that was produced.
 
     # Generate and retrieve names.
     names = naming.ModelNames(naming.ModelTypes.TARGET_GEOM, target_geometry_mdb_md)
+    
+    target_geometry_mdb = shim.use_mdb(target_geometry_mdb_md.path_to_mdb)
 
     shim.copy_model(names.target_model_name, names.new_model_name, 
                     target_geometry_mdb_md, target_geometry_mdb)
-    
-    # Step 3:
+
+    # Step 4:
     # Map the results from the ODB to a new part in the newly copied model.
     #     Then convert the orphan mesh to a geometry.
 
@@ -723,13 +709,18 @@ def _estimate_gradient_volume(at: geom.Vec3D,
     shim.assign_section_to_whole_part(names.target_part_name, names.new_model_name,
                                       target_geometry_mdb)
 
-    # Step 4:
+    # Step 5:
     # Instance the parts, do the boolean operations, and find the volume of the
     #     region which is not in the intersection.
-
+    
+    # Step 6:
+    # Clean up.
+    shim.save_mdb(target_geometry_mdb)
+    shim.close_mdb(target_geometry_mdb)
 
     # TODO:
     return geom.Vec3D(np.array([1, 2, 3])), 10
+
 
 
 # *****************************************************************************
