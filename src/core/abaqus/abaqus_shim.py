@@ -80,7 +80,8 @@ STANDARD_BC_PREFIX = "Boundary_Condition_"
 # For tool pass simulations.
 STANDARD_TOOL_PASS_PART_PREFIX = "Tool_Pass_"
 STANDARD_POST_TOOL_PASS_PART_PREFIX = "Post_Tool_Pass_"
-STANDARD_EQUIL_STEP_NAME = "Equilibrium"
+STANDARD_DEFORMATION_STEP_NAME = "Deform_Due_To_Material_Removal"
+STANDARD_EQUIL_STEP_NAME = "Equilibrate_User_Specified_Stresses"
 STANDARD_INIT_GEOM_WITH_BBOX_NAME = "Initial_Geometry_With_Bounding_Box"
 
 # For surface traction application.
@@ -1710,23 +1711,37 @@ def add_virtual_topology(part: Any) -> None:
         while True:
             dp("Attempting simplification number " + str(cnt))
 
-            # All of these magic numbers are the defaults that Abaqus uses when it
+            # Very liberal! This takes a long time to execute because Abaqus
+            #     considers many possibilities in far-flung locations.
+            # The only real constraint is the corner angle tolerance.
+            # ARBITRARY_LARGE_NUMBER = 1000
+            # ARBITRARY_SMALL_NUMBER = 1
+            # part.createVirtualTopology(ignoreRedundantEntities=True, 
+            #                            mergeShortEdges=True, shortEdgeThreshold=ARBITRARY_LARGE_NUMBER,
+            #                            mergeSmallFaces=True, smallFaceAreaThreshold=ARBITRARY_LARGE_NUMBER,
+            #                            mergeSliverFaces=True, faceAspectRatioThreshold=ARBITRARY_SMALL_NUMBER,
+            #                            mergeSmallAngleFaces=True, smallFaceCornerAngleThreshold=ARBITRARY_SMALL_NUMBER,
+            #                            mergeThinStairFaces=True, thinStairFaceThreshold=ARBITRARY_SMALL_NUMBER,
+            #                            cornerAngleTolerance=60)
+
+            # These magic numbers are the defaults that Abaqus uses when it
             #     automatically generates a virtual topology.
             part.createVirtualTopology(ignoreRedundantEntities=True, 
                                        mergeShortEdges=True, shortEdgeThreshold=.15, 
                                        mergeSmallFaces=True, smallFaceAreaThreshold=.11,
                                        mergeSliverFaces=True, faceAspectRatioThreshold=10.0,
                                        mergeSmallAngleFaces=True, smallFaceCornerAngleThreshold=10,
-                                       mergeThinStairFaces=True, thinStairFaceThreshold=.03)
-
-            dp("Simplification number " + str(cnt) + " succeeded.")
-            cnt += 1
+                                       mergeThinStairFaces=True, thinStairFaceThreshold=.03,
+                                       cornerAngleTolerance=30)
 
             # Somewhat conservative!
             # part.createVirtualTopology(ignoreRedundantEntities=True, mergeSmallAngleFaces=True, smallFaceCornerAngleThreshold=.5)
 
             # Very conservative!
             # part.createVirtualTopology(ignoreRedundantEntities=True)
+
+            dp("Simplification number " + str(cnt) + " succeeded.")
+            cnt += 1
 
     except AbaqusException as e:
         dp("")

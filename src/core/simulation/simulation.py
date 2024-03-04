@@ -157,8 +157,11 @@ def _sim_first_tool_pass(job_name: str, tool_pass: tp.ToolPass,
     shim.create_material(commit_metadata.init_part.material, names.new_model_name, mdb)
     shim.create_section(names.new_model_name, mdb)
     shim.assign_section_to_whole_part(names.pre_tool_pass_part_name, names.new_model_name, mdb)
-
-    _do_boilerplate_tp_sim_ops(tool_pass, names, mdb_md, commit_metadata, mdb)
+    
+    if stress_subroutine is not None:
+        _do_boilerplate_tp_sim_ops(tool_pass, True, names, mdb_md, commit_metadata, mdb)
+    else:
+        _do_boilerplate_tp_sim_ops(tool_pass, False, names, mdb_md, commit_metadata, mdb)
 
     if stress_subroutine is not None:
         # Since this modifies the input file directly, this should be the last
@@ -228,7 +231,7 @@ def _sim_nth_tool_pass(job_name: str, tool_pass: tp.ToolPass,
     #    geometry. This cannot be done before mapping to a geometry. 
     shim.assign_section_to_whole_part(names.pre_tool_pass_part_name, names.new_model_name, mdb)
 
-    _do_boilerplate_tp_sim_ops(tool_pass, names, mdb_md, commit_metadata, mdb)
+    _do_boilerplate_tp_sim_ops(tool_pass, False, names, mdb_md, commit_metadata, mdb)
 
     # Map the stress profile which existed at the end of the last simulation
     #    onto the new geometry. 
@@ -243,6 +246,7 @@ def _sim_nth_tool_pass(job_name: str, tool_pass: tp.ToolPass,
 
 
 def _do_boilerplate_tp_sim_ops(tool_pass: tp.ToolPass, 
+                               user_defined_stress: bool,
                                names: naming.ModelNames, 
                                mdb_metadata: abq_md.AbaqusMdbMetadata,
                                commit_metadata: md.CommitmentPhaseMetadata, 
@@ -252,13 +256,16 @@ def _do_boilerplate_tp_sim_ops(tool_pass: tp.ToolPass,
            simulation).
        
        Args:
-           tool_pass:       The tool pass to simulate.
-           names:           The names associated with the target model in the
-                                MDB.
-           mdb_metadata:    Metadata asscoaited with the the MDB.
-           commit_metadata: Metadata associated with the commitment phase.
-           mdb:             Abaqus MDB object. The MDB in which the tool pass
-                                will be simulated. 
+           tool_pass:           The tool pass to simulate.
+           user_defined_stress: Flag indicating if a user defined stress profile
+                                    (which may not satisfy mechanical equilibrium)
+                                    is going to be used for this simulation.
+           names:               The names associated with the target model in the
+                                    MDB.
+           mdb_metadata:        Metadata asscoaited with the the MDB.
+           commit_metadata:     Metadata associated with the commitment phase.
+           mdb:                 Abaqus MDB object. The MDB in which the tool pass
+                                    will be simulated. 
 
        Returns:
            None.
@@ -293,8 +300,12 @@ def _do_boilerplate_tp_sim_ops(tool_pass: tp.ToolPass,
     shim.mesh(post_tool_pass_instance, 20, names.new_model_name, mdb)
 
     last_step_name = mdb_metadata.models_metadata[names.new_model_name].step_names[-1]
-    shim.create_step(names.equil_step_name, last_step_name, names.new_model_name, mdb_metadata, mdb)
-
+    if user_defined_stress:
+        shim.create_step(names.equilibrium_step_name, last_step_name, names.new_model_name, mdb_metadata, mdb)
+        shim.create_step(names.deformation_step_name, names.equilibrium_step_name, names.new_model_name, mdb_metadata, mdb)
+    else:
+        shim.create_step(names.deformation_step_name, last_step_name, names.new_model_name, mdb_metadata, mdb)
+    
 
 
 def _simulate_traction_app(traction: geom.Vec3D,
@@ -685,7 +696,7 @@ def _estimate_gradient_volume(at: geom.Vec3D,
     
     # Step 3:
     # Make a copy of the model containing the target geometry in the target
-    #     geometry MDB using the ODB that was produced.
+    #     geometry MDB. 
 
     # Generate and retrieve names.
     names = naming.ModelNames(naming.ModelTypes.TARGET_GEOM, target_geometry_mdb_md)
