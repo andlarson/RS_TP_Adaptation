@@ -30,7 +30,7 @@ class InitialPart():
 
         mdb = shim.use_mdb(path)
 
-        if not shim.check_basic_geom(True, mdb):
+        if not shim.check_simple_standard_mdb(True, mdb):
             raise RuntimeError("The part, as it exists in Abaqus, is not basic!")
 
         shim.close_mdb(mdb)
@@ -61,7 +61,7 @@ class MinimalPart():
 
         mdb = shim.use_mdb(path)
 
-        if not shim.check_basic_geom(True, mdb):
+        if not shim.check_simple_standard_mdb(True, mdb):
             raise RuntimeError("The part, as it exists in Abaqus, is not basic!")
 
         shim.close_mdb(mdb)

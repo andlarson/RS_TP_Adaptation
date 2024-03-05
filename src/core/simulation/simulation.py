@@ -108,7 +108,7 @@ def _sim_single_tool_pass(job_name: str, tool_pass: tp.ToolPass,
     """
     
     # The way that the MDB is simulated depends on its content.
-    if shim.check_basic_geom(False, mdb):
+    if shim.check_simple_standard_mdb(False, mdb):
         if stress_subroutine is not None:
             _sim_first_tool_pass(job_name, tool_pass, commit_metadata, mdb_md, mdb, stress_subroutine)
         else:
@@ -149,7 +149,7 @@ def _sim_first_tool_pass(job_name: str, tool_pass: tp.ToolPass,
                              have the expected content).
     """
 
-    if not shim.check_basic_geom(False, mdb):
+    if not shim.check_simple_standard_mdb(False, mdb):
         raise RuntimeError("The MDB is not in the expected state.")
 
     names = naming.ModelNames(naming.ModelTypes.FIRST_TOOL_PASS_IN_MDB, mdb_md)
@@ -449,7 +449,7 @@ def _orphan_mesh_to_geometry(part_name: str, model_name: str, mdb: Any) -> None:
            part_name: The name of the part which contains the orphan mesh. This
                           part will have the solid geometry associated with it.
            model_name: The name of the model the part is in.
-           mdb: Abaqus MDB object.
+           mdb:        Abaqus MDB object.
 
        Returns:
            None.
@@ -488,7 +488,7 @@ def _orphan_mesh_to_geometry(part_name: str, model_name: str, mdb: Any) -> None:
     # Remove any dependency on the orphan mesh.
     # Not doing this causes the orphan mesh to still appear in the Assembly
     #    module, which can make appearence confusing. 
-    shim.suppress_feature(shim.STANDARD_ORPHAN_MESH_FEATURE_NAME, part)
+    shim.suppress_part_feature(shim.STANDARD_ORPHAN_MESH_FEATURE_NAME, part)
 
 
 
@@ -637,20 +637,27 @@ def _estimate_gradient_volume(at: geom.Vec3D,
            set of all possible traction vectors and range which is all positive 
            reals. It is defined for a particular target geometry, a particular
            deformed geometry, and a face. To evaluate the function at a point, 
-           you simply apply the traction (the point) to the deformed geometry on 
+           you simply apply the traction (the point) to the target geometry on 
            the specified face, overlap the resulting geometry in space with the 
-           target geometry, and compute the volume of the pieces which are not
-           in the intersection.
+           deformed geometry, and compute the volume of the pieces which are not
+           in the intersection (i.e. compute the symmetric difference).
+
+       Implementation Details:
+       By applying traction to the target geometry, and not the deformed geometry,
+           there is no uncertainty in the location of the trench (which may be
+           in a different location due to deformation).
                    
        Args:
            at:                     The traction vector to apply. This is the location
                                        in the domain at which the gradient is
                                        estimated.
-           point_near_face:        Point very near the face on which to apply the
-                                       tractions.
-           deformed_mdb_md:        Metadata associated with deformed MDB.
+           point_on_face:          Point on the face on which to apply the tractions.
+           deformed_mdb_md:        Metadata associated with deformed MDB. Assumed
+                                       to contain a single model with a simple
+                                       part geometry.
            target_geometry_mdb_md: Metadata associated with the target geometry
-                                       MDB.
+                                       MDB. Assumed to contain a single model with
+                                       a simple part geometry.
            commit_phase_md:        Metadata associated with the commitment phase
                                        to which the deformed MDB belongs. 
            path:                   Absolute path to a directory where simulation
@@ -669,68 +676,155 @@ def _estimate_gradient_volume(at: geom.Vec3D,
        Raises:
            None.
     """
+
+    # TODO: Check the content of the MDB containing the target geometry and the
+    #     MDB containing the deformed geometry.
     
     # Change the CWD to fix location of simulation results.
     orig_cwd = os.getcwd()
     os.chdir(path)
     
-    # Need to be disciplined about opening and closing the MDB because only a
-    #     single MDB can be open at once and there are two MDBs that we are
-    #     dealing with in this function.
-    deformed_mdb = shim.use_mdb(deformed_mdb_md.path_to_mdb)
+    target_geometry_mdb = shim.use_mdb(target_geometry_mdb_md.path_to_mdb)
 
     # Step 1:
     # Simulate the traction application.
     job_name = _simulate_traction_app(at, point_near_face, shim.STANDARD_MODEL_NAME,
-                                      deformed_mdb_md, commit_phase_md, deformed_mdb)
+                                      target_geometry_mdb_md, commit_phase_md, 
+                                      target_geometry_mdb)
 
     # Step 2:
     # Clean up. Now the ODB produced by the job can be used.
-    shim.save_mdb(deformed_mdb)
-    shim.close_mdb(deformed_mdb)
+    shim.save_mdb(target_geometry_mdb)
+    shim.close_mdb(target_geometry_mdb)
 
     # Restore the CWD.
     os.chdir(orig_cwd)
 
-    path_to_odb = os.path.join(path, job_name)
-    
+    post_traction_odb = os.path.join(path, job_name)
+
     # Step 3:
-    # Make a copy of the model containing the target geometry in the target
-    #     geometry MDB. 
+    # Make a copy of the model containing the deformed geometry in the deformed
+    #     geometry MDB.
 
     # Generate and retrieve names.
     names = naming.ModelNames(naming.ModelTypes.TARGET_GEOM, target_geometry_mdb_md)
     
-    target_geometry_mdb = shim.use_mdb(target_geometry_mdb_md.path_to_mdb)
+    deformed_geometry_mdb = shim.use_mdb(deformed_mdb_md.path_to_mdb)
 
-    shim.copy_model(names.target_model_name, names.new_model_name, 
-                    target_geometry_mdb_md, target_geometry_mdb)
+    shim.copy_model(names.target_model_name, names.deformed_model_name, 
+                    deformed_mdb_md, deformed_geometry_mdb)
 
     # Step 4:
-    # Map the results from the ODB to a new part in the newly copied model.
-    #     Then convert the orphan mesh to a geometry.
+    # Map the results from the ODB (produced by applying a traction to the target
+    #     geometry) to a part in the newly created model of the deformed geometry 
+    #     MDB. Then convert the orphan mesh to a geometry.
 
-    # Create the orphan mesh and map it to a geometry.
-    shim.create_part_from_odb(names.target_part_name, names.new_model_name,
-                              path_to_odb, target_geometry_mdb_md,
-                              target_geometry_mdb)
-    _orphan_mesh_to_geometry(names.target_part_name, names.new_model_name,
-                             target_geometry_mdb)
+    # Use the ODB content to produce a new part in the newly created model.
+    shim.create_part_from_odb(names.post_traction_part_name, 
+                              names.deformed_model_name,
+                              post_traction_odb,
+                              deformed_mdb_md,
+                              deformed_geometry_mdb)
 
-    shim.assign_section_to_whole_part(names.target_part_name, names.new_model_name,
-                                      target_geometry_mdb)
+    # Associate a geometry with the new part. 
+    _orphan_mesh_to_geometry(names.post_traction_part_name, 
+                             names.deformed_model_name,
+                             deformed_geometry_mdb)
+
+    shim.assign_section_to_whole_part(names.post_traction_part_name, 
+                                      names.deformed_model_name,
+                                      deformed_geometry_mdb)
 
     # Step 5:
-    # Instance the parts, do the boolean operations, and find the volume of the
-    #     region which is not in the intersection.
+    # At this point, the deformed geometry MDB contains the unchanged
+    #     original model with the deformed geometry and a copy of that model
+    #     with two parts: the unchanged deformed geometry and a part which
+    #     represents the result of applying the test traction.
+    # Finally compute the symmetric difference in volume.
     
     # Step 6:
     # Clean up.
-    shim.save_mdb(target_geometry_mdb)
-    shim.close_mdb(target_geometry_mdb)
+    shim.save_mdb(deformed_geometry_mdb)
+    shim.close_mdb(deformed_geometry_mdb)
 
     # TODO:
     return geom.Vec3D(np.array([1, 2, 3])), 10
+
+
+
+def compute_symmetric_diff(part1_name: str, part2_name: str, model_name: str,
+                           mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> int:
+    """Computes the symmetric difference in volume between two part geometries. 
+
+       In set theory, the symmetric difference between two sets A, B is the set
+           of elements which are in either A, B and are not in the intersection
+           of A, B. This function computes the volume which is not in the
+           intersection of two parts.
+                   
+       Args:
+           part1_name: Name of the first part.
+           part2_name: Name of the second part.
+           model_name: Name of the model containing both parts. Assumed that the
+                           model is in its default state, aside from containing
+                           two parts.
+           mdb_md:     Metadata associated with the MDB.
+           mdb:        Abaqus MDB object. Assumed to be open.
+    
+       Returns:
+           Volume of the symmetric difference.
+    
+       Raises:
+           None.
+    """
+
+    # Check that the model is in the expected state.
+    if not shim.check_two_part_model(True, model_name, mdb):
+        raise RuntimeError("The model doesn't contain exactly two parts.")
+    
+    # Step 1: 
+    # Instance the parts into the assembly.
+    part1 = mdb.models[model_name].parts[part1_name]
+    part1_instance = shim.instance_part_into_assembly(part1_name, part1, False, model_name, mdb)
+
+    part2 = mdb.models[model_name].parts[part2_name]
+    part2_instance = shim.instance_part_into_assembly(part2_name, part2, False, model_name, mdb)
+
+    # Step 2:
+    # Find the intersection of the two parts.
+    # Cut, out of first part, the overlapping portion of the second part. Some
+    #     portion of the first part remains. Cut this remaining portion out
+    #     of the first part. This yields the intersection of the two parts.
+
+    # Cut out the overlapping portion of the second part.
+    PART1_REMAINDER_PART_NAME = part1_name + "_Remainder"
+    part1_remainder = shim.cut_instances_in_assembly(PART1_REMAINDER_PART_NAME, part1_instance,
+                                                     (part2_instance,), model_name, mdb_md,
+                                                     mdb)
+    
+    remainder_part_instance = shim.instance_part_into_assembly(PART1_REMAINDER_PART_NAME, 
+                                                               part1_remainder, False, 
+                                                               model_name, mdb)
+    
+    # Unsuppress the instance of part1 so it can be used in the subsequent cutting
+    #     operation.
+    shim.resume_assembly_feature(part1_name, mdb.models[model_name])
+
+    # Do the cut to get the intersection.
+    INTERSECTION_PART_NAME = "Intersection"
+    intersection = shim.cut_instances_in_assembly(INTERSECTION_PART_NAME, part1_instance, 
+                                                  (remainder_part_instance,), model_name,
+                                                  mdb_md, mdb)
+
+    # Step 3:
+    # Find the symmetric difference by using the intersection.
+    
+    # Construct the union of the first and second part, then cut out the
+    #     intersection from the union. This yields the symmetric difference.
+
+    # Step 4:
+    # Compute the volume of the symmetric difference. 
+
+
 
 
 
@@ -785,7 +879,7 @@ def _recover_linear_relationships(points: list[geom.Point3D],
            None.
     """
 
-    if not shim.check_basic_geom(True, mdb):
+    if not shim.check_simple_standard_mdb(True, mdb):
         raise RuntimeError("The MDB should contain a basic geometry.")
 
     # Set the CWD to dictate location of simulation results.

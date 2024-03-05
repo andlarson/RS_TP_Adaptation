@@ -93,15 +93,15 @@ class ModelNames:
 
         elif model_type is ModelTypes.TARGET_GEOM:
             # It is assumed that a model with a target geometry contains a
-            #     a part geometry in a model and nothing more. 
+            #     a part and nothing more. 
             
             # Assumed to already exist at call time.
             self.target_model_name = shim.STANDARD_MODEL_NAME
             self.target_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
             
             # Assumed to be chosen.
-            self.new_model_name = shim.STANDARD_VOL_DIFF_MODEL_PREFIX + str(model_cnt + 1)
-            self.post_traction_part_name = shim.STANDARD_VOL_DIFF_PART_NAME
+            self.deformed_model_name = shim.STANDARD_DEFORMED_MODEL_PREFIX + str(model_cnt + 1)
+            self.post_traction_part_name = shim.STANDARD_POST_TRACTION_PART_NAME
 
 
 

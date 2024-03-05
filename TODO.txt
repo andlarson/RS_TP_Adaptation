@@ -2,7 +2,11 @@
 
 Recovering Residual Stress - Short Term TODO:
 
-1) Finish up 3D geometric comparsion functionality.
+1) Finish the symmetric difference routine.
+
+2) Fix the traction vector application routine so that it is capable of applying
+       traction to many faces which may exist on a trench. 
+
 
 
 Simulating Material Removal - Short Term TODO:

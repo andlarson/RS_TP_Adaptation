@@ -89,8 +89,9 @@ STANDARD_SURFACE_TRACTION_NAME = "Surface_Traction"
 STANDARD_TRACTION_STEP_NAME = "Traction_Application"
 
 # For gradient descent of volume difference function.
-STANDARD_VOL_DIFF_MODEL_PREFIX = "Volume_Difference_"
-STANDARD_VOL_DIFF_PART_NAME = "Post_Traction"
+STANDARD_DEFORMED_MODEL_PREFIX = "Deformed_Geometry_"
+STANDARD_POST_TRACTION_MODEL_PREFIX = "Post_Traction"
+STANDARD_POST_TRACTION_PART_NAME = "Post_Traction"
 
 
 
@@ -493,31 +494,15 @@ def save_mdb(mdb: Any) -> None:
 
 
 
-def check_basic_geom(should_print: bool, mdb: Any) -> bool:
+def check_simple_standard_mdb(should_print: bool, mdb: Any) -> bool:
     """Checks, non-exhaustively, that an MDB contains the basic specification of
-           a part geometry.
-
-       Does not check every detail of the contents of the MDB.
-
-       Args:
-           should_print: Indicates if failures (i.e. the MDB contains stuff
-                             which is unexpected) should cause debug information
-                             to being printed.
-           mdb:          Abaqus MDB object.
-
-       Returns:
-           False if the MDB does not contain a basic specification of a part
-               geometry, True otherwise.
-
-       Raises:
-           None.
-    """
+           a part geometry and follows a standard naming scheme."""
 
     if not _check_standard_model_and_part(should_print, mdb):
         return False 
 
-    if not _check_steps_loads_assembly(should_print, mdb) or \
-       not _check_no_material_and_section(should_print, mdb):
+    if not _check_steps_loads_assembly(should_print, STANDARD_MODEL_NAME, mdb) or \
+       not _check_no_material_and_section(should_print, STANDARD_MODEL_NAME, mdb):
         return False
 
     return True
@@ -565,7 +550,28 @@ def check_job_submissions(should_print: bool, mdb: Any) -> bool:
 
 
 
-def check_standard_model(should_print: bool, model: str, mdb: Any):
+def check_two_part_model(should_print: bool, model_name: str, mdb: Any) -> bool:
+    """Checks, non-exhasutively, that a model contains two parts with simple
+           geometries."""
+
+    if len(mdb.models[model_name].parts) != 2:
+        if should_print:
+            dp("failure 1")
+        return False
+
+    if not _check_no_material_and_section(should_print, model_name, mdb):
+        if should_print:
+            dp("failure 2")
+        return False
+
+    if not _check_steps_loads_assembly(should_print, model_name, mdb):
+        if should_print:
+            dp("failure 3")
+        return False
+
+
+
+def check_standard_model(should_print: bool, model: str, mdb: Any) -> bool:
     """Checks, non-exhaustively, that a model simply contains only a specification
            of a part geometry."""
 
@@ -618,16 +624,14 @@ def _check_standard_model_and_part(should_print: bool, mdb: Any):
 
 
 
-def _check_no_material_and_section(should_print: bool, mdb: Any) -> bool:
-    """Checks that the default model does not have a material, a section, or a
-           section assignment."""
+def _check_no_material_and_section(should_print: bool, model_name: str,
+                                   mdb: Any) -> bool:
+    """Checks that the model has neither a material nor a section."""
 
-    model = mdb.models[STANDARD_MODEL_NAME]
-    part = model.parts[STANDARD_INIT_GEOM_PART_NAME]
+    model = mdb.models[model_name]
 
     if len(model.materials) != 0 or \
        len(model.sections) != 0 or \
-       len(part.sectionAssignments) != 0: 
         if should_print:
             dp("failure 1")
         return False
@@ -636,11 +640,12 @@ def _check_no_material_and_section(should_print: bool, mdb: Any) -> bool:
 
 
 
-def _check_steps_loads_assembly(should_print: bool, mdb: Any) -> bool:
-    """Checks that the default model has exactly one step, no loads, and that
+def _check_steps_loads_assembly(should_print: bool, model_name: str, 
+                                mdb: Any) -> bool:
+    """Checks that the model has exactly one step, no loads, and that
           the assembly has no instances."""
 
-    model = mdb.models[STANDARD_MODEL_NAME]
+    model = mdb.models[model_name]
 
     if len(model.steps) != 1 or \
        len(model.loads) != 0:
@@ -657,7 +662,7 @@ def _check_steps_loads_assembly(should_print: bool, mdb: Any) -> bool:
 
 
 
-def suppress_feature(name: str, part: Any) -> None:
+def suppress_part_feature(name: str, part: Any) -> None:
     """Suppresses a feature associated with a part.
 
        Args:
@@ -672,6 +677,24 @@ def suppress_feature(name: str, part: Any) -> None:
     """
 
     part.suppressFeatures((name, ))
+
+
+
+def resume_assembly_feature(name: str, model: Any) -> None:
+    """Resumes a feature associated with the assembly of a model. 
+                   
+       Args:
+           name: The name of the feature.
+           mdb:  Abaqus Model object.
+    
+       Returns:
+           None.
+    
+       Raises:
+           None.
+    """
+    
+    model.resumeFeatures((name, ))
 
 
 
@@ -1164,10 +1187,7 @@ def cut_instances_in_assembly(name: str, instance_to_be_cut: Any, cutting_instan
         part = mdb.models[model_name].rootAssembly.PartFromBooleanCut(name=name, instanceToBeCut=instance_to_be_cut, cuttingInstances=cutting_instances)
         mdb_metadata.models_metadata[model_name].part_names.append(name)
     except AbaqusException as e:
-        dp("")
-        dp("Failed to do cut operation.")
-        dp("The exception message is " + str(e.args))
-        dp("")
+        dump_exception()
         raise
 
     return part
