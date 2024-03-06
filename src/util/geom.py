@@ -213,8 +213,15 @@ class Vec3D:
         return Vec3D(np.array((op1[0] - op2[0], op1[1] - op2[1], op1[2] - op2[2])))
 
 
+    def __add__(self, other: "Vec3D") -> "Vec3D":
+        """Overloads addition."""
+        op1 = self.components()
+        op2 = self.components()
+        return Vec3D(np.array((op1[0] + op2[0], op1[1] + op2[1], op1[2] + op2[2])))
+
+
     def __str__(self) -> str:
-        """Overloading string representation."""
+        """Overloads string representation."""
         return str(self.components())
     
 

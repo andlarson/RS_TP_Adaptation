@@ -9,11 +9,11 @@ import src.core.metadata.abaqus_metadata as abq_md
 
 # Different types of models have different naming schemes.
 class ModelTypes(Enum):
-    ODB_TO_MDB = 0
-    FIRST_TOOL_PASS_IN_MDB = 1
-    NTH_TOOL_PASS_IN_MDB = 2
+    DEFAULT_MODEL = 0
+    FIRST_TOOL_PASS = 1
+    NTH_TOOL_PASS = 2
     TRACTION_APP = 3
-    TARGET_GEOM = 4
+    EVAL_VOL_DIFF = 4
 
 
 
@@ -35,7 +35,7 @@ class ModelNames:
                                 and is going to be used to simulate a tool pass, 
                                 then the names of some stuff are set by Abaqus
                                 (e.g. the model name) while other names 
-                                get to be chosen (e.g. the first part they create).
+                                get to be chosen (e.g. when a part is created).
               mdb_metadata: The metadata associated with the MDB of interest. 
            
            Returns:
@@ -47,12 +47,12 @@ class ModelNames:
 
         model_cnt = len(mdb_metadata.model_names)
         
-        if model_type is ModelTypes.ODB_TO_MDB:
+        if model_type is ModelTypes.DEFAULT_MODEL:
             # Assumed to already exist at call time. 
             self.new_model_name = shim.STANDARD_MODEL_NAME
             self.part_from_odb_name = shim.STANDARD_INIT_GEOM_PART_NAME
 
-        elif model_type is ModelTypes.FIRST_TOOL_PASS_IN_MDB:
+        elif model_type is ModelTypes.FIRST_TOOL_PASS:
             # Assumed to already exist at call time. 
             self.new_model_name = shim.STANDARD_MODEL_NAME
             self.pre_tool_pass_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
@@ -63,7 +63,7 @@ class ModelNames:
             self.deformation_step_name = shim.STANDARD_DEFORMATION_STEP_NAME
             self.equilibrium_step_name = shim.STANDARD_EQUIL_STEP_NAME 
 
-        elif model_type is ModelTypes.NTH_TOOL_PASS_IN_MDB:
+        elif model_type is ModelTypes.NTH_TOOL_PASS:
             # Assumed to already exist at call time. 
             # Assumes that an ODB was used to create the initial part in this
             #     model, and that ODB was produced by running the last
@@ -82,7 +82,8 @@ class ModelNames:
             # It is assumed that a model which includes traction application
             #     will be created by copying another model which contains a simple 
             #     part geometry. In the copy, the part name will be unchanged.
-
+            
+            # Assumed to already exist at call time.
             # Assumed to result from copy operation.
             self.deformed_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
 
@@ -91,16 +92,18 @@ class ModelNames:
             self.traction_step_name = shim.STANDARD_TRACTION_STEP_NAME
             self.traction_job_name = shim.STANDARD_JOB_PREFIX + str(model_cnt + 1)
 
-        elif model_type is ModelTypes.TARGET_GEOM:
-            # It is assumed that a model with a target geometry contains a
-            #     a part and nothing more. 
+        elif model_type is ModelTypes.EVAL_VOL_DIFF:
+            # In order to compute the value of the volume difference function, 
+            #     it's assumed that a model containing a deformed geometry will need
+            #     to be copied and a part which contains the result of applying
+            #     a traction will need to be created.
             
             # Assumed to already exist at call time.
-            self.target_model_name = shim.STANDARD_MODEL_NAME
-            self.target_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
+            self.post_cut_post_deform_model_name = shim.STANDARD_MODEL_NAME
+            self.post_cut_post_deform_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
             
             # Assumed to be chosen.
-            self.deformed_model_name = shim.STANDARD_DEFORMED_MODEL_PREFIX + str(model_cnt + 1)
+            self.new_model_name = shim.STANDARD_DEFORMED_MODEL_PREFIX + str(model_cnt + 1)
             self.post_traction_part_name = shim.STANDARD_POST_TRACTION_PART_NAME
 
 

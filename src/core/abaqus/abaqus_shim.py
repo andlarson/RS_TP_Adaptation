@@ -304,6 +304,23 @@ def get_bc_cnt(model_name: str, mdb: Any) -> int:
 
 
 
+def compute_part_volume(part: Any) -> int:
+    """Computes the volume of a solid part.
+                   
+       Args:
+           part: Abaqus Part object.
+    
+       Returns:
+           The volume of the part.
+    
+       Raises:
+           None.
+    """
+
+    return part.queryGeometry["volume"]
+
+
+
 # *****************************************************************************
 #                         Abaqus Object Manipulation 
 #    These functions manipulate the state/information that Abaqus maintains.
@@ -630,8 +647,7 @@ def _check_no_material_and_section(should_print: bool, model_name: str,
 
     model = mdb.models[model_name]
 
-    if len(model.materials) != 0 or \
-       len(model.sections) != 0 or \
+    if len(model.materials) != 0 or len(model.sections) != 0: 
         if should_print:
             dp("failure 1")
         return False
@@ -2046,6 +2062,48 @@ def create_traction(name: str, step_name: str, traction: geom.Vec3D, face_seq: A
 
 
 
+def merge_instances_in_assembly(name: str, instances_to_merge: tuple[Any, ...], 
+                                keep_intersections: bool, model_name: str, 
+                                mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
+                               ) -> Any:
+    """Merges instances to create a new part.
+
+       Explicitly suppresses the instances used to do the merge.
+       
+       Args:
+           name:               The name of the resulting part.
+           instance_to_merge:  Tuple of Abaqus PartInstance objects. The instances 
+                                   to be merged.
+           keep_intersections: Should the intersecting boundaries be kept after 
+                                   the merge?
+           model_name:         Model in which the instances to be merged exist. 
+           mdb_metadata:       Metadata for this MDB.
+           mdb:                Abaqus MDB object.
+
+       Returns:
+           Abaqus Part object.
+
+       Raises:
+           None.
+    """
+
+    try:
+        part = mdb.models[model_name].rootAssembly.PartFromBooleanMerge(name, instances_to_merge, keepIntersections=keep_intersections)
+        mdb_metadata.models_metadata[model_name].part_names.append(name)
+
+        # Suppress the features used in the merge. 
+        for instance in instances_to_merge:
+            abq_name = (instance.name, )
+            mdb.models[model_name].rootAssembly.suppressFeatures(abq_name)
+
+    except AbaqusException as e:
+        dump_exception()
+        raise
+
+    return part
+
+
+
 # *****************************************************************************
 #                                 DEPRECATED 
 # *****************************************************************************
@@ -2497,53 +2555,6 @@ def _build_tool_pass_bounding_box(name: str, x_excess: float, y_excess: float,
 
 
 
-def _merge_instances_in_assembly(name: str, instances_to_merge: tuple[Any, ...], 
-                                 keep_intersections: bool, model_name: str, 
-                                 mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
-                                ) -> Any:
-    """DEPRECATED. Was a helper for the bounding box mesh refinement technique.
-
-       Merges instances to create a new part.
-
-       Explicitly suppresses the instances used to do the merge.
-       
-       Args:
-           name:               The name of the resulting part.
-           instance_to_merge:  Tuple of Abaqus PartInstance objects. The instances 
-                                   to be merged.
-           keep_intersections: Should the intersecting boundaries be kept after 
-                                   the merge?
-           model_name:         Model in which the instances to be merged exist. 
-           mdb_metadata:       Metadata for this MDB.
-           mdb:                Abaqus MDB object.
-
-       Returns:
-           Abaqus Part object.
-
-       Raises:
-           None.
-    """
-
-    try:
-        part = mdb.models[model_name].rootAssembly.PartFromBooleanMerge(name, instances_to_merge, keepIntersections=keep_intersections)
-        mdb_metadata.models_metadata[model_name].part_names.append(name)
-
-        # Suppress the features used in the merge. 
-        for instance in instances_to_merge:
-            abq_name = (instance.name, )
-            mdb.models[model_name].rootAssembly.suppressFeatures(abq_name)
-
-    except AbaqusException as e:
-        dp("")
-        dp("Failed to do merge operation.")
-        dp("The exception message is " + str(e.args))
-        dp("")
-        raise
-
-    return part
-
-
-
 def _update_session_odbs() -> None:
     """DEPRECATED. Was used in an attempt to mitigate buggy accesses to out-of-
            date ODBs. In particular, was used in an attempt to propagate
@@ -2629,7 +2640,7 @@ def _create_material_from_odb(path_to_odb: str, odb_model_name: str,
 
 
 def _check_material_properties(material: Any) -> tuple[float, float]:
-    """DEPRECATED. Was a helper function for exproting a material definition
+    """DEPRECATED. Was a helper function for exporting a material definition
            from an ODB to a new model. When I moved this function to deprecated
            status, I found a bug in it which may have been the reason why
            exporting the material from an ODB was failing.

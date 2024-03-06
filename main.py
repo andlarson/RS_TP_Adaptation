@@ -191,10 +191,6 @@ if __name__ == "__main__":
         _ = main_machining.estimate_stress(TP_STRESS_ESTIMATION_DIR)
 
         # ----- Main Sim: Provide Estimate of Whole Stress Field -----
-
-        # TODO: This will eventually be produced by some technique that fuses
-        #     all of the stress estimates together to yield a whole-field
-        #     estimate.
         main_machining.use_stress_profile(STRESS_FIELD_ESTIMATE)
 
 

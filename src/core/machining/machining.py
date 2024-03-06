@@ -233,18 +233,10 @@ class MachiningProcess:
         """Estimates the residual stress tensor field which existed in the region
                of material removal due to the last committed tool pass plan.
            
-           TODO: The wording below is slightly incorrect. The user can only
-               do stress estimation for the current commitment phase, when
-               the current commitment phase contains a valid (committed tool
-               pass plan, real world data) pair. This means that a usage
-               pattern like, from the caller's perspective, commit_tpp() ->
-               upload_real_world_data() -> simulate_potential_tpp() ->
-               estimate_stress() will fail because the simulate_potential_tpp() call
-               will cause a new commitment phase to start.
-
            This function should only be called after a tool pass plan has been
                committed and the real world data associated with the committed 
-               tool pass plan has been collected and passed to this library.
+               tool pass plan has been collected and passed to this library. It
+               should be called before simulating any additional tool pass plans.
            
            This function should only be called if the last committed tool pass
                plan contains exactly one tool pass. The underlying
@@ -305,7 +297,6 @@ class MachiningProcess:
             # The MDB containing the initial part has no metadata associated
             #     with it.
             target_geometry_mdb_md = abq_md.AbaqusMdbMetadata(target_geometry_mdb_path)
-            
         else:
             # The real world data from the last commitment phase is the target
             #     geometry.
