@@ -28,8 +28,6 @@ import src.core.residual_stress.residual_stress as rs
 from src.util.debug import *
 
 
-DEFORMED_GEOMETRY_MDB_NAME = "recover_residual_stresses.cae"
-TARGET_GEOMETRY_MDB_NAME = "target_geometry.cae"
 
 class MachiningProcess:
 
@@ -176,7 +174,7 @@ class MachiningProcess:
         self._simulate_tpp(tool_pass_plan, save_name, save_dir, mdb_md, mdb)            
         shim.close_mdb(mdb)
         
-        # The tool pass plan was simualted, so record the metadata. 
+        # The tool pass plan was simulated, so record the metadata. 
         new_dir_path = os.path.join(save_dir, save_name)
         commit_phase_md.potential_tpps.append((save_name, tool_pass_plan, new_dir_path))
         commit_phase_md.potential_tpp_mdb_metadata.append(mdb_md)
@@ -276,6 +274,7 @@ class MachiningProcess:
         #     tracked at all.
         
         # The real world data for this commitment phase is the deformed geometry.
+        DEFORMED_GEOMETRY_MDB_NAME = "deformed_geometry.cae"
         deformed_geometry_mdb_path = os.path.join(path, DEFORMED_GEOMETRY_MDB_NAME)
         to_copy = cur_commit_phase_md.real_world_part.path_to_mdb
         shim.copy_mdb(to_copy, deformed_geometry_mdb_path)
@@ -288,6 +287,7 @@ class MachiningProcess:
         #     initial part. In all other commitment phases, the target geometry
         #     comes from the real world data of the previous commitment
         #     phase.
+        TARGET_GEOMETRY_MDB_NAME = "target_geometry.cae"
         target_geometry_mdb_path = os.path.join(path, TARGET_GEOMETRY_MDB_NAME)
         if len(self.commitment_phase_metadata) == 1:
             # The initial workpiece geometry is the target geometry. 

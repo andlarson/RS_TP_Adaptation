@@ -80,12 +80,10 @@ class ModelNames:
 
         elif model_type is ModelTypes.TRACTION_APP:
             # It is assumed that a model which includes traction application
-            #     will be created by copying another model which contains a simple 
-            #     part geometry. In the copy, the part name will be unchanged.
-            
-            # Assumed to already exist at call time.
-            # Assumed to result from copy operation.
-            self.deformed_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
+            #     will be created by copying another model which contains a single
+            #     part instance. No assumption is made about the name of the
+            #     single part instance (it can be easily discovered since there
+            #     is only a single part instance).
 
             # Assumed to be chosen.
             self.new_model_name = shim.STANDARD_MODEL_NAME_PREFIX + str(model_cnt + 1)
@@ -103,7 +101,7 @@ class ModelNames:
             self.post_cut_post_deform_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
             
             # Assumed to be chosen.
-            self.new_model_name = shim.STANDARD_DEFORMED_MODEL_PREFIX + str(model_cnt + 1)
+            self.new_model_name = shim.STANDARD_VOLUME_DIFFERENCE_MODEL_PREFIX + str(model_cnt + 1)
             self.post_traction_part_name = shim.STANDARD_POST_TRACTION_PART_NAME
 
 

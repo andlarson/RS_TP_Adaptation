@@ -27,6 +27,8 @@ General - Short Term TODO:
 
 1) Fix the mypy " | None" issue that is causing it to generate lots of false-
       positives.
+
+2) Implement checkpointing to save time debugging.
  
 
 

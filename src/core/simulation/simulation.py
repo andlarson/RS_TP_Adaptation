@@ -274,9 +274,10 @@ def _do_boilerplate_tp_sim_ops(tool_pass: tp.ToolPass,
            None.
     """
     
-    post_tool_pass_instance = _do_core_tp_ops(tool_pass, names, mdb_metadata, commit_metadata, mdb)
+    post_tool_pass_instance = _do_cut(tool_pass, names, mdb_metadata, mdb)
 
-    # Then mesh the part in the assembly module.
+    bc.apply_BCs(commit_metadata.BCs, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_instance, names.new_model_name, mdb)
+
     shim.mesh(post_tool_pass_instance, 20, names.new_model_name, mdb)
 
     last_step_name = mdb_metadata.models_metadata[names.new_model_name].step_names[-1]
@@ -288,21 +289,20 @@ def _do_boilerplate_tp_sim_ops(tool_pass: tp.ToolPass,
 
 
 
-def _do_core_tp_ops(tool_pass: tp.ToolPass, 
-                    names: naming.ModelNames, 
-                    mdb_metadata: abq_md.AbaqusMdbMetadata,
-                    commit_metadata: md.CommitmentPhaseMetadata, 
-                    mdb: Any
-                   ) -> Any:
-    """Does core operations related to a tool pass which are necessary to set
-           up for a tool pass simulation.
-                   
+def _do_cut(tool_pass: tp.ToolPass, 
+            names: naming.ModelNames, 
+            mdb_metadata: abq_md.AbaqusMdbMetadata,
+            mdb: Any
+           ) -> Any:
+    """Cuts out the tool pass geometry from a part.
+
+       Deletes the part instances used to do the cutting.
+
        Args:
            tool_pass:           The tool pass to simulate.
            names:               The names associated with the model which contains
                                     the tool pass material removal in the MDB.
            mdb_metadata:        Metadata associated with the the MDB.
-           commit_metadata:     Metadata associated with the commitment phase.
            mdb:                 Abaqus MDB object. The MDB in which the tool pass
                                     will be simulated. 
     
@@ -314,7 +314,8 @@ def _do_core_tp_ops(tool_pass: tp.ToolPass,
            None.
     """
 
-    initial_geom_part = mdb.models[names.new_model_name].parts[names.pre_tool_pass_part_name]
+    model = mdb.models[names.new_model_name]
+    initial_geom_part = model.parts[names.pre_tool_pass_part_name]
     initial_geom_instance = shim.instance_part_into_assembly(names.pre_tool_pass_part_name, initial_geom_part, False, names.new_model_name, mdb)  
 
     tool_pass_part = shim.build_tool_pass_part(names.tool_pass_part_name, tool_pass, names.new_model_name, mdb_metadata, mdb)
@@ -322,6 +323,9 @@ def _do_core_tp_ops(tool_pass: tp.ToolPass,
 
     cutting_instances = (tool_pass_part_instance, )
     post_tool_pass_part = shim.cut_instances_in_assembly(names.post_tool_pass_part_name, initial_geom_instance, cutting_instances, names.new_model_name, mdb_metadata, mdb)
+
+    shim.delete_assembly_feature(names.pre_tool_pass_part_name, model)    
+    shim.delete_assembly_feature(names.tool_pass_part_name, model)
 
     shim.assign_only_section_to_part(post_tool_pass_part, names.new_model_name, mdb)
 
@@ -334,8 +338,6 @@ def _do_core_tp_ops(tool_pass: tp.ToolPass,
     #    module.
     post_tool_pass_instance = shim.instance_part_into_assembly(names.post_tool_pass_part_name, post_tool_pass_part, False, names.new_model_name, mdb)
 
-    bc.apply_BCs(commit_metadata.BCs, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_instance, names.new_model_name, mdb)
-    
     return post_tool_pass_instance
 
 
@@ -346,20 +348,17 @@ def _simulate_traction_app(traction: geom.Vec3D,
                            mdb_metadata: abq_md.AbaqusMdbMetadata,
                            commit_phase_md: md.CommitmentPhaseMetadata,
                            mdb: Any) -> str:
-    """Does some operations such as instancing, section assignment, traction 
-           creation, meshing, etc. and then runs the job.
+    """Simulates applying a traction to a face.
 
-       Implementation Detail:
-       By assuming that the model to copy already has a geometry associated with
-           it, there is no need to map an orphan mesh to a geometry in this
-           function, which yields significant runtime savings.
-       
        Args:
            traction:        The traction vector to apply.
            point_near_face: A point which lies on, or very near, the face on which
                                 to apply the traction.
-           model_to_copy:   The name of the model to copy. This model should
-                                define a part geometry.
+           model_to_copy:   The name of the model to copy. Assumed that this
+                                model contains a single part instance. This part
+                                instance should have the face the point is near.
+                                The face on this part instance is the face to
+                                which the traction is applied.
            mdb_metadata:    Metadata associated with the MDB. 
            commit_phase_md: Metadata associated with the commitment phase.
            mdb:             Abaqus MDB object. The MDB to use.
@@ -371,33 +370,18 @@ def _simulate_traction_app(traction: geom.Vec3D,
            None.
     """
 
-    if not shim.check_standard_model(True, model_to_copy, mdb):
-        raise RuntimeError("The model to copy is in an unexpected state.")
+    if not shim.check_first_model_simple_assembly(True, mdb_metadata, mdb):
+        raise RuntimeError("The MDB is in an unexpected state.")
 
     names = naming.ModelNames(naming.ModelTypes.TRACTION_APP, mdb_metadata)
     
     shim.copy_model(model_to_copy, names.new_model_name, mdb_metadata, mdb)
-
-    initial_geom_part = mdb.models[names.new_model_name].parts[names.deformed_part_name]
-
-    shim.create_material(commit_phase_md.init_part.material, names.new_model_name, mdb)
-    shim.create_section(names.new_model_name, mdb)
-    shim.assign_section_to_whole_part(names.deformed_part_name, names.new_model_name, mdb)
-
-    shim.assign_only_section_to_part(initial_geom_part, names.new_model_name, mdb)
-
-    shim.add_virtual_topology(initial_geom_part)
-
-    # The instance is independent so that meshing can be done in the Assembly
-    #    module.
-    initial_geom_instance = shim.instance_part_into_assembly(names.deformed_part_name, 
-                                                             initial_geom_part, 
-                                                             False, 
-                                                             names.new_model_name, 
-                                                             mdb)  
+    
+    instance_name = shim.get_only_instance_name(mdb.models[names.new_model_name])
+    instance = mdb.models[names.new_model_name].rootAssembly.instances[instance_name]
 
     bc.apply_BCs(commit_phase_md.BCs, shim.STANDARD_INITIAL_STEP_NAME, 
-                 initial_geom_instance, names.new_model_name, mdb)
+                 instance, names.new_model_name, mdb)
     
     # Add a step for traction application. 
     model_metadata = mdb_metadata.models_metadata[names.new_model_name]
@@ -405,12 +389,12 @@ def _simulate_traction_app(traction: geom.Vec3D,
     shim.create_step(names.traction_step_name, last_step_name, names.new_model_name, 
                      mdb_metadata, mdb)
     
-    face = shim.get_closest_face([point_near_face], initial_geom_instance, True)
+    face = shim.get_closest_face([point_near_face], instance, True)
 
     shim.create_traction(shim.STANDARD_SURFACE_TRACTION_NAME, names.traction_step_name,
                          traction, face, names.new_model_name, mdb) 
 
-    shim.mesh(initial_geom_instance, 20, names.new_model_name, mdb)
+    shim.mesh(instance, 20, names.new_model_name, mdb)
 
     job = shim.create_job(names.traction_job_name, names.new_model_name, mdb_metadata, mdb)
 
@@ -537,9 +521,13 @@ def estimate_residual_stresses(deformed_geometry_mdb_md: abq_md.AbaqusMdbMetadat
            deformed_geometry_mdb_md: Metadata associated with the MDB containing 
                                          the part after the it underwent some
                                          deformation due to material removal.
+                                         Assumed to contain a single model, a 
+                                         single part, and standard naming.
            target_geometry_mdb_md:   Metadata associated with MDB containing the 
                                          part before it underwent some deformation
-                                         due to material removal.
+                                         due to material removal. Assumed to 
+                                         contain a single model, a single part, 
+                                         and standard naming.
            tool_pass:                The tool pass that removed material.
            commit_phase_md:          The commitment phase during which the tool 
                                          pass was committed to.
@@ -577,9 +565,13 @@ def _recover_constant_residual_stress(deformed_mdb_md: abq_md.AbaqusMdbMetadata,
            deformed_mdb_md:        Metadata associated with the MDB containing 
                                        the part after the it underwent some
                                        deformation due to material removal.
+                                       Assumed to contain a single model, a 
+                                       single part, and standard naming.
            target_geometry_mdb_md: Metadata associated with MDB containing the 
                                        part before it underwent some deformation
-                                       due to material removal.
+                                       due to material removal. Assumed to 
+                                       contain a single model, a single part,
+                                       and standard naming.
            tool_pass:              The tool pass that removed material.
            commit_phase_md:        The commitment phase during which the tool 
                                        pass was committed to.
@@ -597,10 +589,21 @@ def _recover_constant_residual_stress(deformed_mdb_md: abq_md.AbaqusMdbMetadata,
     """
     
     # Step 1:
-    # Apply the tool pass to the real world data from the previous
-    #     commitment phase. The resulting geometry is that which would exist if 
-    #     there were no residual stresses present.
+    # Removing the chunk of material due to the tool pass from the target geometry
+    #     results in the geometry that would result if no residual stresses were
+    #     present.
+    names = naming.ModelNames(naming.ModelTypes.FIRST_TOOL_PASS, target_geometry_mdb_md)
+    target_mdb = shim.use_mdb(target_geometry_mdb_md.path_to_mdb)
 
+    shim.create_material(commit_phase_md.init_part.material, shim.STANDARD_MODEL_NAME, target_mdb)
+    shim.create_section(shim.STANDARD_MODEL_NAME, target_mdb)
+    shim.assign_section_to_whole_part(shim.STANDARD_INIT_GEOM_PART_NAME, shim.STANDARD_MODEL_NAME, target_mdb)
+    target_geom_part = target_mdb.models[shim.STANDARD_MODEL_NAME].parts[shim.STANDARD_INIT_GEOM_PART_NAME]
+    shim.assign_only_section_to_part(target_geom_part, shim.STANDARD_MODEL_NAME, target_mdb)
+    _do_cut(tool_pass, names, target_geometry_mdb_md, target_mdb)  
+
+    shim.save_mdb(target_mdb)
+    shim.close_mdb(target_mdb)
 
     # Step 2:
     # Find a point on the trench for the tool pass.
@@ -610,7 +613,7 @@ def _recover_constant_residual_stress(deformed_mdb_md: abq_md.AbaqusMdbMetadata,
 
     # Step 3:
     # Do gradient descent on the volume difference function. 
-    cur = geom.Vec3D(np.array([0, 0, 0]))
+    cur = geom.Vec3D(np.array([100000000, 0, 0]))
     iteration_cnt = 3 
     step_size = 1
 
@@ -621,6 +624,8 @@ def _recover_constant_residual_stress(deformed_mdb_md: abq_md.AbaqusMdbMetadata,
     # Step 4:
     # Map the "good traction vector" to the components of the stress tensor
     #     assuming a constant state of stress.
+    
+    return None
 
 
      
@@ -659,18 +664,21 @@ def _compute_gradient(at: geom.Vec3D,
        Implementation Details:
        Computes the value of the volume-difference function at small offsets
            (in orthogonal directions) from the point of offset. Formally, this
-           technique is a finite-differences style appraoch.
+           technique is a finite-differences style gradient estimation. 
 
        Args:
            at:                     The traction vector to apply. This is the point
                                        at which the gradient is estimated. 
            point_on_face:          Point on the face on which to apply the tractions.
-           deformed_mdb_md:        Metadata associated with deformed MDB. Assumed
-                                       to contain a single model with a simple
-                                       part geometry.
+           deformed_mdb_md:        Metadata associated with deformed MDB. Assumed that
+                                       the first model contains a single part and
+                                       standard naming. This part is assumed
+                                       to be the deformed geoemtry.
            target_geometry_mdb_md: Metadata associated with the target geometry
-                                       MDB. Assumed to contain a single model with
-                                       a simple part geometry.
+                                       MDB. Assumed that the first model contains
+                                       a single part instance. This part
+                                       instance is assumed to be the target
+                                       geometry.
            commit_phase_md:        Metadata associated with the commitment phase
                                        to which the deformed MDB belongs. 
            path:                   Absolute path to a directory where simulation
@@ -683,8 +691,9 @@ def _compute_gradient(at: geom.Vec3D,
            None.
     """
     
-    # Arbitrary offset. May want to choose offset relative to point of evaluation.
-    offset = 1
+    # Offset relative to length. 
+    length = at.len()
+    offset = length * .05
 
     offset_in_x = at + geom.Vec3D(np.array([offset, 0, 0]))
     offset_in_y = at + geom.Vec3D(np.array([0, offset, 0]))
@@ -727,19 +736,17 @@ def _evaluate_vol_diff(at: geom.Vec3D,
        By applying traction to the target geometry, and not the deformed geometry,
            there is no uncertainty in the location of the trench (which may be
            in a different location due to deformation).
-       This function makes significant changes to the MDB containing the deformed
-           geometry.
                    
        Args:
            at:                     The traction vector to apply. This is the point
-                                       at which the function is evaluated.
+                                       at which the function is evaluated. 
            point_on_face:          Point on the face on which to apply the tractions.
-           deformed_mdb_md:        Metadata associated with deformed MDB. Assumed
-                                       that the first model in this MDB contains
-                                       the deformed geometry.
+           deformed_mdb_md:        Metadata associated with deformed MDB. Assumed that
+                                       the first model in the MDB contains a single
+                                       part instance. 
            target_geometry_mdb_md: Metadata associated with the target geometry
-                                       MDB. Assumed to contain a single model with
-                                       a simple part geometry.
+                                       MDB. Assumed that the first model in the MDB
+                                       contains a single part instance.
            commit_phase_md:        Metadata associated with the commitment phase
                                        to which the deformed MDB belongs. 
            path:                   Absolute path to a directory where simulation
@@ -755,13 +762,12 @@ def _evaluate_vol_diff(at: geom.Vec3D,
     
     # Check that the MDBs are in the expected state.
     target_geometry_mdb = shim.use_mdb(target_geometry_mdb_md.path_to_mdb)
-    if not shim.check_simple_standard_mdb(True, target_geometry_mdb):
+    if not shim.check_first_model_simple_assembly(True, target_geometry_mdb_md, target_geometry_mdb):
         raise RuntimeError("Target geometry MDB is in an unexpected state.")
     shim.close_mdb(target_geometry_mdb)
 
     deformed_geometry_mdb = shim.use_mdb(deformed_mdb_md.path_to_mdb)
-    if not (shim.check_simple_standard_mdb(True, deformed_geometry_mdb) or
-            shim.check_multiple_models(True, deformed_geometry_mdb)):
+    if not shim.check_simple_standard_mdb(True, deformed_geometry_mdb):
         raise RuntimeError("Deformed geometry MDB is in an unexpected state.")
     shim.close_mdb(deformed_geometry_mdb)
     
@@ -785,7 +791,7 @@ def _evaluate_vol_diff(at: geom.Vec3D,
     # Restore the CWD.
     os.chdir(orig_cwd)
 
-    post_traction_odb = os.path.join(path, job_name)
+    post_traction_odb = os.path.join(path, job_name + ".odb")
 
     # Step 3:
     # Make a copy of the model containing the deformed geometry in the deformed
@@ -816,16 +822,12 @@ def _evaluate_vol_diff(at: geom.Vec3D,
     _orphan_mesh_to_geometry(names.post_traction_part_name, names.new_model_name,
                              deformed_geometry_mdb)
 
-    shim.assign_section_to_whole_part(names.post_traction_part_name, 
-                                      names.new_model_name,
-                                      deformed_geometry_mdb)
-
     # Step 5:
     # Compute the symmetric difference in volume between these two parts. 
-    symm_diff_vol = compute_symmetric_diff(names.post_cut_post_deform_model_name,
-                                           names.post_tool_pass_part_name,
-                                           names.new_model_name, deformed_mdb_md,
-                                           deformed_geometry_mdb)
+    symm_diff_vol = _compute_symmetric_diff(names.post_cut_post_deform_part_name,
+                                            names.post_traction_part_name,
+                                            names.new_model_name, deformed_mdb_md,
+                                            deformed_geometry_mdb)
 
     # Step 6:
     # Clean up.
@@ -836,8 +838,8 @@ def _evaluate_vol_diff(at: geom.Vec3D,
 
 
 
-def compute_symmetric_diff(part1_name: str, part2_name: str, model_name: str,
-                           mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> int:
+def _compute_symmetric_diff(part1_name: str, part2_name: str, model_name: str,
+                            mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> int:
     """Computes the symmetric difference in volume between two part geometries. 
 
        In set theory, the symmetric difference between two sets A, B is the set
@@ -863,7 +865,7 @@ def compute_symmetric_diff(part1_name: str, part2_name: str, model_name: str,
 
     # Check that the model is in the expected state.
     if not shim.check_two_part_model(True, model_name, mdb):
-        raise RuntimeError("The model doesn't contain exactly two parts.")
+        raise RuntimeError("Model in unexpected state.")
     
     # Step 1: 
     # Instance the parts into the assembly.
@@ -1066,15 +1068,3 @@ def _compute_linear_relationship(tractions: tuple[geom.Vec3D, geom.Vec3D, geom.V
     res = np.linalg.solve(tractions.T, displacements.T).T
 
     return res
-
-
-
-
-
-
-
-
-
-    
-
-

@@ -147,20 +147,34 @@ if __name__ == "__main__":
 
         main_machining.sim_potential_tool_passes(potential_tpp_1, potential_tpp_names[0], TP_DIR)
 
-        # ----- Main Sim: Simulate Second Potential TPP -----
-        p1 = geom.Point3D(np.array((5, 5, 300)))
-        p2 = geom.Point3D(np.array((5, 5, 200)))
-        path = geom.PlanarCubicC2Spline3D([p1, p2])
-        tp1 = tp.ToolPass(path, 2, 10)
+        # ----- Checkpoint Progress -----
         
-        p1 = geom.Point3D(np.array((5, 5, 300)))
-        p2 = geom.Point3D(np.array((35, 5, 300)))
-        path = geom.PlanarCubicC2Spline3D([p1, p2])
-        tp2 = tp.ToolPass(path, 2, 10)
+        # Pickle the full machining data structure.
+        # Are there any MDBs which are open? Is there any other state which needs
+        #     to be cleaned up?
+        # What files were created at this point in the execution? What directories
+        #     were created at this point? These things are also state that needs
+        #     to be saved off.
+        # Does Abaqus save hidden state anywhere?
+        # 
+        # Where do I want all the state to be saved? Arbitrary directory of user's
+        #     choosing.
 
-        potential_tpp_2 = tp.ToolPassPlan([tp1, tp2])
 
-        main_machining.sim_potential_tool_passes(potential_tpp_2, potential_tpp_names[1], TP_DIR)
+        # ----- Main Sim: Simulate Second Potential TPP -----
+        # p1 = geom.Point3D(np.array((5, 5, 300)))
+        # p2 = geom.Point3D(np.array((5, 5, 200)))
+        # path = geom.PlanarCubicC2Spline3D([p1, p2])
+        # tp1 = tp.ToolPass(path, 2, 10)
+        # 
+        # p1 = geom.Point3D(np.array((5, 5, 300)))
+        # p2 = geom.Point3D(np.array((35, 5, 300)))
+        # path = geom.PlanarCubicC2Spline3D([p1, p2])
+        # tp2 = tp.ToolPass(path, 2, 10)
+
+        # potential_tpp_2 = tp.ToolPassPlan([tp1, tp2])
+
+        # main_machining.sim_potential_tool_passes(potential_tpp_2, potential_tpp_names[1], TP_DIR)
 
         # ----- Main Sim: Commit to a TPP -----
         committed_plan = potential_tpp_1

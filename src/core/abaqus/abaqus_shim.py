@@ -89,7 +89,7 @@ STANDARD_SURFACE_TRACTION_NAME = "Surface_Traction"
 STANDARD_TRACTION_STEP_NAME = "Traction_Application"
 
 # For gradient descent of volume difference function.
-STANDARD_DEFORMED_MODEL_PREFIX = "Deformed_Geometry_"
+STANDARD_VOLUME_DIFFERENCE_MODEL_PREFIX = "Volume_Difference_"
 STANDARD_POST_TRACTION_MODEL_PREFIX = "Post_Traction"
 STANDARD_POST_TRACTION_PART_NAME = "Post_Traction"
 
@@ -321,10 +321,225 @@ def compute_part_volume(part: Any) -> int:
 
 
 
+def check_simple_assembly(should_print: bool, mdb: Any) -> bool:
+    """Checks that an MDB contains a single model with a single part instance
+           in its assembly. No naming scheme is assumed."""
+
+    if len(mdb.models) != 1:
+        if should_print:
+            dp("failure 1")
+        return False
+    
+    model_name = mdb.models.keys()[0]
+    if len(mdb.models[model_name].rootAssembly.instances) != 1:
+        if should_print:
+            dp("failure 2")
+        return False
+
+    return True
+
+
+
+def check_first_model_simple_assembly(should_print: bool, mdb_md: abq_md.AbaqusMdbMetadata, 
+                                      mdb: Any) -> bool:
+    """Checks that the first model in an MDB contains a single part instance
+           in its assembly. No naming scheme is assumed."""
+
+    first_model_name = mdb_md.model_names[0]
+
+    if len(mdb.models[first_model_name].rootAssembly.instances) != 1:
+        if should_print:
+            dp("failure 1")
+        return False
+
+    return True
+
+
+
+def check_multiple_steps(should_print: bool, model_name: str, mdb: Any) -> bool:
+    """Checks that a model contains multiple steps."""
+
+    if model_name not in mdb.models:
+        if should_print:
+            dp("failure 1")
+        return False
+
+    if len(mdb.models[model_name].steps) == 1:
+        if should_print:
+            dp("failure 2")
+        return False 
+
+    return True 
+
+
+
+def check_multiple_models(should_print: bool, mdb: Any) -> bool:
+    """Checks if an MDB contains multiple models."""
+
+    if len(mdb.models) <= 1: 
+        if should_print:
+            dp("failure 1")
+        return False
+
+    return True
+
+
+
+def check_job_submissions(should_print: bool, mdb: Any) -> bool:
+    """Checks if an MDB has at least one job submission."""
+
+    if len(mdb.jobs) < 1:
+        if should_print:
+            dp("failure 1")
+        return False
+
+    return True
+
+
+
+def check_two_part_model(should_print: bool, model_name: str, mdb: Any) -> bool:
+    """Checks, non-exhasutively, that a model contains two parts with simple
+           geometries."""
+
+    if len(mdb.models[model_name].parts) != 2:
+        if should_print:
+            dp("failure 1")
+        return False
+
+    if not _check_no_material_and_section(should_print, model_name, mdb):
+        if should_print:
+            dp("failure 2")
+        return False
+
+    if not _check_steps_loads_assembly(should_print, model_name, mdb):
+        if should_print:
+            dp("failure 3")
+        return False
+
+    return True
+
+
+
+def check_standard_model(should_print: bool, model: str, mdb: Any) -> bool:
+    """Checks, non-exhaustively, that a model simply contains only a specification
+           of a part geometry."""
+
+    model = mdb.models[model]
+
+    if STANDARD_INIT_GEOM_PART_NAME not in model.parts:
+        if should_print:
+            dp("failure 1")
+        return False
+
+    if len(model.boundaryConditions) != 0 or \
+       len(model.steps) != 1 or \
+       len(model.sections) != 0 or \
+       len(model.materials) != 0 or \
+       len(model.rootAssembly.instances) != 0:
+        if should_print:
+            dp("failure 2")
+        return False
+
+    # Check that the model has a geometric volume.
+    # If the model does not have a geoemtric volume, it is probably an orphan
+    #     mesh.
+    if len(model.parts[STANDARD_INIT_GEOM_PART_NAME].cells) == 0:
+        if should_print:
+            dp("failure 3")
+        return False
+
+    return True
+    
+
+
+def _check_standard_model_and_part(should_print: bool, mdb: Any):
+    """Checks that an MDB was just initialized and contains the default post-
+           initialization objects."""
+
+    if STANDARD_MODEL_NAME not in mdb.models or \
+       len(mdb.models[STANDARD_MODEL_NAME].parts) != 1:
+        if should_print:
+            dp("failure 1")
+        return False
+
+    model = mdb.models[STANDARD_MODEL_NAME]
+
+    if STANDARD_INIT_GEOM_PART_NAME not in model.parts:
+        if should_print:
+            dp("failure 2")
+        return False
+
+    return True
+
+
+
+def _check_no_material_and_section(should_print: bool, model_name: str,
+                                   mdb: Any) -> bool:
+    """Checks that the model has neither a material nor a section."""
+
+    model = mdb.models[model_name]
+
+    if len(model.materials) != 0 or len(model.sections) != 0: 
+        if should_print:
+            dp("failure 1")
+        return False
+    
+    return True
+
+
+
+def _check_steps_loads_assembly(should_print: bool, model_name: str, 
+                                mdb: Any) -> bool:
+    """Checks that the model has exactly one step, no loads, and that
+          the assembly has no instances."""
+
+    model = mdb.models[model_name]
+
+    if len(model.steps) != 1 or \
+       len(model.loads) != 0:
+        if should_print:
+            dp("failure 1")
+        return False
+
+    if len(model.rootAssembly.instances) != 0:
+        if should_print:
+            dp("failure 2")
+        return False
+
+    return True
+
+
+
+def check_simple_standard_mdb(should_print: bool, mdb: Any) -> bool:
+    """Checks, non-exhaustively, that an MDB contains the basic specification of
+           a part geometry and follows a standard naming scheme."""
+
+    if not _check_standard_model_and_part(should_print, mdb):
+        return False 
+
+    if not _check_steps_loads_assembly(should_print, STANDARD_MODEL_NAME, mdb) or \
+       not _check_no_material_and_section(should_print, STANDARD_MODEL_NAME, mdb):
+        return False
+
+    return True
+
+
+
+def get_only_instance_name(model: Any) -> str:
+    """Gets the name of the only part instance in the model. Assumed that the
+           model contains only a single part instance."""
+    
+    assert len(model.rootAssembly.instances) == 1
+
+    return model.rootAssembly.instances.keys()[0] 
+
+
+
 # *****************************************************************************
 #                         Abaqus Object Manipulation 
 #    These functions manipulate the state/information that Abaqus maintains.
 # *****************************************************************************
+
 
 
 def create_mdb(name: str, path: str) -> Any:
@@ -511,173 +726,6 @@ def save_mdb(mdb: Any) -> None:
 
 
 
-def check_simple_standard_mdb(should_print: bool, mdb: Any) -> bool:
-    """Checks, non-exhaustively, that an MDB contains the basic specification of
-           a part geometry and follows a standard naming scheme."""
-
-    if not _check_standard_model_and_part(should_print, mdb):
-        return False 
-
-    if not _check_steps_loads_assembly(should_print, STANDARD_MODEL_NAME, mdb) or \
-       not _check_no_material_and_section(should_print, STANDARD_MODEL_NAME, mdb):
-        return False
-
-    return True
-
-
-
-def check_multiple_steps(should_print: bool, model_name: str, mdb: Any) -> bool:
-    """Checks that a model contains multiple steps."""
-
-    if model_name not in mdb.models:
-        if should_print:
-            dp("failure 1")
-        return False
-
-    if len(mdb.models[model_name].steps) == 1:
-        if should_print:
-            dp("failure 2")
-        return False 
-
-    return True 
-
-
-
-def check_multiple_models(should_print: bool, mdb: Any) -> bool:
-    """Checks if an MDB contains multiple models."""
-
-    if len(mdb.models) <= 1: 
-        if should_print:
-            dp("failure 1")
-        return False
-
-    return True
-
-
-
-def check_job_submissions(should_print: bool, mdb: Any) -> bool:
-    """Checks if an MDB has at least one job submission."""
-
-    if len(mdb.jobs) < 1:
-        if should_print:
-            dp("failure 1")
-        return False
-
-    return True
-
-
-
-def check_two_part_model(should_print: bool, model_name: str, mdb: Any) -> bool:
-    """Checks, non-exhasutively, that a model contains two parts with simple
-           geometries."""
-
-    if len(mdb.models[model_name].parts) != 2:
-        if should_print:
-            dp("failure 1")
-        return False
-
-    if not _check_no_material_and_section(should_print, model_name, mdb):
-        if should_print:
-            dp("failure 2")
-        return False
-
-    if not _check_steps_loads_assembly(should_print, model_name, mdb):
-        if should_print:
-            dp("failure 3")
-        return False
-
-
-
-def check_standard_model(should_print: bool, model: str, mdb: Any) -> bool:
-    """Checks, non-exhaustively, that a model simply contains only a specification
-           of a part geometry."""
-
-    model = mdb.models[model]
-
-    if STANDARD_INIT_GEOM_PART_NAME not in model.parts:
-        if should_print:
-            dp("failure 1")
-        return False
-
-    if len(model.boundaryConditions) != 0 or \
-       len(model.steps) != 1 or \
-       len(model.sections) != 0 or \
-       len(model.materials) != 0 or \
-       len(model.rootAssembly.instances) != 0:
-        if should_print:
-            dp("failure 2")
-        return False
-
-    # Check that the model has a geometric volume.
-    # If the model does not have a geoemtric volume, it is probably an orphan
-    #     mesh.
-    if len(model.parts[STANDARD_INIT_GEOM_PART_NAME].cells) == 0:
-        if should_print:
-            dp("failure 3")
-        return False
-
-    return True
-    
-
-
-def _check_standard_model_and_part(should_print: bool, mdb: Any):
-    """Checks that an MDB was just initialized and contains the default post-
-           initialization objects."""
-
-    if STANDARD_MODEL_NAME not in mdb.models or \
-       len(mdb.models[STANDARD_MODEL_NAME].parts) != 1:
-        if should_print:
-            dp("failure 1")
-        return False
-
-    model = mdb.models[STANDARD_MODEL_NAME]
-
-    if STANDARD_INIT_GEOM_PART_NAME not in model.parts:
-        if should_print:
-            dp("failure 2")
-        return False
-
-    return True
-
-
-
-def _check_no_material_and_section(should_print: bool, model_name: str,
-                                   mdb: Any) -> bool:
-    """Checks that the model has neither a material nor a section."""
-
-    model = mdb.models[model_name]
-
-    if len(model.materials) != 0 or len(model.sections) != 0: 
-        if should_print:
-            dp("failure 1")
-        return False
-    
-    return True
-
-
-
-def _check_steps_loads_assembly(should_print: bool, model_name: str, 
-                                mdb: Any) -> bool:
-    """Checks that the model has exactly one step, no loads, and that
-          the assembly has no instances."""
-
-    model = mdb.models[model_name]
-
-    if len(model.steps) != 1 or \
-       len(model.loads) != 0:
-        if should_print:
-            dp("failure 1")
-        return False
-
-    if len(model.rootAssembly.instances) != 0:
-        if should_print:
-            dp("failure 2")
-        return False
-
-    return True
-
-
-
 def suppress_part_feature(name: str, part: Any) -> None:
     """Suppresses a feature associated with a part.
 
@@ -693,6 +741,24 @@ def suppress_part_feature(name: str, part: Any) -> None:
     """
 
     part.suppressFeatures((name, ))
+
+
+
+def delete_assembly_feature(name: str, model: Any) -> None:
+    """Deletes a feature associated with the assembly of a model.
+                   
+       Args:
+           name: The name of the feature to delete.
+           model: Abaqus Model object.
+    
+       Returns:
+           None.
+    
+       Raises:
+           None.
+    """
+
+    model.rootAssembly.deleteFeatures((name, )) 
 
 
 
@@ -1167,8 +1233,6 @@ def cut_instances_in_assembly(name: str, instance_to_be_cut: Any, cutting_instan
     """Cuts instances (via boolean removal) to create a new part.
 
        Note that this function causes the instances used by it to be suppressed.
-
-       Also, this function does not create an instance. It creates a new part.
 
        Args:
            name:               The desired name of the resulting part.
