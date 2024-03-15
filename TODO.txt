@@ -2,7 +2,9 @@
 
 Recovering Residual Stress - Short Term TODO:
 
-1) Finish the symmetric difference routine.
+1) Get symmetric difference-based gradient descent up and running.
+    1) Finish functionality to call Blender from code running in Abaqus python
+           interpreter. 
 
 2) Fix the traction vector application routine so that it is capable of applying
        traction to many faces which may exist on a trench. 
