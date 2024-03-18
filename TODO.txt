@@ -3,8 +3,10 @@
 Recovering Residual Stress - Short Term TODO:
 
 1) Get symmetric difference-based gradient descent up and running.
-    1) Finish functionality to call Blender from code running in Abaqus python
-           interpreter. 
+    1) Stop using the Abaqus preprocessor everywhere! Instead, keep things in
+           .stl format until the last second (and use Blender to do any manipulations)
+           and then convert from .stl to .cae so that any necesary Abaqus simulations
+           can run.
 
 2) Fix the traction vector application routine so that it is capable of applying
        traction to many faces which may exist on a trench. 
@@ -25,12 +27,10 @@ Simulating Material Removal - Short Term TODO:
       which is far from equilbirium. 
 
 
+
 General - Short Term TODO:
 
-1) Fix the mypy " | None" issue that is causing it to generate lots of false-
-      positives.
-
-2) Implement checkpointing to save time debugging.
+1) Implement checkpointing to save time debugging.
  
 
 
@@ -63,6 +63,12 @@ Code Organization / Structure / Documentation TODO:
     *** DOCUMENTATION UPDATE ***
     Update the README and add a diagram documenting the metadata / naming data
         flow.
+    Also, add diagram documenting the possible all in simulation flow vs. in real
+        life flow.
+    
+    *** MYPY ISSUE WITH NONE ***
+    Fix the mypy " | None" issue that is causing it to generate lots of false-
+       positives.
 
 
 Adding/Modifying Features TODO:

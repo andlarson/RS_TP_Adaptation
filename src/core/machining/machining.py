@@ -24,6 +24,7 @@ import src.core.tool_pass.tool_pass as tp
 import src.core.abaqus.abaqus_shim as shim
 import src.core.material_properties.material_properties as mp
 import src.core.residual_stress.residual_stress as rs
+import src.core.real_world_data.real_world_data as rwd
 
 from src.util.debug import *
 
@@ -263,57 +264,26 @@ class MachiningProcess:
             raise RuntimeError("The committed tool pass plan doesn't contain \
                                 exactly one committed tool pass.")
 
-        if cur_commit_phase_md.real_world_part is None:
+        if cur_commit_phase_md.real_world_data is None:
             raise RuntimeError("The real world data associated with the committed \
-                                tool pass plan has not been passed.")
+                                tool pass plan has not been supplied.")
 
         tool_pass = self.commitment_phase_metadata[-1].committed_tpp[1].plan[0]
 
-        # TODO: Right now, the MDBs are copied along with their metadata. None of
-        #     this is recorded in the commitment phase metadata, so it is not
-        #     tracked at all.
-        
-        # The real world data for this commitment phase is the deformed geometry.
-        DEFORMED_GEOMETRY_MDB_NAME = "deformed_geometry.cae"
-        deformed_geometry_mdb_path = os.path.join(path, DEFORMED_GEOMETRY_MDB_NAME)
-        to_copy = cur_commit_phase_md.real_world_part.path_to_mdb
-        shim.copy_mdb(to_copy, deformed_geometry_mdb_path)
-
-        # Reuse the metadata and update it. 
-        deformed_geometry_mdb_md = copy.deepcopy(cur_commit_phase_md.real_world_part_mdb_md)
-        deformed_geometry_mdb_md.path_to_mdb = deformed_geometry_mdb_path
-        
-        # In the first commitment phase, the target geometry comes from the
-        #     initial part. In all other commitment phases, the target geometry
-        #     comes from the real world data of the previous commitment
-        #     phase.
-        TARGET_GEOMETRY_MDB_NAME = "target_geometry.cae"
-        target_geometry_mdb_path = os.path.join(path, TARGET_GEOMETRY_MDB_NAME)
         if len(self.commitment_phase_metadata) == 1:
-            # The initial workpiece geometry is the target geometry. 
-            to_copy = cur_commit_phase_md.init_part.path_to_mdb
-            shim.copy_mdb(to_copy, target_geometry_mdb_path)
-
-            # The MDB containing the initial part has no metadata associated
-            #     with it.
-            target_geometry_mdb_md = abq_md.AbaqusMdbMetadata(target_geometry_mdb_path)
+            # TODO: This is broken until I migrate all geometric operations over
+            #     to Blender.
+            assert(False)
         else:
-            # The real world data from the last commitment phase is the target
-            #     geometry.
-            prev_commit_phase_md = self.commitment_phase_metadata[-2]
-            to_copy = prev_commit_phase_md.real_world_part.path_to_mdb
-            shim.copy_mdb(to_copy, target_geometry_mdb_path)
-            
-            # Reuse the metadata and update it.
-            target_geometry_mdb_md = copy.deepcopy(prev_commit_phase_md.real_world_part_mdb_md)
-            target_geometry_mdb_md.path_to_mdb = target_geometry_mdb_path
+            # TODO: This is broken until I migrate all geometric operations over
+            #     to Blender.
+            assert(False)
         
-        return sim.estimate_residual_stresses(deformed_geometry_mdb_md, target_geometry_mdb_md,
+        return sim.estimate_residual_stresses(deformed_geometry_data, target_geometry_data,
                                               tool_pass, cur_commit_phase_md, path)
 
 
-
-    def add_real_world_machining_data(self, part_from_real_life: part.MinimalPart) -> None:
+    def add_real_world_machining_data(self, real_world_data: rwd.RealWorldData | rwd.RealWorldDataFromSim) -> None:
         """Supplies real-world machining data for the LAST committed tool pass
                plan. 
            
@@ -322,16 +292,14 @@ class MachiningProcess:
                non-contiguous or very large tool passes. Must be called between
                committing a tool pass plan and simulating another tool pass plan.
 
-           The part passed to this function should be the part which resulted
+           The data passed to this function should be the data which resulted
                from a scan (in real life) of the part which resulted from the
                last committed tool pass plan.
            
            Args:
-               part_from_real_life: The result of performing the last committed 
-                                        tool pass plan in real life. The geometric
-                                        model should be constructed based on
-                                        data collected from real life (such as
-                                        an in-machine scan).
+               real_world_data: Data from the real world describing the state
+                                    of the workpiece after the last committed tool
+                                    pass.
         
            Returns:
                None.
@@ -346,15 +314,11 @@ class MachiningProcess:
             raise RuntimeError("Real world machining data should only be passed \
                                 after a tool pass plan is committed!")
 
-        if cur_commitment_phase_md.real_world_part is not None:
+        if cur_commitment_phase_md.real_world_data is not None:
             raise RuntimeError("Real world data was already supplied for the \
                                 most recent committed tool pass plan!")
 
-        cur_commitment_phase_md.real_world_part = part_from_real_life
-
-        # This MDB needs metadata and it is in the default initial state. 
-        mdb_md = abq_md.AbaqusMdbMetadata(part_from_real_life.path_to_mdb) 
-        cur_commitment_phase_md.real_world_part_mdb_md = mdb_md
+        cur_commitment_phase_md.real_world_data = real_world_data 
 
 
 

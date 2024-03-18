@@ -8,10 +8,25 @@ import pathlib
 import random
 import shutil
 import copy
+import sys
+import enum
 
 from abaqus import *
 from abaqusConstants import * 
 import numpy as np
+# The two imports below are special. They import functionality provided by
+#     Abaqus plug-ins. In order for these imports to be resolved correctly,
+#     it's necessary to add installation-dependent directories to the path.
+PATH_STL_IMPORT = r'/opt/caen/abaqus/abaqus-2024/SIMULIA/EstProducts/2024/'\
+                  r'linux_a64/code/python3.10/lib/abaqus_plugins/stlImport'
+if PATH_STL_IMPORT not in sys.path:
+    sys.path.append(PATH_STL_IMPORT)
+PATH_STL_EXPORT = r'/opt/caen/abaqus/abaqus-2024/SIMULIA/EstProducts/2024/'\
+                  r'linux_a64/code/python3.10/lib/abaqus_plugins/stlExport'
+if PATH_STL_EXPORT not in sys.path:
+    sys.path.append(PATH_STL_EXPORT)
+import stl2inp
+import stlExport_kernel
 
 import src.core.abaqus.abaqus_shim as shim
 import src.core.tool_pass.tool_pass as tp
@@ -20,9 +35,11 @@ import src.core.metadata.metadata as md
 import src.core.metadata.naming as naming
 import src.core.residual_stress.residual_stress as rs
 import src.core.metadata.abaqus_metadata as abq_md
+import src.core.real_world_data.real_world_data as rwd
 import src.util.geom as geom
 
 from src.util.debug import *        
+
 
 
 def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, target_dir: str, 
@@ -449,6 +466,87 @@ def create_mdb_from_odb(new_mdb_name: str, new_mdb_path: str, odb_path: str
 
 
 
+def _stl_to_mdb(stl_path: str, mdb_name: str, save_dir: str) -> Any:
+    """Converts the representation of a workpiece from .stl (an open standard)
+           format to .cae format (i.e. an Abaqus model database).
+
+       Args:
+           stl_path: Absolute path to .stl file to convert.
+           mdb_name: Name of the MDB which will be created. 
+           save_dir: Absolute path to directory in which to create the MDB.
+                         Note that the MDB is slated to be saved to this directory,
+                         but isn't actually saved to it.
+    
+       Returns:
+           Abaqus MDB object with a single model and a single part. Note that
+               this MDB is open and it has not been saved.
+    
+       Raises:
+           None.
+    """
+    
+    mdb = shim.create_mdb(mdb_name, save_dir)
+
+    # It isn't documented how Abaqus plug-in's collect and and use information
+    #     from an MDB. The STL import function, for example, does not take a
+    #     MDB as one of its arguments. I hypothesize that the STL import plugin
+    #     uses the current MDB which is open by default.
+    
+    # This function isn't documented in Abaqus' documentation. I found it by
+    #     using the plugin and then looking at the .rpy file. Note that the
+    #     mergeNodesTolerance is set to same value used by default in the
+    #     .rpy file.
+    stl2inp.STL2inp(stlfile=stl_path, modelName=shim.STANDARD_MODEL_NAME, 
+                    mergeNodesTolerance=1E-06)
+
+    return mdb 
+
+
+
+class ModuleNames(enum.Enum):
+    """Module names from which .stl files can be exported."""
+    PART = "Part"
+    MESH = "Mesh"
+
+
+
+def _export_stl_from_mdb(module_name: ModuleNames, model_name: str,
+                         stl_path: str, mdb: Any, part: Any = None
+                        ) -> None:
+    """Exports the data from a module to .stl format.
+
+       Args:
+           module_name: The name of the module from which to export .stl
+                            data.
+           model_name:  The name of the model containing the module to export.
+           stl_path:    Absolute path to desired save location for .stl file. 
+           mdb:         Abaqus MDB object which is open. 
+       
+       Optional Args:
+           part:        Abaqus Part object. Note that there may be many parts 
+                            in the Part module. In this case, the STL export 
+                            plugin also uses which part is currently being displayed 
+                            in the viewport to determine which part should be 
+                            exported in .stl format. Thus, if an export from 
+                            the Part module is requested, it's necessary to also
+                            pass this argument.
+    
+       Returns:
+           None.
+    
+       Raises:
+           None.
+    """
+    
+
+
+
+    
+
+
+
+
+
 def _orphan_mesh_to_geometry(part_name: str, model_name: str, mdb: Any) -> None:
     """Converts an orphan mesh to a solid geometry by converting all the faces
            of the orphan mesh to regions/surfaces, and then melding all the
@@ -508,8 +606,8 @@ def _orphan_mesh_to_geometry(part_name: str, model_name: str, mdb: Any) -> None:
 
 
 
-def estimate_residual_stresses(deformed_geometry_mdb_md: abq_md.AbaqusMdbMetadata,
-                               target_geometry_mdb_md: abq_md.AbaqusMdbMetadata,
+def estimate_residual_stresses(deformed_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim,
+                               target_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim,
                                tool_pass: tp.ToolPass,
                                commit_phase_md: md.CommitmentPhaseMetadata,
                                path: str
@@ -518,16 +616,12 @@ def estimate_residual_stresses(deformed_geometry_mdb_md: abq_md.AbaqusMdbMetadat
            which was removed and caused a deformation of the workpiece.
        
        Args:
-           deformed_geometry_mdb_md: Metadata associated with the MDB containing 
-                                         the part after the it underwent some
-                                         deformation due to material removal.
-                                         Assumed to contain a single model, a 
-                                         single part, and standard naming.
-           target_geometry_mdb_md:   Metadata associated with MDB containing the 
-                                         part before it underwent some deformation
-                                         due to material removal. Assumed to 
-                                         contain a single model, a single part, 
-                                         and standard naming.
+           deformed_geometry_data: The real world data collected by scanning
+                                       the workpiece after it underwent some
+                                       deformation due to material removal.
+           target_geometry_data:   The real world data collected by scanning
+                                       the workpiece before it underwent some
+                                       deformation due to material removal.
            tool_pass:                The tool pass that removed material.
            commit_phase_md:          The commitment phase during which the tool 
                                          pass was committed to.
@@ -544,13 +638,13 @@ def estimate_residual_stresses(deformed_geometry_mdb_md: abq_md.AbaqusMdbMetadat
            None.
     """
 
-    return _recover_constant_residual_stress(deformed_geometry_mdb_md, target_geometry_mdb_md,
+    return _recover_constant_residual_stress(deformed_geometry_data, target_geometry_data,
                                              tool_pass, commit_phase_md, path)
 
 
 
-def _recover_constant_residual_stress(deformed_mdb_md: abq_md.AbaqusMdbMetadata,
-                                      target_geometry_mdb_md: abq_md.AbaqusMdbMetadata,
+def _recover_constant_residual_stress(deformed_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim,
+                                      target_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim, 
                                       tool_pass: tp.ToolPass,
                                       commit_phase_md: md.CommitmentPhaseMetadata,
                                       path: str
@@ -562,16 +656,12 @@ def _recover_constant_residual_stress(deformed_mdb_md: abq_md.AbaqusMdbMetadata,
            the region of material was constant before it was removed.
         
        Args:
-           deformed_mdb_md:        Metadata associated with the MDB containing 
-                                       the part after the it underwent some
+           deformed_geometry_data: The real world data collected by scanning
+                                       the workpiece after it underwent some
                                        deformation due to material removal.
-                                       Assumed to contain a single model, a 
-                                       single part, and standard naming.
-           target_geometry_mdb_md: Metadata associated with MDB containing the 
-                                       part before it underwent some deformation
-                                       due to material removal. Assumed to 
-                                       contain a single model, a single part,
-                                       and standard naming.
+           target_geometry_data:   The real world data collected by scanning
+                                       the workpiece before it underwent some
+                                       deformation due to material removal.
            tool_pass:              The tool pass that removed material.
            commit_phase_md:        The commitment phase during which the tool 
                                        pass was committed to.
@@ -587,23 +677,12 @@ def _recover_constant_residual_stress(deformed_mdb_md: abq_md.AbaqusMdbMetadata,
        Raises:
            None.
     """
-    
+   
     # Step 1:
     # Removing the chunk of material due to the tool pass from the target geometry
     #     results in the geometry that would result if no residual stresses were
     #     present.
-    names = naming.ModelNames(naming.ModelTypes.FIRST_TOOL_PASS, target_geometry_mdb_md)
-    target_mdb = shim.use_mdb(target_geometry_mdb_md.path_to_mdb)
-
-    shim.create_material(commit_phase_md.init_part.material, shim.STANDARD_MODEL_NAME, target_mdb)
-    shim.create_section(shim.STANDARD_MODEL_NAME, target_mdb)
-    shim.assign_section_to_whole_part(shim.STANDARD_INIT_GEOM_PART_NAME, shim.STANDARD_MODEL_NAME, target_mdb)
-    target_geom_part = target_mdb.models[shim.STANDARD_MODEL_NAME].parts[shim.STANDARD_INIT_GEOM_PART_NAME]
-    shim.assign_only_section_to_part(target_geom_part, shim.STANDARD_MODEL_NAME, target_mdb)
-    _do_cut(tool_pass, names, target_geometry_mdb_md, target_mdb)  
-
-    shim.save_mdb(target_mdb)
-    shim.close_mdb(target_mdb)
+    # TODO: Do this in Blender. Note that result will be .stl file. 
 
     # Step 2:
     # Find a point on the trench for the tool pass.
@@ -618,7 +697,7 @@ def _recover_constant_residual_stress(deformed_mdb_md: abq_md.AbaqusMdbMetadata,
     step_size = 1
 
     for _ in range(iteration_cnt):
-        grad = _compute_gradient(cur, trench_point, deformed_mdb_md, target_geometry_mdb_md, commit_phase_md, path)
+        grad = _compute_gradient(cur, trench_point, deformed_geometry_data, target_geometry_data, commit_phase_md, path)
         cur = cur - geom.Vec3D(step_size * grad.rep)
 
     # Step 4:
@@ -653,8 +732,8 @@ def _find_trench_point(toolpass: tp.ToolPass) -> geom.Point3D:
 
 def _compute_gradient(at: geom.Vec3D, 
                       point_near_face: geom.Point3D,
-                      deformed_mdb_md: abq_md.AbaqusMdbMetadata,
-                      target_geometry_mdb_md: abq_md.AbaqusMdbMetadata,
+                      deformed_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim,
+                      target_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim, 
                       commit_phase_md: md.CommitmentPhaseMetadata,
                       path: str,
                      ) -> geom.Vec3D:
@@ -670,15 +749,12 @@ def _compute_gradient(at: geom.Vec3D,
            at:                     The traction vector to apply. This is the point
                                        at which the gradient is estimated. 
            point_on_face:          Point on the face on which to apply the tractions.
-           deformed_mdb_md:        Metadata associated with deformed MDB. Assumed that
-                                       the first model contains a single part and
-                                       standard naming. This part is assumed
-                                       to be the deformed geoemtry.
-           target_geometry_mdb_md: Metadata associated with the target geometry
-                                       MDB. Assumed that the first model contains
-                                       a single part instance. This part
-                                       instance is assumed to be the target
-                                       geometry.
+           deformed_geometry_data: The real world data collected by scanning
+                                       the workpiece after it underwent some
+                                       deformation due to material removal.
+           target_geometry_data:   The real world data collected by scanning
+                                       the workpiece before it underwent some
+                                       deformation due to material removal.
            commit_phase_md:        Metadata associated with the commitment phase
                                        to which the deformed MDB belongs. 
            path:                   Absolute path to a directory where simulation
@@ -699,10 +775,10 @@ def _compute_gradient(at: geom.Vec3D,
     offset_in_y = at + geom.Vec3D(np.array([0, offset, 0]))
     offset_in_z = at + geom.Vec3D(np.array([0, 0, offset]))
     
-    vol_diff = _evaluate_vol_diff(at, point_near_face, deformed_mdb_md, target_geometry_mdb_md, commit_phase_md, path)
-    vol_diff_x = _evaluate_vol_diff(offset_in_x, point_near_face, deformed_mdb_md, target_geometry_mdb_md, commit_phase_md, path)
-    vol_diff_y = _evaluate_vol_diff(offset_in_y, point_near_face, deformed_mdb_md, target_geometry_mdb_md, commit_phase_md, path)
-    vol_diff_z = _evaluate_vol_diff(offset_in_z, point_near_face, deformed_mdb_md, target_geometry_mdb_md, commit_phase_md, path)
+    vol_diff = _evaluate_vol_diff(at, point_near_face, deformed_geometry_data, target_geometry_data, commit_phase_md, path)
+    vol_diff_x = _evaluate_vol_diff(offset_in_x, point_near_face, deformed_geometry_data, target_geometry_data, commit_phase_md, path)
+    vol_diff_y = _evaluate_vol_diff(offset_in_y, point_near_face, deformed_geometry_data, target_geometry_data, commit_phase_md, path)
+    vol_diff_z = _evaluate_vol_diff(offset_in_z, point_near_face, deformed_geometry_data, target_geometry_data, commit_phase_md, path)
     
     # Moving in the direction of the slope is equivalent to moving in the direction
     #     of greatest ascent.
@@ -716,8 +792,8 @@ def _compute_gradient(at: geom.Vec3D,
 
 def _evaluate_vol_diff(at: geom.Vec3D, 
                        point_near_face: geom.Point3D,
-                       deformed_mdb_md: abq_md.AbaqusMdbMetadata,
-                       target_geometry_mdb_md: abq_md.AbaqusMdbMetadata,
+                       deformed_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim,
+                       target_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim, 
                        commit_phase_md: md.CommitmentPhaseMetadata,
                        path: str,
                       ) -> int :
@@ -741,12 +817,12 @@ def _evaluate_vol_diff(at: geom.Vec3D,
            at:                     The traction vector to apply. This is the point
                                        at which the function is evaluated. 
            point_on_face:          Point on the face on which to apply the tractions.
-           deformed_mdb_md:        Metadata associated with deformed MDB. Assumed that
-                                       the first model in the MDB contains a single
-                                       part instance. 
-           target_geometry_mdb_md: Metadata associated with the target geometry
-                                       MDB. Assumed that the first model in the MDB
-                                       contains a single part instance.
+           deformed_geometry_data: The real world data collected by scanning
+                                       the workpiece after it underwent some
+                                       deformation due to material removal.
+           target_geometry_data:   The real world data collected by scanning
+                                       the workpiece before it underwent some
+                                       deformation due to material removal.
            commit_phase_md:        Metadata associated with the commitment phase
                                        to which the deformed MDB belongs. 
            path:                   Absolute path to a directory where simulation
@@ -760,92 +836,57 @@ def _evaluate_vol_diff(at: geom.Vec3D,
            None.
     """
     
-    # Check that the MDBs are in the expected state.
-    target_geometry_mdb = shim.use_mdb(target_geometry_mdb_md.path_to_mdb)
-    if not shim.check_first_model_simple_assembly(True, target_geometry_mdb_md, target_geometry_mdb):
-        raise RuntimeError("Target geometry MDB is in an unexpected state.")
-    shim.close_mdb(target_geometry_mdb)
-
-    deformed_geometry_mdb = shim.use_mdb(deformed_mdb_md.path_to_mdb)
-    if not shim.check_simple_standard_mdb(True, deformed_geometry_mdb):
-        raise RuntimeError("Deformed geometry MDB is in an unexpected state.")
-    shim.close_mdb(deformed_geometry_mdb)
+    # Step 1:
+    # Use the data for the target geometry to produce a MDB in which the
+    #     traction application can happen.
     
     # Change the CWD to fix location of simulation results.
     orig_cwd = os.getcwd()
     os.chdir(path)
-    
-    target_geometry_mdb = shim.use_mdb(target_geometry_mdb_md.path_to_mdb)
 
-    # Step 1:
+    # Step 2:
     # Simulate the traction application.
     job_name = _simulate_traction_app(at, point_near_face, shim.STANDARD_MODEL_NAME,
                                       target_geometry_mdb_md, commit_phase_md, 
                                       target_geometry_mdb)
+    # Restore CWD.
+    os.chdir(orig_cwd)
 
-    # Step 2:
+    # Step 3:
     # Clean up. Now the ODB produced by the job can be used.
     shim.save_mdb(target_geometry_mdb)
     shim.close_mdb(target_geometry_mdb)
 
-    # Restore the CWD.
-    os.chdir(orig_cwd)
-
     post_traction_odb = os.path.join(path, job_name + ".odb")
-
-    # Step 3:
-    # Make a copy of the model containing the deformed geometry in the deformed
-    #     geometry MDB.
-
-    # Generate and retrieve names.
-    names = naming.ModelNames(naming.ModelTypes.EVAL_VOL_DIFF, deformed_mdb_md)
-    
-    deformed_geometry_mdb = shim.use_mdb(deformed_mdb_md.path_to_mdb)
-    
-    # In the case that there are multiple models in the MDB, this still works.
-    shim.copy_model(names.post_cut_post_deform_model_name, names.new_model_name,
-                    deformed_mdb_md, deformed_geometry_mdb)
 
     # Step 4:
     # Map the results from the ODB (produced by applying a traction to the target
-    #     geometry) to a part in the newly created model of the deformed geometry 
-    #     MDB. Then convert the orphan mesh to a geometry.
-
-    # Use the ODB content to produce a new part in the newly created model.
-    shim.create_part_from_odb(names.post_traction_part_name, 
-                              names.new_model_name,
-                              post_traction_odb,
-                              deformed_mdb_md,
-                              deformed_geometry_mdb)
-
-    # Associate a geometry with the new part. 
-    _orphan_mesh_to_geometry(names.post_traction_part_name, names.new_model_name,
-                             deformed_geometry_mdb)
+    #     geometry) to a .stl. 
 
     # Step 5:
-    # Compute the symmetric difference in volume between these two parts. 
-    symm_diff_vol = _compute_symmetric_diff(names.post_cut_post_deform_part_name,
-                                            names.post_traction_part_name,
-                                            names.new_model_name, deformed_mdb_md,
-                                            deformed_geometry_mdb)
-
-    # Step 6:
-    # Clean up.
-    shim.save_mdb(deformed_geometry_mdb)
-    shim.close_mdb(deformed_geometry_mdb)
+    # Compute the symmetric difference in volume between the two parts. 
 
     return symm_diff_vol 
 
 
 
+# *****************************************************************************
+#                                 DEPRECATED 
+# *****************************************************************************
+
+
+
 def _compute_symmetric_diff(part1_name: str, part2_name: str, model_name: str,
                             mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> int:
-    """Computes the symmetric difference in volume between two part geometries. 
+    """DEPRECATED. This is now being done in Blender due to Abaqus' inflexible
+           front end.
+
+       Computes the symmetric difference in volume between two part geometries. 
 
        In set theory, the symmetric difference between two sets A, B is the set
            of elements which are in either A, B and are not in the intersection
-           of A, B. This function computes the volume which is not in the
-           intersection of two parts.
+           of A, B. This function computes the volume of the symmetric difference. 
+           
                    
        Args:
            part1_name: Name of the first part.
@@ -931,10 +972,6 @@ def _compute_symmetric_diff(part1_name: str, part2_name: str, model_name: str,
 
 
 
-# *****************************************************************************
-#                                 DEPRECATED 
-# *****************************************************************************
-       
 def _recover_linear_relationships(points: list[geom.Point3D], 
                                   face_point: geom.Point3D,
                                   mdb_metadata: abq_md.AbaqusMdbMetadata,

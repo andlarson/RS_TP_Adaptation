@@ -40,8 +40,6 @@ class InitialPart():
 
 
 
-
-
 class MinimalPart():
     
     def __init__(self, path: str) -> None:

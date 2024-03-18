@@ -8,6 +8,7 @@ import src.core.part.part as part
 import src.core.boundary_conditions.boundary_conditions as bc
 import src.core.metadata.abaqus_metadata as abq_md
 import src.core.tool_pass.tool_pass as tp
+import src.core.real_world_data.real_world_data as rwd
 
 
 class CommitmentPhaseMetadata:
@@ -117,13 +118,9 @@ class CommitmentPhaseMetadata:
 
 
         # ----- Real World Data -----
-       
-        # A representation of the part that resulted from performing the committed
-        #     tool pass plan.
-        self.real_world_part: part.MinimalPart | None = None
-
-        # The real world part exists in an MDB.
-        self.real_world_part_mdb_md: abq_md.AbaqusMdbMetadata | None = None
+        
+        # Data from real life.
+        self.real_world_data: rwd.RealWorldData | rwd.RealWorldDataFromSim | None = None
 
 
         # ----- User-Provided Stress State For Next Commitment Phase -----

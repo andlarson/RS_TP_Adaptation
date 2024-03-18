@@ -224,8 +224,7 @@ if __name__ == "__main__":
 
         # ----- Main Sim: Commit to a TPP -----
         committed_plan = potential_tpp_3
-        main_machining.commit_tool_passes(committed_plan, committed_tpp_names[1], TP_DIR)
-
+        main_machining.commit_tool_passes(committed_plan, committed_tpp_names[1], TP_DIR) 
 
     except BaseException as e:
         dump_exception()       
