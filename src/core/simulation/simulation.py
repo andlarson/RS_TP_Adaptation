@@ -14,15 +14,16 @@ import enum
 from abaqus import *
 from abaqusConstants import * 
 import numpy as np
+# TODO: Yuck! Hard Coded!
 # The two imports below are special. They import functionality provided by
 #     Abaqus plug-ins. In order for these imports to be resolved correctly,
 #     it's necessary to add installation-dependent directories to the path.
-PATH_STL_IMPORT = r'/opt/caen/abaqus/abaqus-2024/SIMULIA/EstProducts/2024/'\
-                  r'linux_a64/code/python3.10/lib/abaqus_plugins/stlImport'
+PATH_STL_IMPORT = "/opt/caen/abaqus/abaqus-2024/SIMULIA/EstProducts/2024/"\
+                  "linux_a64/code/python3.10/lib/abaqus_plugins/stlImport"
 if PATH_STL_IMPORT not in sys.path:
     sys.path.append(PATH_STL_IMPORT)
-PATH_STL_EXPORT = r'/opt/caen/abaqus/abaqus-2024/SIMULIA/EstProducts/2024/'\
-                  r'linux_a64/code/python3.10/lib/abaqus_plugins/stlExport'
+PATH_STL_EXPORT = "/opt/caen/abaqus/abaqus-2024/SIMULIA/EstProducts/2024/"\
+                  "linux_a64/code/python3.10/lib/abaqus_plugins/stlExport"
 if PATH_STL_EXPORT not in sys.path:
     sys.path.append(PATH_STL_EXPORT)
 import stl2inp
@@ -37,6 +38,8 @@ import src.core.residual_stress.residual_stress as rs
 import src.core.metadata.abaqus_metadata as abq_md
 import src.core.real_world_data.real_world_data as rwd
 import src.util.geom as geom
+import src.util.third_party_packages.parent_process.calling_third_parties as third_parties
+import src.util.third_party_packages.blender_messages as blender_messages
 
 from src.util.debug import *        
 
@@ -466,9 +469,8 @@ def create_mdb_from_odb(new_mdb_name: str, new_mdb_path: str, odb_path: str
 
 
 
-def _stl_to_mdb(stl_path: str, mdb_name: str, save_dir: str) -> Any:
-    """Converts the representation of a workpiece from .stl (an open standard)
-           format to .cae format (i.e. an Abaqus model database).
+def _import_stl_to_mdb(stl_path: str, mdb_name: str, save_dir: str) -> Any:
+    """Imports a .stl file into a new MDB. 
 
        Args:
            stl_path: Absolute path to .stl file to convert.
@@ -507,6 +509,8 @@ class ModuleNames(enum.Enum):
     """Module names from which .stl files can be exported."""
     PART = "Part"
     MESH = "Mesh"
+    ASSEMBLY = "Assembly"
+    VISUALIZATION = "Visualization"
 
 
 
@@ -528,8 +532,8 @@ def _export_stl_from_mdb(module_name: ModuleNames, model_name: str,
                             plugin also uses which part is currently being displayed 
                             in the viewport to determine which part should be 
                             exported in .stl format. Thus, if an export from 
-                            the Part module is requested, it's necessary to also
-                            pass this argument.
+                            the Part module is requested, this argument is
+                            required.
     
        Returns:
            None.
@@ -537,13 +541,55 @@ def _export_stl_from_mdb(module_name: ModuleNames, model_name: str,
        Raises:
            None.
     """
+
+    if module_name == ModuleNames.PART:
+        if part is None:
+            raise RuntimeError("When exporting a .stl from the Part module, it's necessary"\
+                               " to specify which part should be exported.")
+        else:
+            assert(len(session.viewports) == 1)
+            session.viewports[session.currentViewportName].setValues(displayedObject=part)
+    elif module_name == ModuleNames.ASSEMBLY:
+        assembly = mdb.models[model_name].rootAssembly
+        session.viewports[session.currentViewportName].setValues(displayedObject=assembly)
+    elif module_name == ModuleNames.MESH:
+        assembly = mdb.models[model_name].rootAssembly
+        session.viewports[session.currentViewportName].setValues(displayedObject=assembly)
+        session.viewports[session.currentViewportName].assemblyDisplay.setValues(mesh=ON)
+        session.viewports[session.currentViewportName].assemblyDisplay.meshOptions.setValues(meshTechnique=ON)
+
+    cwd = os.getcwd()
+    os.chdir(os.path.dirname(stl_path))
+    stlExport_kernel.STLExport(moduleName=module_name, stlFileName=os.path.basename(stl_path), stlFileType='ASCII')
+    os.chdir(cwd)
+
+
+
+def _convert_odb_to_stl(odb_path: str, stl_path: str):
+    """Converts a .odb file to .stl format. Since the .odb file format is an
+           Abaqus proprietary file format, the conversion can only be done in
+           the context of an open MDB. Thus, when this function is called it
+           must be that case that some MDB is open.
+
+       Args:
+           odb_path: Absolute path to .odb file to convert.
+           stl_path: Absolute path to desired .stl file save location.
+       
+       Returns:
+           None.
     
-
-
-
+       Raises:
+           None.
+    """
     
+    assert(len(session.odbs) == 0)
 
-
+    odb = session.openOdb(name=odb_path)
+    session.viewports[session.currentViewportName].setValues(displayedObject=odb)
+    stlExport_kernel.STLExport(moduleName=ModuleNames.VISUALIZATION, stlFileName=stl_path, stlFiletype='ASCII')
+    
+    only_open_odb = session.odbs.keys()[0]
+    session.odbs[only_open_odb].close()
 
 
 
@@ -606,8 +652,8 @@ def _orphan_mesh_to_geometry(part_name: str, model_name: str, mdb: Any) -> None:
 
 
 
-def estimate_residual_stresses(deformed_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim,
-                               target_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim,
+def estimate_residual_stresses(deformed_geometry_data: rwd.ProcessedRealWorldData | rwd.RealWorldDataFromSim,
+                               target_geometry_data: rwd.ProcessedRealWorldData | rwd.RealWorldDataFromSim,
                                tool_pass: tp.ToolPass,
                                commit_phase_md: md.CommitmentPhaseMetadata,
                                path: str
@@ -643,8 +689,8 @@ def estimate_residual_stresses(deformed_geometry_data: rwd.RealWorldData | rwd.R
 
 
 
-def _recover_constant_residual_stress(deformed_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim,
-                                      target_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim, 
+def _recover_constant_residual_stress(deformed_geometry_data: rwd.ProcessedRealWorldData| rwd.SimRealWorldData,
+                                      target_geometry_data: rwd.ProcessedRealWorldData| rwd.SimRealWorldData, 
                                       tool_pass: tp.ToolPass,
                                       commit_phase_md: md.CommitmentPhaseMetadata,
                                       path: str
@@ -732,8 +778,8 @@ def _find_trench_point(toolpass: tp.ToolPass) -> geom.Point3D:
 
 def _compute_gradient(at: geom.Vec3D, 
                       point_near_face: geom.Point3D,
-                      deformed_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim,
-                      target_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim, 
+                      deformed_geometry_data: rwd.ProcessedRealWorldData | rwd.SimRealWorldData,
+                      target_geometry_data: rwd.ProcessedRealWorldData | rwd.SimRealWorldData, 
                       commit_phase_md: md.CommitmentPhaseMetadata,
                       path: str,
                      ) -> geom.Vec3D:
@@ -792,8 +838,8 @@ def _compute_gradient(at: geom.Vec3D,
 
 def _evaluate_vol_diff(at: geom.Vec3D, 
                        point_near_face: geom.Point3D,
-                       deformed_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim,
-                       target_geometry_data: rwd.RealWorldData | rwd.RealWorldDataFromSim, 
+                       deformed_geometry_data: rwd.ProcessedRealWorldData | rwd.SimRealWorldData,
+                       target_geometry_data: rwd.ProcessedRealWorldData | rwd.SimRealWorldData, 
                        commit_phase_md: md.CommitmentPhaseMetadata,
                        path: str,
                       ) -> int :
@@ -839,41 +885,77 @@ def _evaluate_vol_diff(at: geom.Vec3D,
     # Step 1:
     # Use the data for the target geometry to produce a MDB in which the
     #     traction application can happen.
+    TARGET_GEOM_MDB_NAME = "target_geometry.cae"
+    target_geometry_mdb = _import_stl_to_mdb(target_geometry_data.path_to_raw_data, TARGET_GEOM_MDB_NAME, path)
+    _orphan_mesh_to_geometry(shim.STANDARD_INIT_GEOM_PART_NAME, shim.STANDARD_MODEL_NAME, target_geometry_mdb)
     
+    # The MDB is in the normal initial state. 
+    target_geometry_mdb_md = abq_md.AbaqusMdbMetadata(target_geometry_mdb.pathName)
+    
+    # Step 2:
+    # Simulate the traction application.
+
     # Change the CWD to fix location of simulation results.
     orig_cwd = os.getcwd()
     os.chdir(path)
 
-    # Step 2:
-    # Simulate the traction application.
     job_name = _simulate_traction_app(at, point_near_face, shim.STANDARD_MODEL_NAME,
                                       target_geometry_mdb_md, commit_phase_md, 
                                       target_geometry_mdb)
-    # Restore CWD.
     os.chdir(orig_cwd)
 
     # Step 3:
     # Clean up. Now the ODB produced by the job can be used.
     shim.save_mdb(target_geometry_mdb)
     shim.close_mdb(target_geometry_mdb)
-
     post_traction_odb = os.path.join(path, job_name + ".odb")
 
     # Step 4:
-    # Map the results from the ODB (produced by applying a traction to the target
-    #     geometry) to a .stl. 
+    # Convert the results (produced by applying a traction to the target geometry) 
+    #     from .odb format to .stl format for processing with Blender. 
+    POST_TRACTION_STL_NAME = "post_traction.stl"
+    post_traction_stl_path = os.path.join(path, POST_TRACTION_STL_NAME)
+    _convert_odb_to_stl(post_traction_odb, post_traction_stl_path)
 
     # Step 5:
-    # Compute the symmetric difference in volume between the two parts. 
+    # Use Blender to compute the symmetric difference in volume between the 
+    #     deformed geometry and the post-traction applied target geometry.
 
-    return symm_diff_vol 
+    # If necessary, convert from .odb to .stl.
+    deformed_stl_path = deformed_geometry_data.path_to_raw_data
+    if isinstance(deformed_geometry_data, rwd.SimRealWorldData):
+        DEFORMED_GEOM_STL_NAME = "deformed_geometry.stl"
+        deformed_stl_path = os.path.join(path, DEFORMED_GEOM_STL_NAME)
+        
+        # Yuck! Need to open an MDB to do conversion. Gotta love proprietary
+        #     file formats...
+        # TODO: It might be cleaner to have some empty MDB that can be used
+        #     for this purpose if this is a common-case operation. There
+        #     could be significant time cost associated with opening this MDB.
+        temp_mdb = shim.use_mdb(target_geometry_mdb.pathName)
+        _convert_odb_to_stl(deformed_geometry_data.path_to_raw_data, deformed_stl_path)
+        shim.close_mdb(temp_mdb)
+
+    child = third_parties.UseThirdPartyPackage(third_parties.PATH_TO_STANDARD_INTERPRETER, 
+                                               third_parties.PATH_TO_STANDARD_PARENT_SCRIPT)
+    child.start_child()
+
+    message_data = blender_messages.parent_to_child_symm_diff_data(post_traction_stl_path, 
+                                                                   deformed_geometry_data.path_to_raw_data)
+    response = child.exchange_data(blender_messages.MessageParentToChild.BLENDER_VOLUME_SYMMETRIC_DIFFERENCE, 
+                                   message_data)
+    child.kill_child()
+    
+    assert response[0] == blender_messages.MessageChildToParent.BLENDER_VOLUME_SYMMETRIC_DIFFERENCE
+    volume = blender_messages.unpack_symm_diff_data_at_parent(response[1])
+
+    return volume 
 
 
 
 # *****************************************************************************
 #                                 DEPRECATED 
 # *****************************************************************************
-
 
 
 def _compute_symmetric_diff(part1_name: str, part2_name: str, model_name: str,

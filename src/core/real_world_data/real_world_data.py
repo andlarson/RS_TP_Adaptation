@@ -3,7 +3,8 @@ Provides functionality for dealing with real world data.
 """
 
 
-class RealWorldDataFromSim:
+
+class SimRealWorldData():
     
     def __init__(self, path: str):
         """Initializes some real world data produced by a simulation. This sounds
@@ -27,14 +28,15 @@ class RealWorldDataFromSim:
 
 
 
-class RealWorldData:
+class ProcessedRealWorldData():
 
     def __init__(self, path: str):
-        """Initializes some real world data.
+        """Initializes some real world data which has already been converted
+               to .stl format.
                        
            Args:
-               path: Absolute path to raw data collected from the real world.
-                         Expected to be file with suffix .stl.
+               path: Absolute path to .stl file containing geometry from the
+                         real world.
         
            Returns:
                None.
@@ -45,3 +47,5 @@ class RealWorldData:
 
         assert(path.endswith(".stl"))
         self.path_to_raw_data: str = path
+
+

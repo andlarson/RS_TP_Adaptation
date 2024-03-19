@@ -58,7 +58,7 @@ class MachiningProcess:
         self.commitment_phase_metadata = []
         self.boundary_conditions = boundary_conditions 
 
-        first_commit_md = md.CommitmentPhaseMetadata(init_part, init_part.path_to_mdb, boundary_conditions)
+        first_commit_md = md.CommitmentPhaseMetadata(init_part, boundary_conditions)
         first_commit_md.first_commitment_phase = True
 
         self.commitment_phase_metadata.append(first_commit_md)

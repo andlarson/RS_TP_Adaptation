@@ -13,8 +13,7 @@ import src.core.real_world_data.real_world_data as rwd
 
 class CommitmentPhaseMetadata:
 
-    def __init__(self, init_part: part.InitialPart, path_to_mdb: str, 
-                 BCs: list[bc.BC]) -> None:
+    def __init__(self, init_part: part.InitialPart, BCs: list[bc.BC]) -> None:
         """Creates a data structure associated with a single commitment phase.
 
            The system flow is assumed to be something like:
@@ -42,8 +41,6 @@ class CommitmentPhaseMetadata:
                init_part:   The part at the beginning of this phase. Note that 
                                 this part may have had some material removed 
                                 from it already.
-               path_to_mdb: The path to the MDB which contains the state of the 
-                                part at the beginning of this commitment phase.
                BCs:         The boundary conditions active during this phase.
 
            Returns:
@@ -120,7 +117,7 @@ class CommitmentPhaseMetadata:
         # ----- Real World Data -----
         
         # Data from real life.
-        self.real_world_data: rwd.RealWorldData | rwd.RealWorldDataFromSim | None = None
+        self.real_world_data: rwd.ProcessedRealWorldData | rwd.SimRealWorldData | None = None
 
 
         # ----- User-Provided Stress State For Next Commitment Phase -----

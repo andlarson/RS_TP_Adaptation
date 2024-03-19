@@ -32,6 +32,13 @@ import time
 from typing import *
 
 
+
+# TODO: Yuck! Hard-coded!
+PATH_TO_STANDARD_INTERPRETER = "/home/andlars/Desktop/executables_etc/bin/python3"
+PATH_TO_STANDARD_PARENT_SCRIPT = "/home/andlars/Desktop/RS_TP_Adaptation/src/util/third_party_packages/parent_process/calling_third_parties.py"
+
+
+
 class UseThirdPartyPackage:
     
     def __init__(self, path_to_python: str, script: str) -> None:
@@ -79,7 +86,7 @@ class UseThirdPartyPackage:
         self.script: str = script
         
         # The child process should not use the default search path when looking
-        #     for module files.
+        #     for modules.
         self.env: Mapping[str, str] = copy.deepcopy(os.environ)
         del self.env['PYTHONPATH']
 
@@ -126,7 +133,7 @@ class UseThirdPartyPackage:
             self.sp.kill() 
 
 
-    def exchange_data(self, message_type: str, message_data: str, timeout=120) -> tuple[str, str]:
+    def exchange_data(self, message_type: Any, message_data: str, timeout=120) -> tuple[str, str]:
         """Passes message to the child process, waits for a response, and returns
                the response.
 
@@ -134,7 +141,7 @@ class UseThirdPartyPackage:
 
            Args:
                message_type: The type of the message to pass to the child process.
-                                 A single line. 
+                                 A string which occupies a single line. 
                message_data: The data to pass to the child process. A single line.
                timeout:      The maximum amount of time, in seconds, to wait for
                                  the child process to send data back to the

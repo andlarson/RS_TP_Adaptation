@@ -43,8 +43,8 @@ class InitialPart():
 class MinimalPart():
     
     def __init__(self, path: str) -> None:
-        """Creates a part based on one which exists in Abaqus. This part should
-               be minimally defined - it is just a geometry and has no material,
+        """Creates a part based on one which exists in Abaqus. This part is
+               minimally defined - it is just a geometry and has no material,
                stress subroutine, etc. associated with it.
             
            Args:

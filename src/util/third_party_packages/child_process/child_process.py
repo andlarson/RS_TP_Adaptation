@@ -47,12 +47,12 @@ def process_blender_message(message: tuple[str, str]) -> tuple[str, str]:
     message_type = message[0]
     message_data = message[1]
     
-    if message_type == blender_messages.messages_parent_process_to_child_process[0]:
+    if message_type == blender_messages.MessageParentToChild.BLENDER_REMESH:
         response_data = blender.remesh(message_data) 
-        return (blender_messages.messages_child_process_to_parent_process[0], response_data) 
-    elif message_type == blender_messages.messages_parent_process_to_child_process[1]:
+        return (blender_messages.MessageChildToParent.BLENDER_REMESH, response_data) 
+    elif message_type == blender_messages.MessageParentToChild.BLENDER_VOLUME_SYMMETRIC_DIFFERENCE:
         response_data = blender.compute_volume_symmetric_difference(message_data) 
-        return (blender_messages.messages_child_process_to_parent_process[1], response_data) 
+        return (blender_messages.MessageChildToParent.BLENDER_VOLUME_SYMMETRIC_DIFFERENCE, response_data) 
     else:
         raise AssertionError("Unknown message type.")
 
@@ -65,7 +65,7 @@ def process_message(message: tuple[str, str]) -> tuple[str, str]:
     message_type = message[0]
 
     # Blender.
-    if message_type in blender_messages.messages_parent_process_to_child_process:
+    if message_type in blender_messages.MessageParentToChild:
         return process_blender_message(message)
     else:
         raise RuntimeError("Unknown message type.")
