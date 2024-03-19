@@ -518,6 +518,16 @@ def _export_stl_from_mdb(module_name: ModuleNames, model_name: str,
                          stl_path: str, mdb: Any, part: Any = None
                         ) -> None:
     """Exports the data from a module to .stl format.
+       
+       It is not documented anywhere, but it appears that in the process of
+           exporting a .stl the plugin generates .txt and .inp files in the
+           the same directory that the .stl file is being saved in.
+
+       It is unclear how *exactly* this conversion is done. For example, if
+           an export from the Assembly module is requested, it seems like
+           the .stl content depends principally on the internal geometric
+           representation that Abaqus has. If an export from the Mesh module
+           is requested, the .stl content depends on the mesh.
 
        Args:
            module_name: The name of the module from which to export .stl
@@ -560,16 +570,23 @@ def _export_stl_from_mdb(module_name: ModuleNames, model_name: str,
 
     cwd = os.getcwd()
     os.chdir(os.path.dirname(stl_path))
-    stlExport_kernel.STLExport(moduleName=module_name, stlFileName=os.path.basename(stl_path), stlFileType='ASCII')
+    stlExport_kernel.STLExport(moduleName=module_name.value, stlFileName=os.path.basename(stl_path), stlFileType='ASCII')
     os.chdir(cwd)
 
 
 
 def _convert_odb_to_stl(odb_path: str, stl_path: str):
-    """Converts a .odb file to .stl format. Since the .odb file format is an
-           Abaqus proprietary file format, the conversion can only be done in
-           the context of an open MDB. Thus, when this function is called it
-           must be that case that some MDB is open.
+    """Converts a .odb file to .stl format. 
+
+       Since the .odb format is Abaqus-proprietary, at first I thought a
+           necessary precondition for this function should be that there is
+           some MDB open in this session. After testing things out this does
+           not appear to be the case. It appears that the Abaqus kernel is
+           willing to spin up an MDB that is never saved. 
+
+       It is unclear how *exactly* this conversion is done. I believe that 
+           this conversion is done by creating vertices in the .stl file based 
+           on the integration points in the deformed mesh.
 
        Args:
            odb_path: Absolute path to .odb file to convert.
@@ -586,7 +603,7 @@ def _convert_odb_to_stl(odb_path: str, stl_path: str):
 
     odb = session.openOdb(name=odb_path)
     session.viewports[session.currentViewportName].setValues(displayedObject=odb)
-    stlExport_kernel.STLExport(moduleName=ModuleNames.VISUALIZATION, stlFileName=stl_path, stlFiletype='ASCII')
+    stlExport_kernel.STLExport(moduleName=ModuleNames.VISUALIZATION.value, stlFileName=stl_path, stlFileType='ASCII')
     
     only_open_odb = session.odbs.keys()[0]
     session.odbs[only_open_odb].close()
@@ -652,8 +669,8 @@ def _orphan_mesh_to_geometry(part_name: str, model_name: str, mdb: Any) -> None:
 
 
 
-def estimate_residual_stresses(deformed_geometry_data: rwd.ProcessedRealWorldData | rwd.RealWorldDataFromSim,
-                               target_geometry_data: rwd.ProcessedRealWorldData | rwd.RealWorldDataFromSim,
+def estimate_residual_stresses(deformed_geometry_data: rwd.ProcessedRealWorldData | rwd.SimRealWorldData,
+                               target_geometry_data: rwd.ProcessedRealWorldData | rwd.SimRealWorldData,
                                tool_pass: tp.ToolPass,
                                commit_phase_md: md.CommitmentPhaseMetadata,
                                path: str
