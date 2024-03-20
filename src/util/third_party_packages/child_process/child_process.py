@@ -53,6 +53,7 @@ def process_blender_message(message: tuple[str, str]) -> tuple[str, str]:
     elif message_type == blender_messages.MessageParentToChild.BLENDER_VOLUME_SYMMETRIC_DIFFERENCE:
         response_data = blender.compute_volume_symmetric_difference(message_data) 
         return (blender_messages.MessageChildToParent.BLENDER_VOLUME_SYMMETRIC_DIFFERENCE, response_data) 
+    elif message_type == blender_messages.MessageParentToChild.
     else:
         raise AssertionError("Unknown message type.")
 

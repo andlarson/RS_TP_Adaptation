@@ -31,6 +31,7 @@ import os
 import time
 from typing import *
 
+from src.util.debug import *
 
 
 # TODO: Yuck! Hard-coded!
@@ -108,8 +109,12 @@ class UseThirdPartyPackage:
         
         sp = subprocess.Popen(args=[self.path_to_python, self.script], 
                               env=self.env, stdin=subprocess.PIPE,
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              text=True)
         self.sp = sp
+
+        # DEBUG
+        dp("The child process was just created! It has pid: " + str(self.sp.pid))
 
 
     def kill_child(self) -> None:
@@ -141,7 +146,7 @@ class UseThirdPartyPackage:
 
            Args:
                message_type: The type of the message to pass to the child process.
-                                 A string which occupies a single line. 
+                                 Should be an enum with string value.
                message_data: The data to pass to the child process. A single line.
                timeout:      The maximum amount of time, in seconds, to wait for
                                  the child process to send data back to the
@@ -159,10 +164,10 @@ class UseThirdPartyPackage:
         self.sp.poll()
         assert self.sp.returncode is None 
 
-        assert len(message_type.splitlines()) == 1
+        assert len(message_type.value.splitlines()) == 1
         assert len(message_data.splitlines()) == 1
         
-        self.sp.stdin.writelines([message_type, message_data])
+        self.sp.stdin.writelines([message_type.value, message_data])
         
         start_time = time.time()
 

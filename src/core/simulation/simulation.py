@@ -470,7 +470,12 @@ def create_mdb_from_odb(new_mdb_name: str, new_mdb_path: str, odb_path: str
 
 
 def _import_stl_to_mdb(stl_path: str, mdb_name: str, save_dir: str) -> Any:
-    """Imports a .stl file into a new MDB. 
+    """Imports a .stl file into a new MDB.
+       
+       The plug-in that does this also generates a .txt file and a .inp file
+           in the current working directory. 
+       
+       Abaqus only supports importing .stl files in ASCII format!
 
        Args:
            stl_path: Absolute path to .stl file to convert.
