@@ -36,7 +36,7 @@ from src.util.debug import *
 
 # TODO: Yuck! Hard-coded!
 PATH_TO_STANDARD_INTERPRETER = "/home/andlars/Desktop/executables_etc/bin/python3"
-PATH_TO_STANDARD_PARENT_SCRIPT = "/home/andlars/Desktop/RS_TP_Adaptation/src/util/third_party_packages/parent_process/calling_third_parties.py"
+PATH_TO_STANDARD_CHILD_SCRIPT = "/home/andlars/Desktop/RS_TP_Adaptation/src/util/third_party_packages/child_process/child_process.py"
 
 
 
@@ -89,7 +89,6 @@ class UseThirdPartyPackage:
         # The child process should not use the default search path when looking
         #     for modules.
         self.env: Mapping[str, str] = copy.deepcopy(os.environ)
-        del self.env['PYTHONPATH']
 
         self.sp: subprocess.Popen | None = None
        
@@ -107,9 +106,12 @@ class UseThirdPartyPackage:
                None.
         """
         
+        # The child communicates with the parent over stdout, but it can also
+        #     write to the parent's stderr. When the parent is running in the
+        #     context of the Abaqus kernel, stderr is redirected to the terminal.
         sp = subprocess.Popen(args=[self.path_to_python, self.script], 
                               env=self.env, stdin=subprocess.PIPE,
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              stdout=subprocess.PIPE, stderr=sys.__stderr__,
                               text=True)
         self.sp = sp
 
@@ -138,7 +140,7 @@ class UseThirdPartyPackage:
             self.sp.kill() 
 
 
-    def exchange_data(self, message_type: Any, message_data: str, timeout=120) -> tuple[str, str]:
+    def exchange_data(self, message_type: Any, message_data: str) -> tuple[str, str]:
         """Passes message to the child process, waits for a response, and returns
                the response.
 
@@ -146,11 +148,10 @@ class UseThirdPartyPackage:
 
            Args:
                message_type: The type of the message to pass to the child process.
-                                 Should be an enum with string value.
-               message_data: The data to pass to the child process. A single line.
-               timeout:      The maximum amount of time, in seconds, to wait for
-                                 the child process to send data back to the
-                                 parent process.
+                                 Should be an enum with string value which does not
+                                 end with the newline terminator.
+               message_data: The data to pass to the child process. A string which
+                                 does not end with the newline terminator.
         
            Returns:
                Tuple containing the type of message received and the message
@@ -167,18 +168,10 @@ class UseThirdPartyPackage:
         assert len(message_type.value.splitlines()) == 1
         assert len(message_data.splitlines()) == 1
         
-        self.sp.stdin.writelines([message_type.value, message_data])
-        
-        start_time = time.time()
+        self.sp.stdin.writelines([message_type.value + "\n", message_data + "\n"])
+        self.sp.stdin.flush()
 
-        received = self.sp.stdout.readlines(2)
-        
-        while len(received) != 2:
-            cur_time = time.time()
-            if cur_time - start_time > timeout:
-                raise AssertionError("Timeout exceeded!")
-            time.sleep(3)            
+        received_message_type = self.sp.stdout.readline().removesuffix("\n")
+        received_message_data = self.sp.stdout.readline().removesuffix("\n")
 
-            received = self.sp.stdout.readlines(2)
-
-        return received[0], received[1] 
+        return received_message_type, received_message_data 

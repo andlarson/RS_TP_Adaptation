@@ -4,33 +4,36 @@ This file contains functionality for making calls into Blender's Python APIs.
 
 
 
-def remesh(message: str) -> str:
+def remesh(stl_to_remesh: str, save_location) -> None:
     """Remeshes a mesh with some heuristically chosen new attributes (i.e.
            number of vertices in new mesh, number of faces in new mesh,
            etc.). 
                    
        Args:
-           message: Unmodified message data.
+           stl_to_remesh: Absolute path to .stl file to remesh.
+           save_location: Absolute path to desired save location. Should end
+                              with .stl.
     
        Returns:
-           Absolute path to .stl file containing the remeshed mesh.
+           None.
 
        Raises:
            None.
     """
     
-    return "Received instruction to remesh!"
+    return
 
 
 
-def compute_volume_symmetric_difference(message: str) -> int:
+def compute_volume_symmetric_difference(stl1: str, stl2: str) -> float:
     """Computes the volume of the symmetric difference between two 3D shapes.
                    
        Args:
-           message: Unmodified message data.
+           stl1: Absolute path to .stl file containing a shape.
+           stl2: Absolute path to .stl file containing a shape.
     
        Returns:
-           Volume of the symmetric difference.
+           Volume of symmetric difference.
     
        Raises:
            None.
@@ -40,7 +43,7 @@ def compute_volume_symmetric_difference(message: str) -> int:
 
 
 
-def remove_material(message: str) -> str:
+def remove_material(base_geom: str, to_remove: str, save_loc: str) -> None:
     """Removes a volume of material. 
 
        TODO: To utilize full capability of Blender, this function should accept
@@ -49,17 +52,21 @@ def remove_material(message: str) -> str:
            shape of the tool pass path only if necessary).
                    
        Args:
-           message: Unmodified message data.
+           base_geom: Absolute path to .stl file containing the base geometry from
+                          which material will be removed.
+           to_remove: Absolute path to .stl file containing the geometry to remove
+                          from the base geometry.
+           save_loc:  Absolute path to desired save location of .stl which contains
+                          the geometry post-material removal. Should end with .stl.
 
        Returns:
-           Absolute path to .stl file containing the shape resulting from the
-               removal.
+           None.
     
        Raises:
            None.
     """
 
-    return "Received instruction to remove material."
+    return 
 
 
 

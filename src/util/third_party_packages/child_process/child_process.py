@@ -22,7 +22,11 @@ At a high level, this process simply polls stdin, waiting for messages to be
 
 import sys
 import time
+import os
 from typing import *
+
+# Resolving imports.
+sys.path.append("/home/andlars/Desktop/RS_TP_Adaptation/")
 
 import src.util.third_party_packages.blender_messages as blender_messages
 import src.util.third_party_packages.child_process.blender as blender
@@ -37,8 +41,8 @@ def process_blender_message(message: tuple[str, str]) -> tuple[str, str]:
                         have format (message_type, message_data).
     
        Returns:
-           Result of the work in Blender. The interpretation of the result
-               depends on the message which was received.
+           Result of the work in Blender. Always takes the form (message type,
+               message data).
     
        Raises:
            None.
@@ -47,13 +51,36 @@ def process_blender_message(message: tuple[str, str]) -> tuple[str, str]:
     message_type = message[0]
     message_data = message[1]
     
-    if message_type == blender_messages.MessageParentToChild.BLENDER_REMESH:
-        response_data = blender.remesh(message_data) 
-        return (blender_messages.MessageChildToParent.BLENDER_REMESH, response_data) 
-    elif message_type == blender_messages.MessageParentToChild.BLENDER_VOLUME_SYMMETRIC_DIFFERENCE:
-        response_data = blender.compute_volume_symmetric_difference(message_data) 
-        return (blender_messages.MessageChildToParent.BLENDER_VOLUME_SYMMETRIC_DIFFERENCE, response_data) 
-    elif message_type == blender_messages.MessageParentToChild.
+    if message_type == blender_messages.Messages.BLENDER_REMESH.value:
+        # Unpack the received data.
+        stl_to_remesh, save_location = blender_messages.unpack_remesh_data_at_child(message_data)
+
+        blender.remesh(stl_to_remesh, save_location) 
+
+        # Pack the response data. 
+        packed_data = blender_messages.child_to_parent_remesh_data()
+
+        return (blender_messages.Messages.BLENDER_REMESH.value, packed_data) 
+    elif message_type == blender_messages.Messages.BLENDER_VOLUME_SYMMETRIC_DIFFERENCE.value:
+        # Unpack the received data.
+        geom1, geom2 = blender_messages.unpack_symm_diff_data_at_child(message_data)
+
+        volume = blender.compute_volume_symmetric_difference(geom1, geom2) 
+
+        # Pack the response data.
+        packed_data = blender_messages.child_to_parent_symm_diff_data(volume)
+
+        return (blender_messages.Messages.BLENDER_VOLUME_SYMMETRIC_DIFFERENCE.value, packed_data)
+    elif message_type == blender_messages.Messages.BLENDER_REMOVE_MATERIAL.value:
+        # Unpack the received data.
+        base_geom, to_remove, save_loc = blender_messages.unpack_material_removal_data_at_child(message_data)
+
+        blender.remove_material(base_geom, to_remove, save_loc)
+
+        # Pack the response data.
+        packed_data = blender_messages.child_to_parent_material_removal_data()
+
+        return (blender_messages.Messages.BLENDER_REMOVE_MATERIAL.value, packed_data)
     else:
         raise AssertionError("Unknown message type.")
 
@@ -64,9 +91,8 @@ def process_message(message: tuple[str, str]) -> tuple[str, str]:
            the type of message."""
     
     message_type = message[0]
-
-    # Blender.
-    if message_type in blender_messages.MessageParentToChild:
+   
+    if message_type in [member.value for member in blender_messages.Messages]:
         return process_blender_message(message)
     else:
         raise RuntimeError("Unknown message type.")
@@ -74,17 +100,16 @@ def process_message(message: tuple[str, str]) -> tuple[str, str]:
 
 
 if __name__ == "__main__":
-
+    
     while True:
-    
-        # Check if a (message type, message) pair is available.
-        # Danger here! If a write from the parent process is not atomic, then
-        #     it's possible that only a partial message would be read here.
-        lines = sys.stdin.readlines(2)
-    
-        # If no message is available, sleep for a while.
-        if len(lines) != 2:
-            time.sleep(3)  
-        else:
-            ret = process_message(tuple(lines))
-            sys.stdout.writelines(ret)
+        # Assumes an ordering. 
+        message_type = sys.__stdin__.readline().removesuffix("\n")
+        message_data = sys.__stdin__.readline().removesuffix("\n")
+
+        ret = process_message((message_type, message_data))
+        sys.stdout.writelines([ret[0] + "\n", ret[1] + "\n"])
+        sys.stdout.flush()
+
+
+
+

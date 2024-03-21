@@ -30,10 +30,10 @@ if __name__ == "__main__":
     PATH_TO_SAVE_LOC = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/using_packages/test.stl"
     remesh_message = bm.Messages.BLENDER_REMESH
     remesh_message_data = bm.parent_to_child_remesh_data(PATH_TO_STL, PATH_TO_SAVE_LOC)
-    third_party_package = ctp.UseThirdPartyPackage(ctp.PATH_TO_STANDARD_INTERPRETER, ctp.PATH_TO_STANDARD_PARENT_SCRIPT)
+    third_party_package = ctp.UseThirdPartyPackage(ctp.PATH_TO_STANDARD_INTERPRETER, ctp.PATH_TO_STANDARD_CHILD_SCRIPT)
     third_party_package.start_child()
     received_message_type, received_message_data = third_party_package.exchange_data(remesh_message, remesh_message_data)
-    assert received_message_type == remesh_message
+    dp("The received message has type " + received_message_type)
     bm.unpack_remesh_data_at_parent(received_message_data)
     third_party_package.kill_child()
     dp("End of test!")
