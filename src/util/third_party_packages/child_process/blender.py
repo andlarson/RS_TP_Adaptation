@@ -21,7 +21,6 @@ def remesh(stl_to_remesh: str, save_location) -> None:
            None.
     """
     
-    return
 
 
 

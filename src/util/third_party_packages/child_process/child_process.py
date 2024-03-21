@@ -110,6 +110,3 @@ if __name__ == "__main__":
         sys.stdout.writelines([ret[0] + "\n", ret[1] + "\n"])
         sys.stdout.flush()
 
-
-
-
