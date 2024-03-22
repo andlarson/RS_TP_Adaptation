@@ -15,7 +15,7 @@ from src.util.debug import *
 
 if __name__ == "__main__":
     
-    ODB_PATH = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/mesh_produced_by_abaqus.odb" 
-    NEW_MDB_NAME = "mesh_to_geom_fail.cae"
-    NEW_MDB_PATH = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/motivating_remeshing"
+    ODB_PATH = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/motivating_blender/remeshing/mesh_produced_by_abaqus.odb" 
+    NEW_MDB_NAME = "no_stitch.cae"
+    NEW_MDB_PATH = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/motivating_blender/remeshing/implementation_error/"
     sim.create_mdb_from_odb(NEW_MDB_NAME, NEW_MDB_PATH, ODB_PATH)

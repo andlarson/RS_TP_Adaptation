@@ -1612,6 +1612,7 @@ def create_part_from_odb(part_name: str, model_name: str, path_to_odb: str,
 
     odb = odbAccess.openOdb(path=path_to_odb)
     mdb.models[model_name].PartFromOdb(part_name, odb, shape=DEFORMED)
+    
     odb.close()
 
     # Do book keeping.
@@ -1742,8 +1743,12 @@ def add_face_from_region(region: Any, part: Any) -> Any:
     #    Region Object, whenever a command accepts a named set or surface, it
     #    will also accept an Abaqus Region object. However, the converse does not seem
     #    to be true. Therefore a Abaqus Region object really is required.
+
     # Set associateFace=FALSE and stitch=False to speed this up.
     return part.FaceFromElementFaces(region, stitch=False, associateFace=FALSE)
+
+    # An alternative that does stitching. This makes face creation MUCH slower! 
+    # return part.FaceFromElementFaces(region, stitch=True, associateFace=FALSE)
 
 
 

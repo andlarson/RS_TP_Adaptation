@@ -663,9 +663,9 @@ def _orphan_mesh_to_geometry(part_name: str, model_name: str, mdb: Any) -> None:
             if cnt % 50 == 0:
                 part.clearGeometryCache()
 
-    # Note: The convert_shell_to_solid() function is significantly less failure 
-    #     prone than add_solid_from_faces().
     shim.convert_shell_to_solid(part)
+    # An alternative which doesn't do stitching! Much more failure prone! 
+    # shim.add_solid_from_faces(part)
     
     # Remove any dependency on the orphan mesh.
     # Not doing this causes the orphan mesh to still appear in the Assembly
