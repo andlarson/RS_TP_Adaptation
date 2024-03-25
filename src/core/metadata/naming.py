@@ -50,7 +50,7 @@ class ModelNames:
         if model_type is ModelTypes.DEFAULT_MODEL:
             # Assumed to already exist at call time. 
             self.new_model_name = shim.STANDARD_MODEL_NAME
-            self.part_from_odb_name = shim.STANDARD_INIT_GEOM_PART_NAME
+            self.part_from_mesh_name = shim.STANDARD_INIT_GEOM_PART_NAME
 
         elif model_type is ModelTypes.FIRST_TOOL_PASS:
             # Assumed to already exist at call time. 

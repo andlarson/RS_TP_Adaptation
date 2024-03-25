@@ -133,5 +133,11 @@ class AbaqusModelMetadata:
         self.part_names = [shim.STANDARD_INIT_GEOM_PART_NAME]
         self.job_name: str | None = None  # Assume 1-to-1 mapping of model to job.
 
+    
+    def add_part(self, name: str) -> None:
+        """Adds a part to the data structure."""
+
+        self.part_names.append(name)
+
 
 

@@ -18,7 +18,7 @@ class InitialPart():
                way.
 
            Args:
-               path:     Absolute path to .cae file defining the part. 
+               path:     Absolute path to .stl defining the part geometry. 
                material: The material that the part is made out of.
 
            Returns:
@@ -28,15 +28,8 @@ class InitialPart():
                None.
         """
 
-        mdb = shim.use_mdb(path)
-
-        if not shim.check_simple_standard_mdb(True, mdb):
-            raise RuntimeError("The part, as it exists in Abaqus, is not basic!")
-
-        shim.close_mdb(mdb)
-
         self.material = material
-        self.path_to_mdb = path
+        self.path_to_stl = path
 
 
 

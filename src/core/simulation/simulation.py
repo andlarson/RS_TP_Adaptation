@@ -4,30 +4,10 @@ Provides top-level functionality to do simulations of interest in Abaqus.
 
 import os
 from typing import Optional, Any
-import pathlib
-import random
-import shutil
-import copy
-import sys
-import enum
 
 from abaqus import *
 from abaqusConstants import * 
 import numpy as np
-# TODO: Yuck! Hard Coded!
-# The two imports below are special. They import functionality provided by
-#     Abaqus plug-ins. In order for these imports to be resolved correctly,
-#     it's necessary to add installation-dependent directories to the path.
-PATH_STL_IMPORT = "/opt/caen/abaqus/abaqus-2024/SIMULIA/EstProducts/2024/"\
-                  "linux_a64/code/python3.10/lib/abaqus_plugins/stlImport"
-if PATH_STL_IMPORT not in sys.path:
-    sys.path.append(PATH_STL_IMPORT)
-PATH_STL_EXPORT = "/opt/caen/abaqus/abaqus-2024/SIMULIA/EstProducts/2024/"\
-                  "linux_a64/code/python3.10/lib/abaqus_plugins/stlExport"
-if PATH_STL_EXPORT not in sys.path:
-    sys.path.append(PATH_STL_EXPORT)
-import stl2inp
-import stlExport_kernel
 
 import src.core.abaqus.abaqus_shim as shim
 import src.core.tool_pass.tool_pass as tp
@@ -426,277 +406,26 @@ def _simulate_traction_app(traction: geom.Vec3D,
 
 
 
-def create_mdb_from_odb(new_mdb_name: str, new_mdb_path: str, odb_path: str
-                       ) -> tuple[Any, abq_md.AbaqusMdbMetadata, naming.ModelNames]:
-    """Creates an MDB with a part in it by sourcing the content of an ODB.
-           Saves the MDB before returning.
-      
-       Implementation Detail:
-       The MDB is populated with a single part and that part is named in a
-           generic way.
-        
-       Args:
-           new_mdb_name: The desired name of the new MDB.
-           new_mdb_path: Absolute path to directory. The MDB (.cae file) will be
-                             created in this directory.
-           odb_path:     Absolute path to ODB (.odb file).
-     
-       Returns:
-           Tuple containing the new Abaqus MDB object, the metadata that accompanies 
-               it, and the names associated with it.
-    
-       Raises:
-           None.
-    """
-
-    # Create the new MDB.
-    mdb = shim.create_mdb(new_mdb_name, new_mdb_path)
-    full_path = os.path.join(new_mdb_path, new_mdb_name)
-    mdb_metadata = abq_md.AbaqusMdbMetadata(full_path) 
-    
-    # Generate the names for the stuff in the MDB.
-    names = naming.ModelNames(naming.ModelTypes.DEFAULT_MODEL, mdb_metadata)
-
-    # Fetch the result of the committed tool pass and use it as the initial state
-    #     of the MDB.
-    shim.create_part_from_odb(names.part_from_odb_name, names.new_model_name, odb_path, mdb_metadata, mdb)
-    _orphan_mesh_to_geometry(names.part_from_odb_name, names.new_model_name, mdb)
-    
-    # Save the MDB so it is visible in the file system.
-    shim.save_mdb(mdb)
-
-    return mdb, mdb_metadata, names
-
-
-
-def _import_stl_to_mdb(stl_path: str, mdb_name: str, save_dir: str) -> Any:
-    """Imports a .stl file into a new MDB.
-       
-       The plug-in that does this also generates a .txt file and a .inp file
-           in the current working directory. 
-       
-       Abaqus only supports importing .stl files in ASCII format!
-
-       Args:
-           stl_path: Absolute path to .stl file to convert.
-           mdb_name: Name of the MDB which will be created. 
-           save_dir: Absolute path to directory in which to create the MDB.
-                         Note that the MDB is slated to be saved to this directory,
-                         but isn't actually saved to it.
-    
-       Returns:
-           Abaqus MDB object with a single model and a single part. Note that
-               this MDB is open and it has not been saved.
-    
-       Raises:
-           None.
-    """
-    
-    mdb = shim.create_mdb(mdb_name, save_dir)
-
-    # It isn't documented how Abaqus plug-in's collect and and use information
-    #     from an MDB. The STL import function, for example, does not take a
-    #     MDB as one of its arguments. I hypothesize that the STL import plugin
-    #     uses the current MDB which is open by default.
-    
-    # This function isn't documented in Abaqus' documentation. I found it by
-    #     using the plugin and then looking at the .rpy file. Note that the
-    #     mergeNodesTolerance is set to same value used by default in the
-    #     .rpy file.
-    stl2inp.STL2inp(stlfile=stl_path, modelName=shim.STANDARD_MODEL_NAME, 
-                    mergeNodesTolerance=1E-06)
-
-    return mdb 
-
-
-
-class ModuleNames(enum.Enum):
-    """Module names from which .stl files can be exported."""
-    PART = "Part"
-    MESH = "Mesh"
-    ASSEMBLY = "Assembly"
-    VISUALIZATION = "Visualization"
-
-
-
-def _export_stl_from_mdb(module_name: ModuleNames, model_name: str,
-                         stl_path: str, mdb: Any, part: Any = None
-                        ) -> None:
-    """Exports the data from a module to .stl format.
-       
-       It is not documented anywhere, but it appears that in the process of
-           exporting a .stl the plugin generates .txt and .inp files in the
-           the same directory that the .stl file is being saved in.
-
-       It is unclear how *exactly* this conversion is done. For example, if
-           an export from the Assembly module is requested, it seems like
-           the .stl content depends principally on the internal geometric
-           representation that Abaqus has. If an export from the Mesh module
-           is requested, the .stl content depends on the mesh.
-
-       Args:
-           module_name: The name of the module from which to export .stl
-                            data.
-           model_name:  The name of the model containing the module to export.
-           stl_path:    Absolute path to desired save location for .stl file. 
-           mdb:         Abaqus MDB object which is open. 
-       
-       Optional Args:
-           part:        Abaqus Part object. Note that there may be many parts 
-                            in the Part module. In this case, the STL export 
-                            plugin also uses which part is currently being displayed 
-                            in the viewport to determine which part should be 
-                            exported in .stl format. Thus, if an export from 
-                            the Part module is requested, this argument is
-                            required.
-    
-       Returns:
-           None.
-    
-       Raises:
-           None.
-    """
-
-    if module_name == ModuleNames.PART:
-        if part is None:
-            raise RuntimeError("When exporting a .stl from the Part module, it's necessary"\
-                               " to specify which part should be exported.")
-        else:
-            assert(len(session.viewports) == 1)
-            session.viewports[session.currentViewportName].setValues(displayedObject=part)
-    elif module_name == ModuleNames.ASSEMBLY:
-        assembly = mdb.models[model_name].rootAssembly
-        session.viewports[session.currentViewportName].setValues(displayedObject=assembly)
-    elif module_name == ModuleNames.MESH:
-        assembly = mdb.models[model_name].rootAssembly
-        session.viewports[session.currentViewportName].setValues(displayedObject=assembly)
-        session.viewports[session.currentViewportName].assemblyDisplay.setValues(mesh=ON)
-        session.viewports[session.currentViewportName].assemblyDisplay.meshOptions.setValues(meshTechnique=ON)
-
-    cwd = os.getcwd()
-    os.chdir(os.path.dirname(stl_path))
-    stlExport_kernel.STLExport(moduleName=module_name.value, stlFileName=os.path.basename(stl_path), stlFileType='ASCII')
-    os.chdir(cwd)
-
-
-
-def _convert_odb_to_stl(odb_path: str, stl_path: str):
-    """Converts a .odb file to .stl format. 
-
-       Since the .odb format is Abaqus-proprietary, at first I thought a
-           necessary precondition for this function should be that there is
-           some MDB open in this session. After testing things out this does
-           not appear to be the case. It appears that the Abaqus kernel is
-           willing to spin up an MDB that is never saved. 
-
-       It is unclear how *exactly* this conversion is done. I believe that 
-           this conversion is done by creating vertices in the .stl file based 
-           on the integration points in the deformed mesh.
-
-       Args:
-           odb_path: Absolute path to .odb file to convert.
-           stl_path: Absolute path to desired .stl file save location.
-       
-       Returns:
-           None.
-    
-       Raises:
-           None.
-    """
-    
-    assert(len(session.odbs) == 0)
-
-    odb = session.openOdb(name=odb_path)
-    session.viewports[session.currentViewportName].setValues(displayedObject=odb)
-    stlExport_kernel.STLExport(moduleName=ModuleNames.VISUALIZATION.value, stlFileName=stl_path, stlFileType='ASCII')
-    
-    only_open_odb = session.odbs.keys()[0]
-    session.odbs[only_open_odb].close()
-
-
-
-def _orphan_mesh_to_geometry(part_name: str, model_name: str, mdb: Any) -> None:
-    """Converts an orphan mesh to a solid geometry by converting all the faces
-           of the orphan mesh to regions/surfaces, and then melding all the
-           regions/surfaces together to form a solid geometry.
-           
-       For some context, the result of a simulation is an orphan mesh (i.e. 
-           just a bunch of vertices and elements connecting the vertices 
-           together). An orphan mesh by itself is not very useful. For example, 
-           to do boolean operations between parts, the parts need to have 
-           geometries associated with them. This function adds geometric features 
-           to a part, giving it a geometry.
-
-       Args:
-           part_name: The name of the part which contains the orphan mesh. This
-                          part will have the solid geometry associated with it.
-           model_name: The name of the model the part is in.
-           mdb:        Abaqus MDB object.
-
-       Returns:
-           None.
-
-       Raises:
-           None.
-    """
-
-    part = mdb.models[model_name].parts[part_name]
-
-    unique_elem_faces = shim.get_unique_element_faces(part)
-
-    # For each unique face in the mesh, we know the face is on the surface if it is
-    #    associated with exactly one element.
-    # We need to construct a region for each face on the surface of the part. 
-    # Each region is then used to build a geometric face feature associated
-    #    with the part.
-
-    cnt = 0
-    for elem_face in unique_elem_faces:
-        if len(shim.get_mesh_face_elements(elem_face)) == 1:
-
-            face_reg = shim.build_region_with_elem_face(elem_face, part)
-
-            shim.add_face_from_region(face_reg, part)
-
-            # Clear the cache every once in a while for a potential speed up. 
-            cnt += 1
-            if cnt % 50 == 0:
-                part.clearGeometryCache()
-
-    shim.convert_shell_to_solid(part)
-    # An alternative which doesn't do stitching! Much more failure prone! 
-    # shim.add_solid_from_faces(part)
-    
-    # Remove any dependency on the orphan mesh.
-    # Not doing this causes the orphan mesh to still appear in the Assembly
-    #    module, which can make appearence confusing. 
-    shim.suppress_part_feature(shim.STANDARD_ORPHAN_MESH_FEATURE_NAME, part)
-
-
-
-def estimate_residual_stresses(deformed_geometry_data: rwd.ProcessedRealWorldData | rwd.SimRealWorldData,
-                               target_geometry_data: rwd.ProcessedRealWorldData | rwd.SimRealWorldData,
-                               tool_pass: tp.ToolPass,
-                               commit_phase_md: md.CommitmentPhaseMetadata,
+def estimate_residual_stresses(deformed_geometry: str, target_geometry: str,
+                               tool_pass: tp.ToolPass, commit_phase_md: md.CommitmentPhaseMetadata,
                                path: str
                               ) -> rs.ConstantResidualStressField:
     """Estimates the residual stresses which existed in a region of material
            which was removed and caused a deformation of the workpiece.
        
        Args:
-           deformed_geometry_data: The real world data collected by scanning
-                                       the workpiece after it underwent some
-                                       deformation due to material removal.
-           target_geometry_data:   The real world data collected by scanning
-                                       the workpiece before it underwent some
-                                       deformation due to material removal.
-           tool_pass:                The tool pass that removed material.
-           commit_phase_md:          The commitment phase during which the tool 
-                                         pass was committed to.
-           path:                     Absolute path to directory. Any MDBs which 
-                                         need to be created in order to recover 
-                                         the residual stresses are placed in this 
-                                         directory.
+           deformed_geoemtry: Absolute path to .odb or .stl file containing the
+                                  deformed geoemetry from real life.
+           target_geometry:   Absolute path to .odb or .stl file containing the
+                                  target geometry (aka the pre-cut, pre-deform
+                                  geometry) from real life.
+           tool_pass:         The tool pass that removed material.
+           commit_phase_md:   The commitment phase during which the tool 
+                                  pass was committed to.
+           path:              Absolute path to directory. Any MDBs which 
+                                  need to be created in order to recover 
+                                  the residual stresses are placed in this 
+                                  directory.
     
        Returns:
            The residual stress field in the material that was removed by the
@@ -711,8 +440,7 @@ def estimate_residual_stresses(deformed_geometry_data: rwd.ProcessedRealWorldDat
 
 
 
-def _recover_constant_residual_stress(deformed_geometry_data: rwd.ProcessedRealWorldData| rwd.SimRealWorldData,
-                                      target_geometry_data: rwd.ProcessedRealWorldData| rwd.SimRealWorldData, 
+def _recover_constant_residual_stress(deformed_geometry: str, target_geometry: str,
                                       tool_pass: tp.ToolPass,
                                       commit_phase_md: md.CommitmentPhaseMetadata,
                                       path: str
@@ -724,19 +452,18 @@ def _recover_constant_residual_stress(deformed_geometry_data: rwd.ProcessedRealW
            the region of material was constant before it was removed.
         
        Args:
-           deformed_geometry_data: The real world data collected by scanning
-                                       the workpiece after it underwent some
-                                       deformation due to material removal.
-           target_geometry_data:   The real world data collected by scanning
-                                       the workpiece before it underwent some
-                                       deformation due to material removal.
-           tool_pass:              The tool pass that removed material.
-           commit_phase_md:        The commitment phase during which the tool 
-                                       pass was committed to.
-           path:                   Absolute path to directory. Any MDBs which 
-                                       need to be created in order to recover 
-                                       the residual stresses are placed in this 
-                                       directory.
+           deformed_geoemtry: Absolute path to .odb or .stl file containing the
+                                  deformed geoemetry from real life.
+           target_geometry:   Absolute path to .odb or .stl file containing the
+                                  target geometry (aka the pre-cut, pre-deform
+                                  geometry) from real life.
+           tool_pass:         The tool pass that removed material.
+           commit_phase_md:   The commitment phase during which the tool 
+                                  pass was committed to.
+           path:              Absolute path to directory. Any MDBs which 
+                                  need to be created in order to recover 
+                                  the residual stresses are placed in this 
+                                  directory.
 
        Returns:
            The residual stress field in the material that was removed by the
@@ -747,10 +474,7 @@ def _recover_constant_residual_stress(deformed_geometry_data: rwd.ProcessedRealW
     """
    
     # Step 1:
-    # Removing the chunk of material due to the tool pass from the target geometry
-    #     results in the geometry that would result if no residual stresses were
-    #     present.
-    # TODO: Do this in Blender. Note that result will be .stl file. 
+    # Construct the pre-cut, pre-deform geometry.
 
     # Step 2:
     # Find a point on the trench for the tool pass.
@@ -990,7 +714,6 @@ def _compute_symmetric_diff(part1_name: str, part2_name: str, model_name: str,
        In set theory, the symmetric difference between two sets A, B is the set
            of elements which are in either A, B and are not in the intersection
            of A, B. This function computes the volume of the symmetric difference. 
-           
                    
        Args:
            part1_name: Name of the first part.

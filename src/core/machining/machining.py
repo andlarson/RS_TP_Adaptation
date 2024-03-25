@@ -32,18 +32,25 @@ from src.util.debug import *
 
 class MachiningProcess:
 
-    def __init__(self, init_part: part.InitialPart, boundary_conditions: list[bc.BC]) -> None:
+    def __init__(self, init_part: part.InitialPart, boundary_conditions: list[bc.BC],
+                 save_name: str, save_dir: str) -> None:
         """Defines the machining process for a single part.
    
            Args:
-               init_part:           The initial part geometry before any machining 
-                                        has taken place (e.g. the blank). 
-               boundary_conditions: The boundary conditions which should be used for all 
-                                        simulations in this machining process. Usually, 
-                                        these reflect the clamping conditions of the part. 
-                                        Without any boundary conditions, a finite element 
-                                        simulation is unconstrained. Thus, there should
-                                        always be at least one boundary condition.
+               init_part:           The initial geometry of the part (i.e., the
+                                        blank).
+               boundary_conditions: The boundary conditions which should be used
+                                        for all simulations in this machining
+                                        process. Usually, these reflect the
+                                        clamping conditions of the part.
+                                        Without any boundary conditions, a
+                                        finite element simulation is
+                                        unconstrained. Thus, there should always
+                                        be at least one boundary condition.
+               save_name:           Desired name of the MDB containing the initial
+                                        part geometry.
+               save_dir:            Absolute path to directory containing the
+                                        MDB with the initial part geometry.
            
            Returns:
                None.
@@ -58,9 +65,16 @@ class MachiningProcess:
         self.commitment_phase_metadata = []
         self.boundary_conditions = boundary_conditions 
 
-        first_commit_md = md.CommitmentPhaseMetadata(init_part, boundary_conditions)
-        first_commit_md.first_commitment_phase = True
+        mdb, mdb_md, names = shim.create_mdb_from_mesh(save_name, save_path, init_part.path_to_stl)
+        shim._orphan_mesh_to_geometry_via_plugin(shim.STANDARD_PART_FROM_MESH_NAME, 
+                                                 names.part_from_mesh_name, 
+                                                 names.new_model_name, mdb_md, mdb)
 
+        min_part = part.MinimalPart(mdb_md.path_to_mdb)
+
+        first_commit_md = md.CommitmentPhaseMetadata(min_part, boundary_conditions)
+        first_commit_md.first_commitment_phase = True
+        first_commit_md.blank = init_part
         self.commitment_phase_metadata.append(first_commit_md)
 
 
@@ -263,27 +277,39 @@ class MachiningProcess:
         if len(cur_commit_phase_md.committed_tpp[1]) != 1:
             raise RuntimeError("The committed tool pass plan doesn't contain \
                                 exactly one committed tool pass.")
+        
+        # TODO: Technically we can do a stress estimation even if no real world
+        #     data has been supplied. In this case, the stress estimation would
+        #     be based on the simulation results. For now, we won't allow that.
 
         if cur_commit_phase_md.real_world_data is None:
-            raise RuntimeError("The real world data associated with the committed \
-                                tool pass plan has not been supplied.")
+            raise RuntimeError("The real world data resulting from the most recent \
+                                committed tool pass plan has not been supplied.")
+
+        if not cur_commit_phase_md.first_commitment_phase:
+            if self.commitment_phase_metadata[-2].real_world_data is None:
+                raise RuntimeError("The real world data resulting from the last \
+                                    committed tool pass plan was not supplied. In \
+                                    order to do a stress estimation, the real \
+                                    world data for the last two committed tool \
+                                    pass plans must be supplied.")
+
 
         tool_pass = self.commitment_phase_metadata[-1].committed_tpp[1].plan[0]
-
-        if len(self.commitment_phase_metadata) == 1:
-            # TODO: This is broken until I migrate all geometric operations over
-            #     to Blender.
-            assert(False)
-        else:
-            # TODO: This is broken until I migrate all geometric operations over
-            #     to Blender.
-            assert(False)
         
+        if cur_commit_phase_md.first_commitment_phase:
+            target_geometry_data = cur_commit_phase_md.blank.path_to_stl
+        else:
+            prev_commit_phase_md = self.commitment_phase_metadata[-2]
+            target_geometry_data = prev_commit_phase_md.real_world_data
+        
+        deformed_geometry_data = cur_commit_phase_md.real_world_data
+
         return sim.estimate_residual_stresses(deformed_geometry_data, target_geometry_data,
                                               tool_pass, cur_commit_phase_md, path)
 
 
-    def add_real_world_machining_data(self, real_world_data: rwd.RealWorldData | rwd.RealWorldDataFromSim) -> None:
+    def add_real_world_machining_data(self, real_world_data: str) -> None:
         """Supplies real-world machining data for the LAST committed tool pass
                plan. 
            
@@ -293,13 +319,16 @@ class MachiningProcess:
                committing a tool pass plan and simulating another tool pass plan.
 
            The data passed to this function should be the data which resulted
-               from a scan (in real life) of the part which resulted from the
-               last committed tool pass plan.
+               from a scan of the part which resulted from the last committed 
+               tool pass plan.
            
            Args:
-               real_world_data: Data from the real world describing the state
-                                    of the workpiece after the last committed tool
-                                    pass.
+               real_world_data: Absolute path to .stl or .odb file containing the
+                                    real world data. Note that .stl is the format
+                                    which will probably be generated by a true
+                                    in-machine scan. The option to pass a .odb file
+                                    exists because we want to provide the option
+                                    to do everything in simulation.
         
            Returns:
                None.
@@ -439,12 +468,13 @@ class MachiningProcess:
     def _start_new_commitment_phase(self, save_name: str, save_dir: str) -> None:
         """Starts a new commitment phase by propagating the results of the last
                commitment phase.
-            
-           Among other things, this means that the part geometry and the state
-               of stress of the part, as they existed after the last tool
-               pass in the last commitment phase, are propagated into an
-               MDB which is the starting point for this new commitment phase.
-
+           
+           Exactly what is propagated depends on what the user supplied. For
+               example, if the user supplied a stress estimate, then that stress
+               estimate is used in the new commitment phase. Otherwise, the
+               field produced by the simulation is used in the new commitment
+               phase.
+           
            Args:
                save_name: The name of the subdirectory and .cae file (MDB) created
                               by this function. The MDB contains the propagated
@@ -478,37 +508,58 @@ class MachiningProcess:
         else:
             raise RuntimeError("The subdirectory already exists!")
         
-        # Retrieve the path to the ODB which contains the result of the committed
-        #     tool pass plan in the current commitment phase. 
-        odb_name = naming.last_odb_file_name(committed_tpp_mdb_md)
-        odb_path = os.path.join(path_committed_tpp, odb_name)
+        # If the user supplied real world data for the result of the committed
+        #     tool pass plan in this commitment phase, then that real world
+        #     data is the starting point for the next commitment phase. If the
+        #     user didn't supply real world data, then the result (i.e. .odb)
+        #     of simulating the committed tool pass plan is the starting point
+        #     for the commitment phase.
+        if old_commit_phase_md.real_world_data is None:
+            # Retrieve the path to the ODB which contains the result of the committed
+            #     tool pass plan. 
+            odb_name = naming.last_odb_file_name(committed_tpp_mdb_md)
+            odb_path = os.path.join(path_committed_tpp, odb_name)
 
-        # Use the ODB to create a new MDB with the deformed geometry in it.
-        sim.create_mdb_from_odb(save_name, new_subdir_path, odb_path)
+            # Use the ODB to create a new MDB with the deformed geometry in it.
+            mdb, mdb_md, names = shim.create_mdb_from_mesh(save_name, new_subdir_path, odb_path)
 
-        # The material comes from the material used in the very first commitment
-        #     phase.
-        first_commit_phase_metadata = self.commitment_phase_metadata[0]
-        very_first_part = first_commit_phase_metadata.init_part
-        material = very_first_part.material
+            # Warn the user!
+            dump_banner("No real world data was supplied for the result"\
+                        " of the most recent committed tool pass plan. Thus, the"\
+                        " result from simulation is being used!")
+            dump_banner_end()
+        else: 
+            mdb, mdb_md, names = shim.create_mdb_from_mesh(save_name, new_subdir_path, old_commit_phase_md.real_world_data)
+
+        # In either case, it's necessary to convert from orphan mesh to geometry.
+        shim._orphan_mesh_to_geometry_via_plugin(shim.STANDARD_PART_FROM_MESH_NAME, 
+                                                 names.part_from_mesh_name, 
+                                                 names.model_name,
+                                                 mdb_md, mdb)
 
         # The starting point for the next commitment phase.
         new_mdb_path = os.path.join(new_subdir_path, save_name)
-        abaqus_part = part.InitialPart(new_mdb_path, material)
+        abaqus_part = part.MinimalPart(new_mdb_path)
 
-        # The initial state of the next commitment phase depends on the result
-        #     of the simulation. 
         new_phase_md = md.CommitmentPhaseMetadata(abaqus_part, abaqus_part.path_to_mdb, self.boundary_conditions)
         self.commitment_phase_metadata.append(new_phase_md)
         
         new_commit_phase_md = self.commitment_phase_metadata[-1]
+        
+        if old_commit_phase_md.next_phase_init_stress is None:
+            # If the user did not provide a stress estimate for the old commitment
+            #     phase, then the stresses produced from the simulation will need 
+            #     to be used.
+            new_commit_phase_md.path_last_commit_sim_file = sim_file_path
 
-        # Record the stress state which resulted from the committed tool pass 
-        #     plan in this new commitment phase.
-        new_commit_phase_md.path_last_commit_sim_file = sim_file_path
-
-        # Propagate the user-defined stress profile.
-        new_commit_phase_md.init_stress = old_commit_phase_md.next_phase_init_stress
+            # Warn the user!
+            dump_banner("No stress estimate was supplied for the last commitment"\
+                        " phase. Thus, the stress field which resulted from "\
+                        " simulation is being used!")
+            dump_banner_end()
+        else:
+            # Propagate the user-defined stress profile.
+            new_commit_phase_md.init_stress = old_commit_phase_md.next_phase_init_stress
 
 
 

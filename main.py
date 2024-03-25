@@ -191,7 +191,7 @@ if __name__ == "__main__":
         #     in-machine would be converted to a 3D geometric model and
         #     used.
         # TODO: This is bit hacky. Using a non-public function. 
-        mdb = sim.create_mdb_from_odb(real_life_cae_names[0] + ".cae", PARALLEL_TP_DIR, odb_path)[0]
+        mdb, _ = sim.create_mdb_from_odb(real_life_cae_names[0] + ".cae", PARALLEL_TP_DIR, odb_path)[0]
         all_in_sim.rename_model(mdb)        
         shim.save_mdb(mdb)
         shim.close_mdb(mdb)

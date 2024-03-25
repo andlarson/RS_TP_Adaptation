@@ -13,7 +13,8 @@ import src.core.real_world_data.real_world_data as rwd
 
 class CommitmentPhaseMetadata:
 
-    def __init__(self, init_part: part.InitialPart, BCs: list[bc.BC]) -> None:
+    def __init__(self, init_part: part.MinimalPart | part.InitialPart, 
+                 BCs: list[bc.BC]) -> None:
         """Creates a data structure associated with a single commitment phase.
 
            The system flow is assumed to be something like:
@@ -54,6 +55,14 @@ class CommitmentPhaseMetadata:
 
         # Flag indicating if this commitment phase is the very first one.
         self.first_commitment_phase: bool = False
+        
+        # The very first commitment phase stores an initial part. For all other 
+        #     commitment phases, this won't be present.
+        # This asymmetry results from the fact that real world data is stored
+        #     in a commitment phase after a tool pass plan is committed. In the
+        #     first commitment phase, there is real world data (i.e. the geometry
+        #     of the blank) before any tool pass plan has been committed.
+        self.blank: part.InitialPart | None = None
 
         # The absolute path to the .sim file from the commitment phase which preceded
         #     this commitment phase.
@@ -66,8 +75,8 @@ class CommitmentPhaseMetadata:
         
         # The state of the part as it exists at the beginning of this commitment 
         #     phase.
-        self.init_part: part.InitialPart = init_part
-        
+        self.init_part: part.MinimalPart = init_part
+
         # The boundary conditions for this commitment phase.
         self.BCs: list[bc.BC] = BCs
 
@@ -116,8 +125,10 @@ class CommitmentPhaseMetadata:
 
         # ----- Real World Data -----
         
-        # Data from real life.
-        self.real_world_data: rwd.ProcessedRealWorldData | rwd.SimRealWorldData | None = None
+        # Absolute path to .stl or .odb file.
+        # The real world part scan data corresponding to the result of the
+        #     committed tool pass plan.
+        self.real_world_data: str | None = None
 
 
         # ----- User-Provided Stress State For Next Commitment Phase -----

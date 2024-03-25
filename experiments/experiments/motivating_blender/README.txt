@@ -1,8 +1,8 @@
 Is Blender really necessary?
+The high level rationale is that Abaqus' preprocessor utilities aren't very 
+    robust. This rationale is a bit fuzzy, so I want to be more precise.
 
-The high level rationale is that Abaqus' preprocessor utilities aren't very robust.
-
-More precisely, Abaqus is not good at:
+More precisely, Abaqus does not seem to be good at: 
     1) Converting a mesh to a geometry.
     2) Doing boolean operations between complex geometries.
     3) Representing all possible geometries of tool passes.
@@ -122,7 +122,7 @@ The next possibility to consider is that my routine for doing the mesh ->
 
 Conclusion:
 I still can't precisely say why (3) fails while (1), (2), and (4) succeed. I also
-    can't precsily describe why (1) and (2) result in imprecise entities
+    can't precisely describe why (1) and (2) result in imprecise entities
     while (3) results in no imprecise entities.
 Nonetheless, it seems like the plug-in is the way to go...
 
@@ -143,6 +143,10 @@ Abaqus has the ability to do boolean operations between geometries. failed_boole
     geometry conversions via the plug-in. Evidently, the internal representation
     of the geometry affects the success of boolean operations.
 
+Conclusion:
+When the mesh -> geometry plugin provided by Abaqus is used, the boolean capabilites
+    in Abaqus seem sufficient.
+
 
 
 ********************************************************************************
@@ -154,6 +158,10 @@ Abaqus restricts the geometries which it can represent. For example, Abaqus rest
     restriction means that we can't represent all possible geometries of tool
     passes that the machine is capable of.
 
+Conclusion:
+Eventaully we will want to represent all possible geometries of tool passes, but
+    for now, the functionality in Abaqus is sufficient.
+
 
 
 ********************************************************************************
@@ -163,6 +171,29 @@ Abaqus restricts the geometries which it can represent. For example, Abaqus rest
 When simulating sequential tool passes, converting in-machine scans to geometries,
     and converting simulated in-machine scans to geometries, it's necessary to
     mesh a geometric representation that is highly faceted.
-All experimental results are in the subdirectory meshing_highly_faceted_geometries.
-Note that all mesh -> geometry conversions were done using the plug-in provided
-    by Abaqus.
+All experimental results are in the meshing_highly_faceted_geometries/ subdirectory.
+    The .odb files in this directory contain the example meshes which were used.
+
+The experiments in meshing_highly_faceted_geometries/simple_approach/ were conducted 
+    by using a simple procedure:
+    1) Import a .odb containing a deformed mesh.
+    2) Convert the mesh to a geometry with the mesh -> geometry plugin provided
+           by Abaqus.
+    3) Mesh the resulting geometry. 
+
+Alternative approaches might include using the virtual topology toolset to simplify
+    the geometry and/or doing remeshing to make the mesh more uniform.
+
+The experiments in meshing_highly_faceted_geometries/alternative_approach/ were
+    conducted by using the alternative procedure:
+    1) Import a .odb containing a deformed mesh.
+    2) Convert the mesh to a geometry with the mesh -> geometry plugin provided
+           by Abaqus.
+    3) Use the default virtual topology settings to simplify the geometry. Do
+           this recursively until no further simplification is possible.
+    3) Mesh the resulting geometry. 
+
+Conclusion:
+A major downside of the simple procedure is that it produces a mesh with a very
+    large number of faces. The virtual topology utility helps to mitigate this
+    problem, although it does not provide any guarantees.

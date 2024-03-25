@@ -2,13 +2,7 @@
 
 Recovering Residual Stress - Short Term TODO:
 
-0) Get the mesh -> geometry conversion plugin working.
-
-1) Write tests for the steps which seem to be the bottlenecks:
-   - Mesh to geometry conversion.
-   - Meshing the result of a mesh -> geometry conversion. Does this require a remeshing step?
-   - Boolean operations (i.e. symmetric difference).
-   - Traction vector application to faces of trench.
+1) Get the mesh -> geometry conversion plugin working.
 
 2) Get symmetric difference-based gradient descent up and running.
 
@@ -29,6 +23,11 @@ General - Short Term TODO:
 
 1) Implement checkpointing to save time debugging.
 
+2) Write general testing framework for whole system. It should generate, or
+       source, random blank geometries, random tool pass geometries, and random
+       full-field stress estimates. Using these things, a whole flow can be
+       simulated.
+
 
 
 General - Long Term TODO:
@@ -48,11 +47,6 @@ Code Organization / Structure / Documentation TODO:
       deal with exceptional conditions when an MDB is open and needs to be closed.
       Using a "with" statement might be very useful to do this.
 
-    *** TUPLES VS. LISTS ***
-    Tuples should be passed as arguments when the function will not need to modify.
-      Passing a list to a function is dangerous because the function may modify the
-      list.
-    
     *** WRITE UP ALTERANTIVE TECHNIQUE FOR MATERIAL REMOVAL ***
     Rule out and write up alternative technique for material removal using the
         additive manufacturing stuff in Abaqus.
@@ -114,11 +108,6 @@ Adding/Modifying Features TODO:
     Make the partition_face() function more robust. In particular, the find_face_ngon_lives_on()
        assumes that the user doesn't make some mistake and specify an ngon that
        doesn't actually live on any face!
-
-    *** SAVING STATE AND RESUMING IN THE FUTURE ***
-    Often during debugging some simualtions will run and then something will fail.
-       It would be very nice to have some easy way to resume at the state of failure
-       to minimize time wasted re-doing things that already work.
 
     *** WORKAROUND FOR INTERACTIVE MODE ***
     Figure out a workaround so we don't have to run Abaqus in interactive mode.
