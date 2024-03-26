@@ -140,4 +140,14 @@ class AbaqusModelMetadata:
         self.part_names.append(name)
 
 
+    def rename_part(self, new_name: str, old_name: str) -> None:
+        """Renames a part in the data structure."""
+        
+        for i, name in enumerate(self.part_names):
+            if name == old_name:
+                self.part_names[i] = new_name
+                return
+
+        raise AssertionError("Couldn't find matching part name.")
+
 

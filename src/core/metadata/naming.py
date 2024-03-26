@@ -1,7 +1,7 @@
 """
 This module contains functionality to generate and retrieves names.
 """
-from enum import Enum
+from enum import Enum, auto
 
 import src.core.abaqus.abaqus_shim as shim
 import src.core.metadata.abaqus_metadata as abq_md
@@ -9,11 +9,12 @@ import src.core.metadata.abaqus_metadata as abq_md
 
 # Different types of models have different naming schemes.
 class ModelTypes(Enum):
-    DEFAULT_MODEL = 0
-    FIRST_TOOL_PASS = 1
-    NTH_TOOL_PASS = 2
-    TRACTION_APP = 3
-    EVAL_VOL_DIFF = 4
+    FIRST_TOOL_PASS = auto()
+    NTH_TOOL_PASS = auto()
+    TRACTION_APP = auto()
+    DEFORMED_GEOM = auto()
+    TARGET_GEOM = auto()
+    SYMMETRIC_DIFF = auto()
 
 
 
@@ -47,18 +48,13 @@ class ModelNames:
 
         model_cnt = len(mdb_metadata.model_names)
         
-        if model_type is ModelTypes.DEFAULT_MODEL:
-            # Assumed to already exist at call time. 
-            self.new_model_name = shim.STANDARD_MODEL_NAME
-            self.part_from_mesh_name = shim.STANDARD_INIT_GEOM_PART_NAME
-
-        elif model_type is ModelTypes.FIRST_TOOL_PASS:
+        if model_type is ModelTypes.FIRST_TOOL_PASS:
             # Assumed to already exist at call time. 
             self.new_model_name = shim.STANDARD_MODEL_NAME
             self.pre_tool_pass_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
             
             # Assumed to be chosen. 
-            self.tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX 
+            self.tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX + str(model_cnt)
             self.post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(model_cnt)
             self.deformation_step_name = shim.STANDARD_DEFORMATION_STEP_NAME
             self.equilibrium_step_name = shim.STANDARD_EQUIL_STEP_NAME 
@@ -75,8 +71,33 @@ class ModelNames:
             # Assumed to be chosen. 
             self.post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX + str(model_cnt + 1)
             self.new_model_name = shim.STANDARD_MODEL_NAME_PREFIX + str(model_cnt + 1) 
-            self.tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX 
+            self.tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX  + str(model_cnt + 1)
             self.deformation_step_name = shim.STANDARD_DEFORMATION_STEP_NAME
+
+        elif model_type is ModelTypes.DEFORMED_GEOM:
+            # In the process of estimating the stress, it's assumed that a model
+            #     will be created which contains the deformed geometry. 
+            
+            # Assumed to be chosen.
+            self.new_model_name = shim.STANDARD_DEFORMED_GEOM_MODEL_NAME 
+            self.deformed_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
+
+        elif model_type is ModelTypes.TARGET_GEOM:
+            # In the process of estimating the stress, it's assumed that a model
+            #     will be created which contains the target geometry. 
+            # It is also assumed that the post-cut, pre-deformed target geometry
+            #     will be created.
+
+            # Assumed to be chosen.
+
+            # For target geometry importing.
+            self.new_model_name = shim.STANDARD_TARGET_GEOM_MODEL_NAME
+            self.target_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
+
+            # For construction of post-cut, pre-deform geometry.
+            self.pre_tool_pass_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
+            self.tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX
+            self.post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX
 
         elif model_type is ModelTypes.TRACTION_APP:
             # It is assumed that a model which includes traction application
@@ -86,23 +107,31 @@ class ModelNames:
             #     is only a single part instance).
 
             # Assumed to be chosen.
-            self.new_model_name = shim.STANDARD_MODEL_NAME_PREFIX + str(model_cnt + 1)
+            self.new_model_name = shim.STANDARD_TRACTION_APP_MODEL_PREFIX + str(model_cnt + 1)
             self.traction_step_name = shim.STANDARD_TRACTION_STEP_NAME
             self.traction_job_name = shim.STANDARD_JOB_PREFIX + str(model_cnt + 1)
 
-        elif model_type is ModelTypes.EVAL_VOL_DIFF:
-            # In order to compute the value of the volume difference function, 
-            #     it's assumed that a model containing a deformed geometry will need
-            #     to be copied and a part which contains the result of applying
-            #     a traction will need to be created.
+        elif model_type is ModelTypes.SYMMETRIC_DIFF:
+            # In the process of estimating the stress with the symmetric difference
+            #     technique, it's assumed that a model will be created which
+            #     contains two parts: 1) the result of traction application to 
+            #     the post-cut, pre-deform target geometry and 2) the deformed
+            #     geometry.
             
-            # Assumed to already exist at call time.
-            self.post_cut_post_deform_model_name = shim.STANDARD_MODEL_NAME
-            self.post_cut_post_deform_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
-            
+            # Assumed to already exist. Two models are assumed to exist and a
+            #     part is assumed to exist in one of the models!
+            self.target_geom_model_name = shim.STANDARD_TARGET_GEOM_MODEL_NAME
+            self.deformed_geom_model_name = shim.STANDARD_DEFORMED_GEOM_MODEL_NAME
+            self.existing_deformed_geom_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
+
             # Assumed to be chosen.
-            self.new_model_name = shim.STANDARD_VOLUME_DIFFERENCE_MODEL_PREFIX + str(model_cnt + 1)
-            self.post_traction_part_name = shim.STANDARD_POST_TRACTION_PART_NAME
+            self.target_geom_part_name = shim.STANDARD_TARGET_GEOM_PART_NAME
+            self.deformed_geom_part_name = shim.STANDARD_DEFORMED_GEOM_PART_NAME
+            self.new_model_name = shim.STANDARD_SYMMETRIC_DIFF_MODEL_PREFIX + str(model_cnt + 1)
+            self.part1_remainder_part_name = shim.STANDARD_PART_REMAINDER_NAME
+            self.intersection_part_name = shim.STANDARD_INTERSECTION_PART_NAME
+            self.union_part_name = shim.STANDARD_UNION_PART_NAME
+            self.symm_diff_part_name = shim.STANDARD_SYMM_DIFF_PART_NAME
 
 
 

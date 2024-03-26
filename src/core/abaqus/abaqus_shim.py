@@ -86,21 +86,19 @@ from src.util.debug import *
 
 # Names that Abaqus uses by default. 
 STANDARD_MODEL_NAME = "Model-1"
-STANDARD_INIT_GEOM_PART_NAME = "Initial_Geometry"
+STANDARD_MODEL_NAME_PREFIX = "Model-"
 STANDARD_INITIAL_STEP_NAME = "Initial"
 STANDARD_SECTION_NAME = "Section-1"
 STANDARD_MATERIAL_NAME = "Material-1"
 STANDARD_JOB_PREFIX = "Job-"
 STANDARD_ORPHAN_MESH_FEATURE_NAME = "Orphan mesh-1"
+STANDARD_STL_IMPORT_PART_NAME = "PART-1"
 
 # Custom names. 
 
 # Generic.
-STANDARD_MODEL_NAME_PREFIX = "Model-"
+STANDARD_INIT_GEOM_PART_NAME = "Initial_Geometry"
 STANDARD_BC_PREFIX = "Boundary_Condition_"
-
-# For mesh to geometry conversion.
-STANDARD_PART_FROM_MESH_NAME = "Part_From_Geom"
 
 # For tool pass simulations.
 STANDARD_TOOL_PASS_PART_PREFIX = "Tool_Pass_"
@@ -110,6 +108,7 @@ STANDARD_EQUIL_STEP_NAME = "Equilibrate_User_Specified_Stresses"
 STANDARD_INIT_GEOM_WITH_BBOX_NAME = "Initial_Geometry_With_Bounding_Box"
 
 # For surface traction application.
+STANDARD_TRACTION_APP_MODEL_PREFIX = "Traction_Application_"
 STANDARD_SURFACE_TRACTION_NAME = "Surface_Traction"
 STANDARD_TRACTION_STEP_NAME = "Traction_Application"
 
@@ -117,6 +116,21 @@ STANDARD_TRACTION_STEP_NAME = "Traction_Application"
 STANDARD_VOLUME_DIFFERENCE_MODEL_PREFIX = "Volume_Difference_"
 STANDARD_POST_TRACTION_MODEL_PREFIX = "Post_Traction"
 STANDARD_POST_TRACTION_PART_NAME = "Post_Traction"
+
+# For stress estimation.
+STANDARD_MDB_NAME = "estimating_stress.cae"
+STANDARD_DEFORMED_GEOM_MODEL_NAME = "Deformed_Geom"
+STANDARD_TARGET_GEOM_MODEL_NAME = "Target_Geom"
+STANDARD_STRESS_ESTIMATION_MDB_NAME = "Stress_Estimation.cae"
+
+# For symmetric difference computation.
+STANDARD_SYMMETRIC_DIFF_MODEL_PREFIX = "Symmetric_Difference_"
+STANDARD_DEFORMED_GEOM_PART_NAME = "Deformed_Geom"
+STANDARD_TARGET_GEOM_PART_NAME = "Target_Geom"
+STANDARD_PART_REMAINDER_NAME = "Remainder"
+STANDARD_INTERSECTION_PART_NAME = "Intersection"
+STANDARD_UNION_PART_NAME = "Union"
+STANDARD_SYMM_DIFF_PART_NAME = "Symmetric_Difference"
 
 
 
@@ -365,22 +379,6 @@ def check_simple_assembly(should_print: bool, mdb: Any) -> bool:
 
 
 
-def check_first_model_simple_assembly(should_print: bool, mdb_md: abq_md.AbaqusMdbMetadata, 
-                                      mdb: Any) -> bool:
-    """Checks that the first model in an MDB contains a single part instance
-           in its assembly. No naming scheme is assumed."""
-
-    first_model_name = mdb_md.model_names[0]
-
-    if len(mdb.models[first_model_name].rootAssembly.instances) != 1:
-        if should_print:
-            dp("failure 1")
-        return False
-
-    return True
-
-
-
 def check_multiple_steps(should_print: bool, model_name: str, mdb: Any) -> bool:
     """Checks that a model contains multiple steps."""
 
@@ -566,51 +564,81 @@ def get_only_instance_name(model: Any) -> str:
 # *****************************************************************************
 
 
-def create_mdb_from_mesh(new_mdb_name: str, new_mdb_path: str, mesh_path: str
-                        ) -> tuple[Any, abq_md.AbaqusMdbMetadata, naming.ModelNames]:
-    """Creates an MDB with a part in it by sourcing the content of a mesh.
-           The mesh can contained in a .stl file or a .odb file. Saves the 
-           MDB before returning.
-       
-       Implementation Details:
-       The MDB contains a single model and a single part named in a generic
-           way.
-      
+def copy_part(new_part_name: str, from_part_name: str,  
+              to_model_name: str, from_model_name: str,
+              mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
+    """Copies a part from one model to another.
+
        Args:
-           new_mdb_name: The desired name of the new MDB.
-           new_mdb_path: Absolute path to directory. The MDB (.cae file) will be
-                             created in this directory.
-           mesh_path:    Absolute path to .odb file or .stl file.
+           new_part_name:   The desired name of the new part.
+           from_part_name:  The name of the part to copy.
+           to_model_name:   The name of the model to copy to.
+           from_model_name: The name of the model to copy from.
+           mdb_md:          Metadata associated with the MDB.
+           mdb:             Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
+    
+    mdb.models[to_model_name].Part(new_part_name, mdb.models[from_model_name].parts[from_part_name])
+
+
+def rename_part(new_part_name: str, old_part_name: str, model_name: str,
+                mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
+    """Renames a part.
+
+       Args:
+           new_part_name: The desired new name of the part.
+           old_part_name: The old name of the part.
+           model_name:    The name of the model the part belongs to.
+           mdb_md:        Metadata associated with the MDB.
+           mdb:           Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
+
+    mdb.models[model_name].parts.changeKey(fromName=old_part_name, toName=new_part_name)
+    mdb_md.models_metadata[model_name].rename_part(new_part_name, old_part_name)
+
+
+
+def import_mesh(mesh_path: str, new_model_name: str, new_part_name: str, 
+                mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any): 
+    """Imports a mesh (in a .odb or .stl file) into an MDB. The result of this
+           operation is a new model with a new part.
+       
+       Args:
+           mesh_path:      Absolute path to .stl/.odb file containing the mesh.
+           new_model_name: Desired name of the new model.
+           new_part_name:  Desired name of the new part.
+           mdb_md:         Metadata associated with the MDB.
+           mdb:            Abaqus MDB object.
      
        Returns:
-           Tuple containing the new Abaqus MDB object and the metadata that 
-               accompanies it.
+           None.
     
        Raises:
            None.
     """
     
-    # Create the new MDB.
-    mdb = create_mdb(new_mdb_name, new_mdb_path)
-    full_path = os.path.join(new_mdb_path, new_mdb_name)
-    mdb_md = abq_md.AbaqusMdbMetadata(full_path) 
-
-    # Generate the names for the stuff in the MDB.
-    names = naming.ModelNames(naming.ModelTypes.DEFAULT_MODEL, mdb_md)
-
     if mesh_path.endswith(".odb"): 
-        create_part_from_odb(names.part_from_mesh_name, names.new_model_name, mesh_path, mdb_md, mdb)
+        create_part_from_odb(new_part_name, new_model_name, mesh_path, mdb_md, mdb)
     elif mesh_path.endswith(".stl"):
-        _import_stl_to_mdb(mesh_path, names.new_model_name, mdb_md, mdb)
+        import_stl_to_mdb(mesh_path, new_model_name, mdb_md, mdb)
 
-        # Manually update the metadata.
-        mdb_md.add_model(names.new_model_name)
+        # Rename the part to conform.
+        rename_part(new_part_name, STANDARD_STL_IMPORT_PART_NAME, 
+                    new_model_name, mdb_md, mdb) 
     else:
-        raise AssertionError("Unknown file type.")
-    
-    save_mdb(mdb)
-
-    return mdb, mdb_md, names
+        raise AssertionError("Unknown file type.") 
 
 
 
@@ -665,6 +693,10 @@ def import_stl_to_mdb(stl_path: str, new_model_name: str,
        
        Abaqus only supports importing .stl files in ASCII format!
 
+       Also, the plugin does not allow a custom part name - it chooses a standard
+           name. Thus, it might be useful to rename the part after this function
+           is called.
+
        Args:
            stl_path:       Absolute path to .stl file to import.
            new_model_name: When a .stl file is imported into an MDB, a new model
@@ -690,6 +722,7 @@ def import_stl_to_mdb(stl_path: str, new_model_name: str,
                     mergeNodesTolerance=1E-06)
 
     mdb_md.add_model(new_model_name)
+    mdb_md.models_metadata[new_model_name].rename_part(STANDARD_INIT_GEOM_PART_NAME, STANDARD_STL_IMPORT_PART_NAME)
 
 
 
@@ -1809,40 +1842,6 @@ def copy_model(model_to_copy: str, new_model: str,
 
     # Do book keeping.
     mdb_metadata.add_copy(model_to_copy, new_model)
-
-
-
-def create_model_and_part_from_odb(part_name: str, model_name: str, path_to_odb: str,  
-                                   mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
-                                  ) -> None:
-    """Creates a new model with a single deformed part represented by an orphan mesh. 
-           The orphan mesh comes from an ODB.
-
-       Assumes that the deformed part resulted from the last frame of the last
-           step of the simulation which generated the ODB.
-
-       Args:
-           part_name:    Desired new part name.
-           model_name:   Desired new model name.
-           path_to_odb:  Absolute path to ODB to use.
-           mdb_metadata: Metadata for the MDB.
-           mdb:          Abaqus MDB object.
-
-       Returns:
-           None.
-
-       Raises:
-           None.
-    """
-
-    model = mdb.Model(model_name)
-    odb = odbAccess.openOdb(path=path_to_odb)
-    model.PartFromOdb(part_name, odb, shape=DEFORMED)
-    odb.close()
-
-    # Do book keeping.
-    mdb_metadata.add_model(model_name)
-    mdb_metadata.models_metadata[model_name].add_part(part_name)
 
 
 
