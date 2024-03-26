@@ -614,10 +614,10 @@ def create_mdb_from_mesh(new_mdb_name: str, new_mdb_path: str, mesh_path: str
 
 
 
-def _orphan_mesh_to_geometry_via_plugin(new_part_name: str, part_name: str, 
-                                        model_name: str, mdb_md: abq_md.AbaqusMdbMetadata,
-                                        mdb: Any
-                                       ) -> None:
+def orphan_mesh_to_geometry_via_plugin(new_part_name: str, part_name: str, 
+                                       model_name: str, mdb_md: abq_md.AbaqusMdbMetadata,
+                                       mdb: Any
+                                      ) -> None:
     """Converts an orphan mesh to a geometry by using a plugin provided by
            Dassault Systemes. 
 
@@ -654,9 +654,9 @@ def _orphan_mesh_to_geometry_via_plugin(new_part_name: str, part_name: str,
 
 
 
-def _import_stl_to_mdb(stl_path: str, new_model_name: str, 
-                       mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any
-                      ) -> None:
+def import_stl_to_mdb(stl_path: str, new_model_name: str, 
+                      mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any
+                     ) -> None:
     """Imports a .stl file into whichever MDB is open in this session. Some MDB
            must be open in this session.
        
@@ -702,9 +702,9 @@ class ModuleNames(enum.Enum):
 
 
 
-def _export_stl_from_mdb(module_name: ModuleNames, model_name: str,
-                         stl_path: str, mdb: Any, part: Any = None
-                        ) -> None:
+def export_stl_from_mdb(module_name: ModuleNames, model_name: str,
+                        stl_path: str, mdb: Any, part: Any = None
+                       ) -> None:
     """Exports the data from a module to .stl format.
        
        It is not documented anywhere, but it appears that in the process of
@@ -765,7 +765,7 @@ def _export_stl_from_mdb(module_name: ModuleNames, model_name: str,
 
 
 
-def _convert_odb_to_stl(odb_path: str, stl_path: str):
+def convert_odb_to_stl(odb_path: str, stl_path: str):
     """Converts a .odb file to .stl format. 
 
        Since the .odb format is Abaqus-proprietary, at first I thought a
@@ -1842,7 +1842,7 @@ def create_model_and_part_from_odb(part_name: str, model_name: str, path_to_odb:
 
     # Do book keeping.
     mdb_metadata.add_model(model_name)
-    mdb_metadata.models_metadata[model_name].part_names.append(part_name)
+    mdb_metadata.models_metadata[model_name].add_part(part_name)
 
 
 

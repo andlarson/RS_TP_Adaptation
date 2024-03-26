@@ -294,7 +294,6 @@ class MachiningProcess:
                                     world data for the last two committed tool \
                                     pass plans must be supplied.")
 
-
         tool_pass = self.commitment_phase_metadata[-1].committed_tpp[1].plan[0]
         
         if cur_commit_phase_md.first_commitment_phase:

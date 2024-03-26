@@ -414,7 +414,7 @@ def estimate_residual_stresses(deformed_geometry: str, target_geometry: str,
            which was removed and caused a deformation of the workpiece.
        
        Args:
-           deformed_geoemtry: Absolute path to .odb or .stl file containing the
+           deformed_geometry: Absolute path to .odb or .stl file containing the
                                   deformed geoemetry from real life.
            target_geometry:   Absolute path to .odb or .stl file containing the
                                   target geometry (aka the pre-cut, pre-deform
@@ -435,24 +435,20 @@ def estimate_residual_stresses(deformed_geometry: str, target_geometry: str,
            None.
     """
 
-    return _recover_constant_residual_stress(deformed_geometry_data, target_geometry_data,
-                                             tool_pass, commit_phase_md, path)
+    return _recover_constant_residual_stress(tool_pass, commit_phase_md, path, mdb_md, mdb)
 
 
 
-def _recover_constant_residual_stress(deformed_geometry: str, target_geometry: str,
-                                      tool_pass: tp.ToolPass,
-                                      commit_phase_md: md.CommitmentPhaseMetadata,
-                                      path: str
-                                     ) -> rs.ConstantResidualStressField:
-    """Recovers the residual stresses which existed in the region of material 
-           which was removed by a committed tool pass. 
+def _prepare_for_stress_estimation(deformed_geometry: str, target_geometry: str,
+                                   tool_pass: tp.ToolPass, 
+                                   commit_phase_md: md.CommitmentPhaseMetadata,
+                                   path: str
+                                  ) -> tuple[abq_md.AbaqusMdbMetadata, Any]:
+    """This function prepares for the stress estimation step by consolidating
+           the real world data into a single MDB.
 
-       This technique assumes that the residual stress field which existed in
-           the region of material was constant before it was removed.
-        
        Args:
-           deformed_geoemtry: Absolute path to .odb or .stl file containing the
+           deformed_geometry: Absolute path to .odb or .stl file containing the
                                   deformed geoemetry from real life.
            target_geometry:   Absolute path to .odb or .stl file containing the
                                   target geometry (aka the pre-cut, pre-deform
@@ -464,6 +460,68 @@ def _recover_constant_residual_stress(deformed_geometry: str, target_geometry: s
                                   need to be created in order to recover 
                                   the residual stresses are placed in this 
                                   directory.
+
+       Returns:
+           An MDB and associated metadata. The MDB contains a model for the
+               deformed geometry and a model for the post-cut, pre-deform
+               geometry. Each model is simple and contains exactly one part. 
+
+       Raises:
+           None.
+    """
+
+    # The .stl/.odb formats for the deformed and target geometries aren't very
+    #     useful since we want to apply a traction to the post-cut, pre-deform
+    #     geometry. Thus, we need to create an MDB and put these geometries
+    #     into it.
+    STRESS_ESTIMATION_MDB_NAME = "Estimating_Stress.cae"
+    mdb, mdb_md, names = shim.create_mdb_from_mesh(STRESS_ESTIMATION_MDB_NAME, path, deformed_geometry)
+    
+    TARGET_GEOM_MODEL_NAME = "target_geometry"
+    if target_geometry.endswith(".stl"):
+        shim.import_stl_to_mdb(target_geometry, TARGET_GEOM_MODEL_NAME, mdb_md, mdb) 
+
+        # Construct the post-cut, pre-deformed geometry.
+    elif target_geometry.endswith(".odb"):
+        shim.create_model_and_part_from_odb(shim.STANDARD_INIT_GEOM_PART_NAME, 
+                                            TARGET_GEOM_MODEL_NAME, 
+                                            target_geometry, mdb_md, mdb) 
+
+        # Construct the post-cut, pre-deformed geometry.
+    else:
+        raise AssertionError("Unexpected file suffix.")
+
+
+    return mdb_md, mdb
+
+
+
+def _recover_constant_residual_stress(tool_pass: tp.ToolPass,
+                                      commit_phase_md: md.CommitmentPhaseMetadata,
+                                      path: str,
+                                      mdb_md: abq_md.AbaqusMdbMetadata,
+                                      mdb: Any
+                                     ) -> rs.ConstantResidualStressField:
+    """Recovers the residual stresses which existed in the region of material 
+           which was removed by a committed tool pass. 
+
+       This technique assumes that the residual stress field which existed in
+           the region of material was constant before it was removed.
+        
+       Args:
+           tool_pass:       The tool pass that removed material.
+           commit_phase_md: The commitment phase during which the tool 
+                                pass was committed to.
+           path:            Absolute path to directory. Any MDBs which 
+                                need to be created in order to recover 
+                                the residual stresses are placed in this 
+                                directory.
+           mdb_md:          Metadata for MDB.
+           mdb:             Abaqus MDB object. This MDB is expected to contain 
+                                two models. The first model should contain a 
+                                single part, the deformed geometry. The second 
+                                model should also contain a single part, the 
+                                post-cut, pre-deformed geometry. 
 
        Returns:
            The residual stress field in the material that was removed by the
