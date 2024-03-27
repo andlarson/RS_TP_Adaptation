@@ -61,7 +61,7 @@ PATH_STL_EXPORT = "/opt/caen/abaqus/abaqus-2024/SIMULIA/EstProducts/2024/"\
 if PATH_STL_EXPORT not in sys.path:
     sys.path.append(PATH_STL_EXPORT)
 
-PATH_MESH_TO_GEOM = "/home/andlars/Desktop/RS_TP_Adaptation/abaqus_plugins"
+PATH_MESH_TO_GEOM = "/home/andlars/Desktop/RS_TP_Adaptation/abaqus_plugins/3d_mesh_to_geom_plugin_abaqus2024/"
 if PATH_MESH_TO_GEOM not in sys.path:
     sys.path.append(PATH_MESH_TO_GEOM)
 
@@ -93,12 +93,14 @@ STANDARD_MATERIAL_NAME = "Material-1"
 STANDARD_JOB_PREFIX = "Job-"
 STANDARD_ORPHAN_MESH_FEATURE_NAME = "Orphan mesh-1"
 STANDARD_STL_IMPORT_PART_NAME = "PART-1"
+STANDARD_STL_IMPORT_INSTANCE_NAME = "PART-1-1"
 
 # Custom names. 
 
 # Generic.
 STANDARD_INIT_GEOM_PART_NAME = "Initial_Geometry"
 STANDARD_BC_PREFIX = "Boundary_Condition_"
+TEMPORARY_NAME = "Temp_Name"
 
 # For tool pass simulations.
 STANDARD_TOOL_PASS_PART_PREFIX = "Tool_Pass_"
@@ -564,6 +566,50 @@ def get_only_instance_name(model: Any) -> str:
 # *****************************************************************************
 
 
+def delete_model(model_name: str, mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
+    """Deletes a model from an MDB.
+
+       There must always be at least one model in an MDB!
+
+       Args:
+           model_name: The name of the model to delete.
+           mdb_md:     Metadata associated with the MDB.
+           mdb:        Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
+    
+    del mdb.models[model_name]
+    mdb_md.delete_model(model_name)
+
+
+
+def rename_model(old_model_name: str, new_model_name: str, 
+                 mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
+    """Renames a model.
+
+       Args:
+            old_model_name: Name of the old model. 
+            new_model_name: The desired name of the new model.
+            mdb_md:         Metadata associated with the MDB.
+            mdb:            Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
+    
+    mdb.models.changeKey(fromName=old_model_name, toName=new_model_name)
+    mdb_md.rename_model(old_model_name, new_model_name)
+
+
+
 def copy_part(new_part_name: str, from_part_name: str,  
               to_model_name: str, from_model_name: str,
               mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
@@ -587,6 +633,7 @@ def copy_part(new_part_name: str, from_part_name: str,
     mdb.models[to_model_name].Part(new_part_name, mdb.models[from_model_name].parts[from_part_name])
 
 
+
 def rename_part(new_part_name: str, old_part_name: str, model_name: str,
                 mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
     """Renames a part.
@@ -607,6 +654,27 @@ def rename_part(new_part_name: str, old_part_name: str, model_name: str,
 
     mdb.models[model_name].parts.changeKey(fromName=old_part_name, toName=new_part_name)
     mdb_md.models_metadata[model_name].rename_part(new_part_name, old_part_name)
+
+
+
+def delete_part(part_name: str, model_name: str, mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
+    """Deletes a part from a model.
+
+       Args:
+           part_name:  The name of the part. 
+           model_name: The name of the model the part belongs to.
+           mdb_md:     Metadata associated with the MDB.
+           mdb:        Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
+
+    del mdb.models[model_name].parts[part_name]
+    mdb_md.models_metadata[model_name].delete_part(part_name)
 
 
 
@@ -674,11 +742,64 @@ def orphan_mesh_to_geometry_via_plugin(new_part_name: str, part_name: str,
            None.
     """
         
-    mesh_geom.Run(modelName=model_name, meshPartName=part_name, 
-                  geoPartName=new_part_name, solid=True)
+    mesh_geo.Run(modelName=model_name, meshPartName=part_name, 
+                 geoPartName=new_part_name, solid=True)
     
     # Update the metadata.
     mdb_md.models_metadata[model_name].add_part(part_name)
+
+
+
+def create_mdb_from_mesh(mesh_path: str, new_mdb_path: str) -> tuple[Any, abq_md.AbaqusMdbMetadata]:
+    """Creates an MDB with a single model and single part defined by the 
+           geometry in a .stl file. Notably, the model and part are named in
+           the standard way.
+
+       Args:
+           mesh_path:    Absolute path to .odb or .stl file.
+           new_mdb_path: Absolute path to desired location of .cae creation.
+                             Should end with .cae.
+
+       Returns:
+           Abaqus MDB object. 
+
+       Raises:
+           None.
+    """
+
+    mdb = create_mdb(os.path.split(new_mdb_path)[1], os.path.split(new_mdb_path)[0])
+    mdb_md = abq_md.AbaqusMdbMetadata(new_mdb_path)
+    
+    if mesh_path.endswith(".stl"):
+        import_stl_to_mdb(mesh_path, TEMPORARY_NAME, mdb_md, mdb)
+
+        delete_model(STANDARD_MODEL_NAME, mdb_md, mdb)
+
+        rename_model(TEMPORARY_NAME, STANDARD_MODEL_NAME, mdb_md, mdb)
+        
+        orphan_mesh_to_geometry_via_plugin(STANDARD_INIT_GEOM_PART_NAME, 
+                                           STANDARD_STL_IMPORT_PART_NAME, 
+                                           STANDARD_MODEL_NAME, mdb_md, mdb)
+
+        delete_part(STANDARD_STL_IMPORT_PART_NAME, STANDARD_MODEL_NAME, mdb_md, mdb)
+        
+        # By default, the plugin creates an instance in the assembly.
+        # del mdb.models[STANDARD_MODEL_NAME].rootAssembly.features[STANDARD_STL_IMPORT_INSTANCE_NAME]
+        delete_assembly_feature(STANDARD_STL_IMPORT_INSTANCE_NAME, mdb.models[STANDARD_MODEL_NAME])
+
+    elif mesh_path.endswith(".odb"):
+        create_part_from_odb(TEMPORARY_NAME, model_name, mesh_path, mdb_md, mdb)
+
+        orphan_mesh_to_geometry_via_plugin(STANDARD_INIT_GEOM_PART_NAME, 
+                                           STANDARD_STL_IMPORT_PART_NAME,
+                                           STANDARD_MODEL_NAME, mdb_md, mdb)
+
+        delete_part(TEMPORARY_NAME, STANDARD_MODEL_NAME, mdb_md, mdb)
+    
+    else:
+        raise AssertionError("Bad file extension!")
+
+    return mdb, mdb_md
 
 
 
@@ -722,7 +843,7 @@ def import_stl_to_mdb(stl_path: str, new_model_name: str,
                     mergeNodesTolerance=1E-06)
 
     mdb_md.add_model(new_model_name)
-    mdb_md.models_metadata[new_model_name].rename_part(STANDARD_INIT_GEOM_PART_NAME, STANDARD_STL_IMPORT_PART_NAME)
+    mdb_md.models_metadata[new_model_name].rename_part(STANDARD_STL_IMPORT_PART_NAME, STANDARD_INIT_GEOM_PART_NAME)   
 
 
 
@@ -822,7 +943,7 @@ def convert_odb_to_stl(odb_path: str, stl_path: str):
            None.
     """
     
-    assert(len(session.odbs) == 0)
+    assert len(session.odbs) == 0
 
     odb = session.openOdb(name=odb_path)
     session.viewports[session.currentViewportName].setValues(displayedObject=odb)

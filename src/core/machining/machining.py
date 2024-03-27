@@ -33,7 +33,7 @@ from src.util.debug import *
 class MachiningProcess:
 
     def __init__(self, init_part: part.InitialPart, boundary_conditions: list[bc.BC],
-                 save_name: str, save_dir: str) -> None:
+                 save_path: str) -> None:
         """Defines the machining process for a single part.
    
            Args:
@@ -47,10 +47,9 @@ class MachiningProcess:
                                         finite element simulation is
                                         unconstrained. Thus, there should always
                                         be at least one boundary condition.
-               save_name:           Desired name of the MDB containing the initial
-                                        part geometry.
-               save_dir:            Absolute path to directory containing the
-                                        MDB with the initial part geometry.
+               save_path:           Absolute path to desired save location of
+                                        .cae file. This path should end with
+                                        .cae.
            
            Returns:
                None.
@@ -64,11 +63,10 @@ class MachiningProcess:
 
         self.commitment_phase_metadata = []
         self.boundary_conditions = boundary_conditions 
-
-        mdb, mdb_md, names = shim.create_mdb_from_mesh(save_name, save_path, init_part.path_to_stl)
-        shim._orphan_mesh_to_geometry_via_plugin(shim.STANDARD_PART_FROM_MESH_NAME, 
-                                                 names.part_from_mesh_name, 
-                                                 names.new_model_name, mdb_md, mdb)
+        
+        mdb, mdb_md = shim.create_mdb_from_mesh(init_part.path_to_stl, save_path)
+        shim.save_mdb(mdb)
+        shim.close_mdb(mdb)
 
         min_part = part.MinimalPart(mdb_md.path_to_mdb)
 
@@ -507,6 +505,9 @@ class MachiningProcess:
         else:
             raise RuntimeError("The subdirectory already exists!")
         
+        # The starting point for the next commitment phase.
+        new_mdb_path = os.path.join(new_subdir_path, save_name)
+
         # If the user supplied real world data for the result of the committed
         #     tool pass plan in this commitment phase, then that real world
         #     data is the starting point for the next commitment phase. If the
@@ -520,7 +521,7 @@ class MachiningProcess:
             odb_path = os.path.join(path_committed_tpp, odb_name)
 
             # Use the ODB to create a new MDB with the deformed geometry in it.
-            mdb, mdb_md, names = shim.create_mdb_from_mesh(save_name, new_subdir_path, odb_path)
+            mdb, mdb_md = shim.create_mdb_from_mesh(odb_path, new_mdb_path)
 
             # Warn the user!
             dump_banner("No real world data was supplied for the result"\
@@ -528,19 +529,12 @@ class MachiningProcess:
                         " result from simulation is being used!")
             dump_banner_end()
         else: 
-            mdb, mdb_md, names = shim.create_mdb_from_mesh(save_name, new_subdir_path, old_commit_phase_md.real_world_data)
+            mdb, mdb_md = shim.create_mdb_from_mesh(old_commit_phase_md.real_world_data, new_mdb_path)
 
-        # In either case, it's necessary to convert from orphan mesh to geometry.
-        shim._orphan_mesh_to_geometry_via_plugin(shim.STANDARD_PART_FROM_MESH_NAME, 
-                                                 names.part_from_mesh_name, 
-                                                 names.model_name,
-                                                 mdb_md, mdb)
+        shim.save_mdb(mdb)
 
-        # The starting point for the next commitment phase.
-        new_mdb_path = os.path.join(new_subdir_path, save_name)
         abaqus_part = part.MinimalPart(new_mdb_path)
-
-        new_phase_md = md.CommitmentPhaseMetadata(abaqus_part, abaqus_part.path_to_mdb, self.boundary_conditions)
+        new_phase_md = md.CommitmentPhaseMetadata(abaqus_part, self.boundary_conditions)
         self.commitment_phase_metadata.append(new_phase_md)
         
         new_commit_phase_md = self.commitment_phase_metadata[-1]

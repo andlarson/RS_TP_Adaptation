@@ -108,6 +108,28 @@ class AbaqusMdbMetadata:
         self.models_metadata[new_name] = copy.deepcopy(self.models_metadata[to_copy])
 
 
+    def delete_model(self, model_name: str) -> None:
+        """Deletes a model from the data structure."""
+    
+        for i, name in enumerate(self.model_names):
+            if name == model_name:
+                del self.model_names[i] 
+                return
+
+        raise AssertionError("The model to delete doesn't exist!")
+
+
+    def rename_model(self, old_model_name: str, new_model_name: str) -> None:
+        """Renames a model in the data structure."""
+
+        for i, name in enumerate(self.model_names):
+            if name == old_model_name:
+                self.model_names[i] = new_model_name
+                return
+
+        raise AssertionError("The model to rename doesn't exist!")
+
+
 
 """ Provides per-model metadata to supplement the state saved in Abaqus."""
 class AbaqusModelMetadata:
@@ -149,5 +171,16 @@ class AbaqusModelMetadata:
                 return
 
         raise AssertionError("Couldn't find matching part name.")
+
+
+    def delete_part(self, name: str) -> None:
+        """Deletes a part from the data structure."""
+
+        for i, cur_name in enumerate(self.part_names):
+            if name == cur_name:
+                del self.part_names[i]
+                return
+
+        raise AssertionError("Couldn't find part to delete.")
 
 

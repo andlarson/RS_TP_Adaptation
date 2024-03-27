@@ -61,7 +61,9 @@ if __name__ == "__main__":
         # ************
 
         # ----- Main Sim: FS Paths ----- 
-        INIT_CAE = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/initial_geometry.cae" 
+        INIT_STL = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/initial_geometry.stl" 
+        INIT_CAE_DIR = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/initial_geom/"
+        INIT_CAE_NAME = "initial_geometry.cae" 
         TP_DIR = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/stress_estimation/"
         TP_STRESS_ESTIMATION_DIR = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/stress_estimation/recover_stresses/"
         potential_tpp_names = ["first_plan", "second_plan", "third_plan"]
@@ -69,15 +71,19 @@ if __name__ == "__main__":
         STRESS_FIELD_ESTIMATE = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/stress_fields/stress_field_estimate/stress_field_estimate-std.o"
 
         # ----- Main Sim: Directory Cleanup -----
+        nuke_and_remake(INIT_CAE_DIR)
         nuke_and_remake(TP_DIR)
         nuke_and_remake(TP_STRESS_ESTIMATION_DIR)
 
         # ----- Real Life Sim: FS Paths -----
-        PARALLEL_TP_DIR = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/in_real_life/"
+        INIT_CAE_DIR_REAL_LIFE = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/in_real_life/initial_geom/"
+        INIT_CAE_NAME_REAL_LIFE = INIT_CAE_NAME
+        PARALLEL_TP_DIR = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/in_real_life/tool_passes/"
         ACTUAL_STRESS_FIELD = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/stress_fields/actual_stress_field/actual_stress_field-std.o"
         real_life_cae_names = committed_tpp_names
 
         # ----- Real Life Sim: Directory Cleanup -----
+        nuke_and_remake(INIT_CAE_DIR_REAL_LIFE)
         nuke_and_remake(PARALLEL_TP_DIR)
 
 
@@ -87,10 +93,10 @@ if __name__ == "__main__":
 
         # ----- Main Sim: Specifying Initial Geometry -----
         material = mp.ElasticMaterial(.3, 10**(9))
-        main_sim_init_part = part.InitialPart(INIT_CAE, material)
+        main_sim_init_part = part.InitialPart(INIT_STL, material)
 
         # ----- Real Life Sim: Specifying Initial Geometry -----
-        real_life_init_part = part.InitialPart(INIT_CAE, material)
+        real_life_init_part = part.InitialPart(INIT_STL, material)
 
         # ----- Both: Boundary Conditions ----- 
 
@@ -119,10 +125,12 @@ if __name__ == "__main__":
         BCs = [BC1, BC2]
 
         # ----- Real Life Sim: Top Level Machining Object -----
-        real_life_machining = mach.MachiningProcess(real_life_init_part, BCs)
+        real_life_machining = mach.MachiningProcess(real_life_init_part, BCs, 
+                                                    os.path.join(INIT_CAE_DIR_REAL_LIFE, INIT_CAE_NAME))
 
         # ----- Main Sim: Top Level Machining Object -----
-        main_machining = mach.MachiningProcess(main_sim_init_part, BCs)
+        main_machining = mach.MachiningProcess(main_sim_init_part, BCs, 
+                                               os.path.join(INIT_CAE_DIR, INIT_CAE_NAME))
 
         # ----- Real Life Sim: Specifying Actual Stress Profile ----- 
         real_life_machining.use_stress_profile(ACTUAL_STRESS_FIELD)
@@ -146,20 +154,6 @@ if __name__ == "__main__":
         potential_tpp_1 = tp.ToolPassPlan([tp1])
 
         main_machining.sim_potential_tool_passes(potential_tpp_1, potential_tpp_names[0], TP_DIR)
-
-        # ----- Checkpoint Progress -----
-        
-        # Pickle the full machining data structure.
-        # Are there any MDBs which are open? Is there any other state which needs
-        #     to be cleaned up?
-        # What files were created at this point in the execution? What directories
-        #     were created at this point? These things are also state that needs
-        #     to be saved off.
-        # Does Abaqus save hidden state anywhere?
-        # 
-        # Where do I want all the state to be saved? Arbitrary directory of user's
-        #     choosing.
-
 
         # ----- Main Sim: Simulate Second Potential TPP -----
         # p1 = geom.Point3D(np.array((5, 5, 300)))
@@ -186,20 +180,8 @@ if __name__ == "__main__":
         real_life_machining.commit_tool_passes(committed_plan, committed_tpp_names[0], PARALLEL_TP_DIR)
         odb_path = os.path.join(os.path.join(PARALLEL_TP_DIR, committed_tpp_names[0]), committed_tpp_names[0] + ".odb")
 
-        # Convert the results of the simulation to a .cae file.
-        # If this were actually occuring in real life, the data collected
-        #     in-machine would be converted to a 3D geometric model and
-        #     used.
-        # TODO: This is bit hacky. Using a non-public function. 
-        mdb, _ = sim.create_mdb_from_odb(real_life_cae_names[0] + ".cae", PARALLEL_TP_DIR, odb_path)[0]
-        all_in_sim.rename_model(mdb)        
-        shim.save_mdb(mdb)
-        shim.close_mdb(mdb)
-
         # ----- Main Sim: Pass in the results from real life -----
-        real_life_mdb_path = os.path.join(PARALLEL_TP_DIR, real_life_cae_names[0] + ".cae")
-        minimal_part = part.MinimalPart(real_life_mdb_path) 
-        main_machining.add_real_world_machining_data(minimal_part)
+        main_machining.add_real_world_machining_data(odb_path)
 
         # ----- Main Sim: Estimate Stresses -----
         _ = main_machining.estimate_stress(TP_STRESS_ESTIMATION_DIR)
@@ -212,7 +194,7 @@ if __name__ == "__main__":
         #   Searching For 2nd Good TPP 
         # *******************************
 
-        # ----- Main Sim: Simulate Second Potential TPP -----
+        # ----- Main Sim: Simulate Potential TPP -----
         p1 = geom.Point3D(np.array((20, 5, -50)))
         p2 = geom.Point3D(np.array((20, 5, 120)))
         path = geom.PlanarCubicC2Spline3D([p1, p2])
