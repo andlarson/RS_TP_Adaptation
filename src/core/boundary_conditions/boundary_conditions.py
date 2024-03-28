@@ -142,11 +142,15 @@ def apply_BCs(BCs: list[BC], step_name: str, part_instance: Any, model_name: str
             face = shim.partition_face(bc.region, instance=part_instance, assembly=assembly) 
             region = shim.build_region_with_face(face, part_instance)
         elif isinstance(bc, VertexBC):
-            raise RuntimeError("Not yet supported.")
+            assert False, "Not yet supported."
         else:
-            raise RuntimeError("Not yet supported.")
+            assert False, "Not yet supported."
 
         if isinstance(bc.bc_settings, DisplacementBCSettings):
             shim.create_disp_rot_bc(bc_name, step_name, region, bc.bc_settings, model_name, mdb)
         else:
-            raise RuntimeError("Not yet supported.")
+            assert False, "Not yet supported."
+
+
+
+

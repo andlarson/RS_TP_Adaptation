@@ -566,7 +566,7 @@ def seq_points_equal(s1: Sequence[Point], s2: Sequence[Point]) -> bool:
     """Checks if two sequences of points are the same.
 
        The ordering of the sequences doesn't matter. If, for every point in one
-           sequence, there is an equivalnet point in the other sequence, the
+           sequence, there is an equivalent point in the other sequence, the
            two sequences are considered equal.
 
        Args:

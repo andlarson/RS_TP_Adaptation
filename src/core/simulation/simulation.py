@@ -2,55 +2,57 @@
 Provides top-level functionality to do simulations of interest in Abaqus.
 """
 
+from __future__ import annotations
 import os
-from typing import Optional, Any
+from typing import Optional, Any, TYPE_CHECKING
 
 from abaqus import *
 from abaqusConstants import * 
 import numpy as np
 
+# Imports only used for static analysis / type checking.
+# This prevents cyclic imports, which are sometimes necessary for type annotations,
+#     from causing runtime errors. 
+if TYPE_CHECKING:
+    import src.core.machining.machining as mach
+    import src.core.tool_pass.tool_pass as tp
+    import src.core.metadata.metadata as md
+    import src.core.residual_stress.residual_stress as rs
+
 import src.core.abaqus.abaqus_shim as shim
-import src.core.tool_pass.tool_pass as tp
 import src.core.boundary_conditions.boundary_conditions as bc
-import src.core.metadata.metadata as md
 import src.core.metadata.naming as naming
-import src.core.residual_stress.residual_stress as rs
 import src.core.metadata.abaqus_metadata as abq_md
-import src.core.real_world_data.real_world_data as rwd
 import src.util.geom as geom
-import src.util.third_party_packages.parent_process.calling_third_parties as third_parties
-import src.util.third_party_packages.blender_messages as blender_messages
 
 from src.util.debug import *        
 
 
 
 def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, target_dir: str, 
-                       commit_phase_md: md.CommitmentPhaseMetadata,
+                       machining_invariants: mach._MachiningInvariants,
                        mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any,
-                       stress_subroutine: Optional[str] = None) -> None:
+                       stress_state: str) -> None:
     """Simulates consecutive tool passes and saves off the results.
     
        Args:
-           tool_pass_plan:    The tool pass plan to simulate. 
-           name:              Desired name of the MDB and the files which result
-                                  from the tool path simulations. 
-           target_dir:        Absolute path to directory. This directory should
-                                  have a subdirectory with name name created in
-                                  it already.
-           commit_phase_md:   The metadata associated with the commitment phase
-                                  in which to simulate the tool pass plan.
-           mdb_md:            Metadata for the MDB.
-           mdb:               Abaqus MDB object. The MDB in which to do the
-                                  simulations. Note that this MDB is saved as.
-                                  This MDB need not be empty, but the tool passes
-                                  are simulated on top of whatever content it
-                                  has.
-           stress_subroutine: Absolute path to stress subroutine. If this argument is not 
-                                  specified, then the initial stress state of the 
-                                  part will be sourced from the last simulation in 
-                                  the previous commitment phase. If this argument 
-                                  is specified, it is used instead.
+           tool_pass_plan:      The tool pass plan to simulate. 
+           name:                Desired name of the MDB and the files which result
+                                    from the tool path simulations. 
+           target_dir:          Absolute path to directory. This directory should
+                                    have a subdirectory with name name created in
+                                    it already.
+           machining_invariants: Invariants for this machining process.
+           mdb_md:               Metadata for the MDB.
+           mdb:                  Abaqus MDB object. The MDB in which to do the
+                                     simulations. Note that this MDB is saved as.
+                                     This MDB need not be empty, but the tool passes
+                                     are simulated on top of whatever content it
+                                     has.
+           stress_state:         Either an absolute path to an object file containing
+                                     a stress subroutine or an absolute path to a .sim
+                                     file containing the stress state which resulted
+                                     from a simulation. 
        
        Returns:
            None.
@@ -66,7 +68,7 @@ def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, target_dir: s
     os.chdir(sim_result_dir)
     
     for tool_pass in tool_pass_plan.plan:
-        _sim_single_tool_pass(name, tool_pass, commit_phase_md, mdb_md, mdb, stress_subroutine)    
+        _sim_single_tool_pass(name, tool_pass, machining_invariants, mdb_md, mdb, stress_state)    
         tool_pass_plan.pop()
     
     # Don't permanently change the CWD.
@@ -79,26 +81,24 @@ def sim_tool_pass_plan(tool_pass_plan: tp.ToolPassPlan, name: str, target_dir: s
 
 
 def _sim_single_tool_pass(job_name: str, tool_pass: tp.ToolPass, 
-                          commit_metadata: md.CommitmentPhaseMetadata, 
+                          machining_invariants: mach._MachiningInvariants,
                           mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any,
-                          stress_subroutine: Optional[str] = None) -> None:
+                          stress_state: str) -> None:
     """Simulates a single tool pass. This tool pass may be the first tool pass
            in a tool pass plan, or the nth tool pass in a tool pass plan.
 
        Args:
-           job_name:          Desired name of the job.
-           tool_pass:         The tool path to simulate.
-           commit_metadata:   The record associated with the search for a good next 
-                                  tool pass to do.
-           mdb_md:            Metadata for the MDB.
-           mdb:               Abaqus MDB object. The MDB in which the tool pass
-                                  will be simulated. The MDB may already contain
-                                  simulated tool passes.
-           stress_subroutine: Path to stress subroutine. If this argument is not 
-                                  specified, then the initial stress state of the 
-                                  part will be sourced from the last simulation in 
-                                  the previous commitment phase. If this argument 
-                                  is specified, it is used instead.
+           job_name:             Desired name of the job.
+           tool_pass:            The tool path to simulate.
+           machining_invariants: Invariants for this machining process.
+           mdb_md:               Metadata for the MDB.
+           mdb:                  Abaqus MDB object. The MDB in which the tool pass
+                                     will be simulated. The MDB may already contain
+                                     simulated tool passes.
+           stress_state:         Either an absolute path to an object file containing
+                                     a stress subroutine or an absolute path to a .sim
+                                     file containing the stress state which resulted
+                                     from a simulation. 
 
        Returns:
            None.
@@ -109,37 +109,32 @@ def _sim_single_tool_pass(job_name: str, tool_pass: tp.ToolPass,
     
     # The way that the MDB is simulated depends on its content.
     if shim.check_simple_standard_mdb(False, mdb):
-        if stress_subroutine is not None:
-            _sim_first_tool_pass(job_name, tool_pass, commit_metadata, mdb_md, mdb, stress_subroutine)
-        else:
-            _sim_first_tool_pass(job_name, tool_pass, commit_metadata, mdb_md, mdb)  
+        _sim_first_tool_pass(job_name, tool_pass, machining_invariants, mdb_md, mdb, stress_state)
     elif shim.check_job_submissions(False, mdb):
-        _sim_nth_tool_pass(job_name, tool_pass, commit_metadata, mdb_md, mdb)
+        _sim_nth_tool_pass(job_name, tool_pass, machining_invariants, mdb_md, mdb)
     else:
-        raise AssertionError("Can't figure out how to do next tool pass...")
+        assert False, "Can't figure out how to do next tool pass..."
 
 
 
 def _sim_first_tool_pass(job_name: str, tool_pass: tp.ToolPass, 
-                         commit_metadata: md.CommitmentPhaseMetadata, 
+                         machining_invariants: mach._MachiningInvariants,
                          mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any, 
-                         stress_subroutine: Optional[str] = None) -> None:
+                         stress_state: str) -> None:
     """Simulates the first tool pass in an MDB. The MDB is assumed to not contain
            any tool pass simulations.
        
        Args:
-           job_name:          The desired name of the job.
-           tool_pass:         The tool path to simulate.
-           commit_metadata:   The record associated with the search for a good next 
-                                  tool pass to do.
-           mdb:               Abaqus MDB object. The MDB in which the tool pass
-                                  will be simulated. 
-           mdb_md:            The metadata for the MDB.
-           stress_subroutine: Path to stress subroutine. If this argument is not 
-                                  specified, then the initial stress state of the 
-                                  part will be sourced from the last simulation in 
-                                  the previous commitment phase. If this argument 
-                                  is specified, it is used instead.
+           job_name:             The desired name of the job.
+           tool_pass:            The tool path to simulate.
+           machining_invariants: Invariants for this machining process.
+           mdb:                  Abaqus MDB object. The MDB in which the tool pass
+                                     will be simulated. 
+           mdb_md:               The metadata for the MDB.
+           stress_state:         Either an absolute path to an object file containing
+                                     a stress subroutine or an absolute path to a .sim
+                                     file containing the stress state which resulted
+                                     from a simulation. 
 
        Returns:
            None.
@@ -154,39 +149,26 @@ def _sim_first_tool_pass(job_name: str, tool_pass: tp.ToolPass,
 
     names = naming.ModelNames(naming.ModelTypes.FIRST_TOOL_PASS, mdb_md)
 
-    shim.create_material(commit_metadata.init_part.material, names.new_model_name, mdb)
+    shim.create_material(machining_invariants.material, names.new_model_name, mdb)
     shim.create_section(names.new_model_name, mdb)
     shim.assign_section_to_whole_part(names.pre_tool_pass_part_name, names.new_model_name, mdb)
     
-    if stress_subroutine is not None:
-        _do_boilerplate_tp_sim_ops(tool_pass, True, names, mdb_md, commit_metadata, mdb)
-    else:
-        _do_boilerplate_tp_sim_ops(tool_pass, False, names, mdb_md, commit_metadata, mdb)
-
-    if stress_subroutine is not None:
-        # Since this modifies the input file directly, this should be the last
-        #    thing that happens before the job is submitted and runs.
-        shim.inp_add_stress_subroutine(names.new_model_name, mdb)
-    else:
-        # Use the stress state from the last toolpath in the previous commit.
-        path_sim_file = commit_metadata.path_last_commit_sim_file
-
-        # Since this modifies the input file directly, this should be the last
-        #    thing that happens before the job is submitted and runs.
-        shim.inp_map_stress(path_sim_file, names.new_model_name, mdb)
+    # Since this modified the input file directly, this should be the last thing
+    #     which happens before job creation and submission.
+    _do_boilerplate_tp_sim_ops(tool_pass, stress_state, names, mdb_md, machining_invariants, mdb)
 
     job = shim.create_job(job_name, names.new_model_name, mdb_md, mdb) 
 
-    if stress_subroutine is not None:
+    if stress_state.endswith(".o"):
         # Associate the user subroutine with the job.
-        shim.add_user_subroutine(job, stress_subroutine)
+        shim.add_user_subroutine(job, stress_state)
 
     shim.run_job(job)
 
 
 
 def _sim_nth_tool_pass(job_name: str, tool_pass: tp.ToolPass, 
-                       commit_metadata: md.CommitmentPhaseMetadata, 
+                       machining_invariants: mach._MachiningInvariants, 
                        mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
     """Simulates the nth tool pass in an MDB. The MDB is assumed to already
            contain at least one tool pass simulation.
@@ -196,13 +178,12 @@ def _sim_nth_tool_pass(job_name: str, tool_pass: tp.ToolPass,
            the initial stress state for the current simulation.
 
        Args:
-           job_name:        Desired name of the job.
-           tool_pass:       The tool pass to simulate.
-           commit_metadata: The record associated with the search for a good next 
-                                tool pass to do.
-           mdb_md:          The metadata for the MDB.
-           mdb:             Abaqus MDB object. The MDB in which the tool pass
-                                will be simulated. 
+           job_name:             Desired name of the job.
+           tool_pass:            The tool pass to simulate.
+           machining_invariants: Invariants associated with this machining process.
+           mdb_md:               The metadata for the MDB.
+           mdb:                  Abaqus MDB object. The MDB in which the tool pass
+                                     will be simulated. 
 
        Returns:
            None.
@@ -215,23 +196,23 @@ def _sim_nth_tool_pass(job_name: str, tool_pass: tp.ToolPass,
     last_odb_file_name = naming.last_odb_file_name(mdb_md)
 
     # The .sim file contains the stress information which resulted from the last
-    #    simulation.
+    #     simulation.
+    # Using the name instead of the absolute path assumes something about the
+    #     CWD. 
     last_sim_file_name = naming.last_sim_file_name(mdb_md)
 
     # Create the new model with the deformed part in it from the ODB. 
-    shim.create_model_and_part_from_odb(names.pre_tool_pass_part_name, names.new_model_name, last_odb_file_name, mdb_md, mdb)
+    shim.create_model_and_part_from_mesh(last_odb_file_name, names.new_model_name, mdb_md, mdb)
 
     # Do material and section creation.
-    shim.create_material(commit_metadata.init_part.material, names.new_model_name, mdb)
+    shim.create_material(machining_invariants.material, names.new_model_name, mdb)
     shim.create_section(names.new_model_name, mdb)
-
-    _orphan_mesh_to_geometry(names.pre_tool_pass_part_name, names.new_model_name, mdb)
 
     # Do the section assignment only after the orphan mesh has been mapped to a
     #    geometry. This cannot be done before mapping to a geometry. 
     shim.assign_section_to_whole_part(names.pre_tool_pass_part_name, names.new_model_name, mdb)
 
-    _do_boilerplate_tp_sim_ops(tool_pass, False, names, mdb_md, commit_metadata, mdb)
+    _do_boilerplate_tp_sim_ops(tool_pass, last_sim_file_name, names, mdb_md, machining_invariants, mdb)
 
     # Map the stress profile which existed at the end of the last simulation
     #    onto the new geometry. 
@@ -246,26 +227,30 @@ def _sim_nth_tool_pass(job_name: str, tool_pass: tp.ToolPass,
 
 
 def _do_boilerplate_tp_sim_ops(tool_pass: tp.ToolPass, 
-                               user_defined_stress: bool,
+                               stress_state: str,
                                names: naming.ModelNames, 
                                mdb_metadata: abq_md.AbaqusMdbMetadata,
-                               commit_metadata: md.CommitmentPhaseMetadata, 
+                               machining_invariants: mach._MachiningInvariants,
                                mdb: Any
                               ) -> None:
     """Does operations which need to be done for just about any tool pass
            simulation.
        
+       This modifies the input file directly, so it should be the last thing
+           which is done before a job is created and submitted.
+       
        Args:
-           tool_pass:           The tool pass to simulate.
-           user_defined_stress: Flag indicating if a user defined stress profile
-                                    (which may not satisfy mechanical equilibrium)
-                                    is going to be used for this simulation.
-           names:               The names associated with the model which contains
-                                    the tool pass material removal in the MDB.
-           mdb_metadata:        Metadata associated with the the MDB.
-           commit_metadata:     Metadata associated with the commitment phase.
-           mdb:                 Abaqus MDB object. The MDB in which the tool pass
-                                    will be simulated. 
+           tool_pass:            The tool pass to simulate.
+           stress_state:         Either an absolute path to an object file containing
+                                     a stress subroutine or an absolute path to a .sim
+                                     file containing the stress state which resulted
+                                     from a simulation. 
+           names:                The names associated with the model which contains
+                                     the tool pass material removal in the MDB.
+           mdb_metadata:         Metadata associated with the the MDB.
+           machining_invariants: Invariants for this machining process.
+           mdb:                  Abaqus MDB object. The MDB in which the tool pass
+                                     will be simulated. 
 
        Returns:
            None.
@@ -276,16 +261,24 @@ def _do_boilerplate_tp_sim_ops(tool_pass: tp.ToolPass,
     
     post_tool_pass_instance = _do_cut(tool_pass, names, mdb_metadata, mdb)
 
-    bc.apply_BCs(commit_metadata.BCs, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_instance, names.new_model_name, mdb)
+    bc.apply_BCs(machining_invariants.boundary_conditions, shim.STANDARD_INITIAL_STEP_NAME, post_tool_pass_instance, names.new_model_name, mdb)
 
     shim.mesh(post_tool_pass_instance, 20, names.new_model_name, mdb)
 
     last_step_name = mdb_metadata.models_metadata[names.new_model_name].step_names[-1]
-    if user_defined_stress:
+
+    if stress_state.endswith(".o"):
+        # A stress state in an object file may not achieve mechanical equilibrium.
         shim.create_step(names.equilibrium_step_name, last_step_name, names.new_model_name, mdb_metadata, mdb)
         shim.create_step(names.deformation_step_name, names.equilibrium_step_name, names.new_model_name, mdb_metadata, mdb)
-    else:
+        shim.inp_add_stress_subroutine(names.new_model_name, mdb)
+    elif stress_state.endswith(".sim"):
+        # A stress state in an .sim file was produced by the Abaqus kernel - 
+        #     it is guaranteed to satisfy mechanical equilibrium.
         shim.create_step(names.deformation_step_name, last_step_name, names.new_model_name, mdb_metadata, mdb)
+        shim.inp_map_stress(stress_state, names.new_model_name, mdb)
+    else:
+        assert False, "Unknown file type."
 
 
 
@@ -345,23 +338,23 @@ def _do_cut(tool_pass: tp.ToolPass,
 def _simulate_traction_app(traction: geom.Vec3D,
                            point_near_face: geom.Point3D, 
                            model_to_copy: str,
-                           commit_md: md.CommitmentPhaseMetadata,
+                           machining_invariants: mach._MachiningInvariants,
                            mdb_md: abq_md.AbaqusMdbMetadata,
                            mdb: Any) -> str:
     """Simulates applying a traction to a face.
 
        Args:
-           traction:        The traction vector to apply.
-           point_near_face: A point which lies on, or very near, the face on which
-                                to apply the traction.
-           model_to_copy:   The name of the model to copy. Assumed that this
-                                model contains a single part instance. This part
-                                instance should have the face the point is near.
-                                The face on this part instance is the face to
-                                which the traction is applied.
-           commit_md:       Metadata associated with the commitment phase.
-           mdb_md:          Metadata associated with the MDB. 
-           mdb:             Abaqus MDB object. The MDB to use.
+           traction:             The traction vector to apply.
+           point_near_face:      A point which lies on, or very near, the face on which
+                                     to apply the traction.
+           model_to_copy:        The name of the model to copy. Assumed that this
+                                    model contains a single part instance. This part
+                                    instance should have the face the point is near.
+                                    The face on this part instance is the face to
+                                    which the traction is applied.
+           machining_invariants: Invariants for this machining process.
+           mdb_md:               Metadata associated with the MDB. 
+           mdb:                  Abaqus MDB object. The MDB to use.
     
        Returns:
            The name of the job which was run. This is not an absolute path.
@@ -377,7 +370,8 @@ def _simulate_traction_app(traction: geom.Vec3D,
     instance_name = shim.get_only_instance_name(mdb.models[names.new_model_name])
     instance = mdb.models[names.new_model_name].rootAssembly.instances[instance_name]
 
-    bc.apply_BCs(commit_md.BCs, shim.STANDARD_INITIAL_STEP_NAME, 
+    bc.apply_BCs(machining_invariants.boundary_conditions, 
+                 shim.STANDARD_INITIAL_STEP_NAME, 
                  instance, names.new_model_name, mdb)
     
     # Add a step for traction application. 
@@ -404,25 +398,25 @@ def _simulate_traction_app(traction: geom.Vec3D,
 
 
 def estimate_residual_stresses(deformed_geometry: str, target_geometry: str,
-                               tool_pass: tp.ToolPass, commit_md: md.CommitmentPhaseMetadata,
+                               tool_pass: tp.ToolPass, 
+                               machining_invariants: mach._MachiningInvariants,
                                path: str
                               ) -> rs.ConstantResidualStressField:
     """Estimates the residual stresses which existed in a region of material
            which was removed and caused a deformation of the workpiece.
        
        Args:
-           deformed_geometry: Absolute path to .odb or .stl file containing the
-                                  deformed geoemetry from real life.
-           target_geometry:   Absolute path to .odb or .stl file containing the
-                                  target geometry (aka the pre-cut, pre-deform
-                                  geometry) from real life.
-           tool_pass:         The tool pass that removed material.
-           commit_md:         The commitment phase during which the tool 
-                                  pass was committed to.
-           path:              Absolute path to directory. Any MDBs which 
-                                  need to be created in order to recover 
-                                  the residual stresses are placed in this 
-                                  directory.
+           deformed_geometry:    Absolute path to .odb or .stl file containing the
+                                     deformed geoemetry from real life.
+           target_geometry:      Absolute path to .odb or .stl file containing the
+                                     target geometry (aka the pre-cut, pre-deform
+                                     geometry) from real life.
+           tool_pass:            The tool pass that removed material.
+           machining_invariants: Invariants for this machining process.
+           path:                 Absolute path to directory. Any MDBs which 
+                                     need to be created in order to recover 
+                                     the residual stresses are placed in this 
+                                     directory.
     
        Returns:
            The residual stress field in the material that was removed by the
@@ -433,33 +427,32 @@ def estimate_residual_stresses(deformed_geometry: str, target_geometry: str,
     """
 
     mdb_md, mdb = _prepare_for_stress_estimation(deformed_geometry, target_geometry,
-                                                 tool_pass, commit_md, path)
+                                                 tool_pass, machining_invariants, path)
 
-    return _recover_constant_residual_stress(tool_pass, commit_md, path, mdb_md, mdb)
+    return _recover_constant_residual_stress(tool_pass, machining_invariants, path, mdb_md, mdb)
 
 
 
 def _prepare_for_stress_estimation(deformed_geometry: str, target_geometry: str,
                                    tool_pass: tp.ToolPass, 
-                                   commit_md: md.CommitmentPhaseMetadata,
+                                   machining_invariants: mach._MachiningInvariants,
                                    path: str
                                   ) -> tuple[abq_md.AbaqusMdbMetadata, Any]:
     """This function prepares for the stress estimation step by consolidating
            the real world data into a single MDB.
 
        Args:
-           deformed_geometry: Absolute path to .odb or .stl file containing the
-                                  deformed geoemetry from real life.
-           target_geometry:   Absolute path to .odb or .stl file containing the
-                                  target geometry (aka the pre-cut, pre-deform
-                                  geometry) from real life.
-           tool_pass:         The tool pass that removed material.
-           commit_md:         The commitment phase during which the tool 
-                                  pass was committed to.
-           path:              Absolute path to directory. Any MDBs which 
-                                  need to be created in order to recover 
-                                  the residual stresses are placed in this 
-                                  directory.
+           deformed_geometry:    Absolute path to .odb or .stl file containing the
+                                     deformed geoemetry from real life.
+           target_geometry:      Absolute path to .odb or .stl file containing the
+                                     target geometry (aka the pre-cut, pre-deform
+                                     geometry) from real life.
+           tool_pass:            The tool pass that removed material.
+           machining_invariants: Invariants associated with the machining process.
+           path:                 Absolute path to directory. Any MDBs which 
+                                     need to be created in order to recover 
+                                     the residual stresses are placed in this 
+                                     directory.
 
        Returns:
            An MDB and associated metadata. The MDB contains a model for the
@@ -493,7 +486,7 @@ def _prepare_for_stress_estimation(deformed_geometry: str, target_geometry: str,
 
     # Since tractions are going to be applied to the target geometry, it must
     #     have a material, etc.
-    shim.create_material(commit_md.init_part.material, names.new_model_name, mdb)
+    shim.create_material(machining_invariants.material, names.new_model_name, mdb)
     shim.create_section(names.new_model_name, mdb)
     shim.assign_section_to_whole_part(names.target_part_name, names.new_model_name, mdb)
 
@@ -506,7 +499,7 @@ def _prepare_for_stress_estimation(deformed_geometry: str, target_geometry: str,
 
 
 def _recover_constant_residual_stress(tool_pass: tp.ToolPass,
-                                      commit_md: md.CommitmentPhaseMetadata,
+                                      machining_invariants: mach._MachiningInvariants,
                                       path: str,
                                       mdb_md: abq_md.AbaqusMdbMetadata,
                                       mdb: Any
@@ -518,19 +511,18 @@ def _recover_constant_residual_stress(tool_pass: tp.ToolPass,
            the region of material was constant before it was removed.
         
        Args:
-           tool_pass: The tool pass that removed material.
-           commit_md: The commitment phase during which the tool 
-                          pass was committed to.
-           path:      Absolute path to directory. Any MDBs which 
-                          need to be created in order to recover 
-                          the residual stresses are placed in this 
-                          directory.
-           mdb_md:    Metadata for MDB.
-           mdb:       Abaqus MDB object. This MDB is expected to contain 
-                          two models. The first model should contain a 
-                          single part, the deformed geometry. The second 
-                          model should also contain a single part, the 
-                          post-cut, pre-deformed geometry. 
+           tool_pass:            The tool pass that removed material.
+           machining_invariants: Invariants for this machining process.
+           path:                 Absolute path to directory. Any MDBs which 
+                                     need to be created in order to recover 
+                                     the residual stresses are placed in this 
+                                     directory.
+           mdb_md:               Metadata for MDB.
+           mdb:                  Abaqus MDB object. This MDB is expected to contain 
+                                     two models. The first model should contain a 
+                                     single part, the deformed geometry. The second 
+                                     model should also contain a single part, the 
+                                     post-cut, pre-deformed geometry. 
 
        Returns:
            The residual stress field in the material that was removed by the
@@ -550,7 +542,7 @@ def _recover_constant_residual_stress(tool_pass: tp.ToolPass,
     step_size = 1
 
     for _ in range(iteration_cnt):
-        grad = _compute_gradient(cur, trench_point, commit_md, path, mdb_md, mdb)
+        grad = _compute_gradient(cur, trench_point, machining_invariants, path, mdb_md, mdb)
         cur = cur - geom.Vec3D(step_size * grad.rep)
 
     # Map the "good traction vector" to the components of the stress tensor
@@ -584,7 +576,7 @@ def _find_trench_point(toolpass: tp.ToolPass) -> geom.Point3D:
 
 def _compute_gradient(at: geom.Vec3D, 
                       point_near_face: geom.Point3D,
-                      commit_md: md.CommitmentPhaseMetadata,
+                      machining_invariants: mach._MachiningInvariants,
                       path: str,
                       mdb_md: abq_md.AbaqusMdbMetadata,
                       mdb: Any
@@ -598,18 +590,18 @@ def _compute_gradient(at: geom.Vec3D,
            technique is a finite-differences style gradient estimation. 
 
        Args:
-           at:            The traction vector to apply. This is the point
-                              at which the gradient is estimated. 
-           point_on_face: Point on the face on which to apply the tractions.
-           commit_md:     Metadata associated with the commitment phase.
-           path:          Absolute path to a directory where simulation
-                              results will be dumped.
-           mdb_md:        Metadata associated with the MDB.
-           mdb:           Abaqus MDB object. This MDB is expected to contain 
-                              at least two models. The first model should 
-                              contain a single part, the deformed geometry. 
-                              The second model should also contain a single 
-                              part, the post-cut, pre-deformed geometry. 
+           at:                   The traction vector to apply. This is the point
+                                     at which the gradient is estimated. 
+           point_on_face:        Point on the face on which to apply the tractions.
+           machining_invariants: Invariants for this machining process.
+           path:                 Absolute path to a directory where simulation
+                                     results will be dumped.
+           mdb_md:               Metadata associated with the MDB.
+           mdb:                  Abaqus MDB object. This MDB is expected to contain 
+                                     at least two models. The first model should 
+                                     contain a single part, the deformed geometry. 
+                                     The second model should also contain a single 
+                                     part, the post-cut, pre-deformed geometry. 
     
        Returns:
            An estimate of the gradient.
@@ -626,10 +618,10 @@ def _compute_gradient(at: geom.Vec3D,
     offset_in_y = at + geom.Vec3D(np.array([0, offset, 0]))
     offset_in_z = at + geom.Vec3D(np.array([0, 0, offset]))
     
-    vol_diff = _evaluate_vol_diff(at, point_near_face, commit_md, path, mdb_md, mdb)
-    vol_diff_x = _evaluate_vol_diff(offset_in_x, point_near_face, commit_md, path, mdb_md, mdb)
-    vol_diff_y = _evaluate_vol_diff(offset_in_y, point_near_face, commit_md, path, mdb_md, mdb)
-    vol_diff_z = _evaluate_vol_diff(offset_in_z, point_near_face, commit_md, path, mdb_md, mdb)
+    vol_diff = _evaluate_vol_diff(at, point_near_face, machining_invariants, path, mdb_md, mdb)
+    vol_diff_x = _evaluate_vol_diff(offset_in_x, point_near_face, machining_invariants, path, mdb_md, mdb)
+    vol_diff_y = _evaluate_vol_diff(offset_in_y, point_near_face, machining_invariants, path, mdb_md, mdb)
+    vol_diff_z = _evaluate_vol_diff(offset_in_z, point_near_face, machining_invariants, path, mdb_md, mdb)
     
     # Moving in the direction of the slope is equivalent to moving in the direction
     #     of greatest ascent.
@@ -643,7 +635,7 @@ def _compute_gradient(at: geom.Vec3D,
 
 def _evaluate_vol_diff(at: geom.Vec3D, 
                        point_near_face: geom.Point3D,
-                       commit_md: md.CommitmentPhaseMetadata,
+                       machining_invariants: mach._MachiningInvariants,
                        path: str,
                        mdb_md: abq_md.AbaqusMdbMetadata,
                        mdb: Any
@@ -665,18 +657,18 @@ def _evaluate_vol_diff(at: geom.Vec3D,
            in a different location due to deformation).
                    
        Args:
-           at:            The traction vector to apply. This is the point
-                              at which the function is evaluated. 
-           point_on_face: Point on the face on which to apply the tractions.
-           commit_md:     Metadata associated with the commitment phase.
-           path:          Absolute path to a directory where simulation
-                              results will be dumped.
-           mdb_md:        Metadata associated with the MDB.
-           mdb:           Abaqus MDB object. This MDB is expected to contain 
-                              at least two models. The first model should 
-                              contain a single part, the deformed geometry. 
-                              The second model should also contain a single 
-                              part, the post-cut, pre-deformed geometry.
+           at:                   The traction vector to apply. This is the point
+                                     at which the function is evaluated. 
+           point_on_face:        Point on the face on which to apply the tractions.
+           machining_invariants: Invariants for this machining process.
+           path:                 Absolute path to a directory where simulation
+                                     results will be dumped.
+           mdb_md:               Metadata associated with the MDB.
+           mdb:                  Abaqus MDB object. This MDB is expected to contain 
+                                     at least two models. The first model should 
+                                     contain a single part, the deformed geometry. 
+                                     The second model should also contain a single 
+                                     part, the post-cut, pre-deformed geometry.
     
        Returns:
            The value of the volume difference function (a scalar representing the
@@ -695,7 +687,7 @@ def _evaluate_vol_diff(at: geom.Vec3D,
     orig_cwd = os.getcwd()
     os.chdir(path)
     job_name = _simulate_traction_app(at, point_near_face, names.deformed_geom_model_name,
-                                      commit_md, mdb_md, mdb)
+                                      machining_invariants, mdb_md, mdb)
     path_to_odb = os.path.join(path, job_name) + ".odb"
     os.chdir(orig_cwd)
 

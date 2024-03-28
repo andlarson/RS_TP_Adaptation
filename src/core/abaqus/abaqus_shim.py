@@ -750,6 +750,50 @@ def orphan_mesh_to_geometry_via_plugin(new_part_name: str, part_name: str,
 
 
 
+def create_model_and_part_from_mesh(mesh_path: str, new_model_name: str,
+                                    mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
+    """Creates a new model with a part in a pre-existing MDB.
+
+       Args:
+           mesh_path:      Absolute path to .stl or .odb file containing the geometry
+                               to use.
+           new_model_name: Desired name of the new model.
+           mdb_md:         Metadata associated with the MDB.
+           mdb:            Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
+
+    if mesh_path.endswith(".stl"):
+        import_stl_to_mdb(mesh_path, new_model_name, mdb_md, mdb)
+
+        orphan_mesh_to_geometry_via_plugin(STANDARD_INIT_GEOM_PART_NAME, 
+                                           STANDARD_STL_IMPORT_PART_NAME, 
+                                           new_model_name, mdb_md, mdb)
+
+        delete_part(STANDARD_STL_IMPORT_PART_NAME, new_model_name, mdb_md, mdb)
+        
+        # By default, the plugin creates an instance in the assembly.
+        del mdb.models[STANDARD_MODEL_NAME].rootAssembly.features[STANDARD_STL_IMPORT_INSTANCE_NAME]
+
+    elif mesh_path.endswith(".odb"):
+        create_part_from_odb(TEMPORARY_NAME, new_model_name, mesh_path, mdb_md, mdb)
+
+        orphan_mesh_to_geometry_via_plugin(STANDARD_INIT_GEOM_PART_NAME, 
+                                           TEMPORARY_NAME,
+                                           STANDARD_MODEL_NAME, mdb_md, mdb)
+
+        delete_part(TEMPORARY_NAME, STANDARD_MODEL_NAME, mdb_md, mdb)
+    
+    else:
+        assert False, "Unexpected file extension." 
+
+
+
 def create_mdb_from_mesh(mesh_path: str, new_mdb_path: str) -> tuple[Any, abq_md.AbaqusMdbMetadata]:
     """Creates an MDB with a single model and single part defined by the 
            geometry in a .stl file. Notably, the model and part are named in
@@ -784,20 +828,19 @@ def create_mdb_from_mesh(mesh_path: str, new_mdb_path: str) -> tuple[Any, abq_md
         delete_part(STANDARD_STL_IMPORT_PART_NAME, STANDARD_MODEL_NAME, mdb_md, mdb)
         
         # By default, the plugin creates an instance in the assembly.
-        # del mdb.models[STANDARD_MODEL_NAME].rootAssembly.features[STANDARD_STL_IMPORT_INSTANCE_NAME]
-        delete_assembly_feature(STANDARD_STL_IMPORT_INSTANCE_NAME, mdb.models[STANDARD_MODEL_NAME])
+        del mdb.models[STANDARD_MODEL_NAME].rootAssembly.features[STANDARD_STL_IMPORT_INSTANCE_NAME]
 
     elif mesh_path.endswith(".odb"):
-        create_part_from_odb(TEMPORARY_NAME, model_name, mesh_path, mdb_md, mdb)
+        create_part_from_odb(TEMPORARY_NAME, STANDARD_MODEL_NAME, mesh_path, mdb_md, mdb)
 
         orphan_mesh_to_geometry_via_plugin(STANDARD_INIT_GEOM_PART_NAME, 
-                                           STANDARD_STL_IMPORT_PART_NAME,
+                                           TEMPORARY_NAME,
                                            STANDARD_MODEL_NAME, mdb_md, mdb)
 
         delete_part(TEMPORARY_NAME, STANDARD_MODEL_NAME, mdb_md, mdb)
     
     else:
-        raise AssertionError("Bad file extension!")
+        assert False, "Unexpected file extension." 
 
     return mdb, mdb_md
 
@@ -1563,7 +1606,7 @@ def inp_map_stress(path_sim_file: str, model_name: str, mdb: Any) -> None:
            and mapped from the result of some other simulation.
 
        Args:
-           path_sim_file: Absolute path to the simulation.
+           path_sim_file: Absolute path to .sim file defining the stress state.
            model_name:    The name of the model with stress state which needs
                               to be modified.
            mdb:           Abaqus MDB object.
@@ -2457,7 +2500,6 @@ def partition_face(ngon: geom.NGon3D, part: Optional[Any] = None,
 
     # Find the face that matches the ngon.
     for face in obj.faces:
-
         vertex_ids = face.getVertices()
         vertices = [obj.vertices[id].pointOn[0] for id in vertex_ids]
         points = geom.seq_points(vertices)

@@ -8,23 +8,28 @@ The MachiningProcess object is the top-level object that a user of this library
     above.
 """
 
+from __future__ import annotations
+from typing import Any, TYPE_CHECKING
 import shutil
 import os
 import pathlib
 import copy
-from typing import Any
+
+# Imports only used for static analysis / type checking.
+# This prevents cyclic imports, which are sometimes necessary for type annotations,
+#     from causing runtime errors. 
+if TYPE_CHECKING:
+    import src.core.boundary_conditions.boundary_conditions as bc
+    import src.core.material_properties.material_properties as mp
+    import src.core.residual_stress.residual_stress as rs
 
 import src.core.part.part as part
 import src.core.simulation.simulation as sim
-import src.core.boundary_conditions.boundary_conditions as bc
 import src.core.metadata.metadata as md 
 import src.core.metadata.abaqus_metadata as abq_md
 import src.core.metadata.naming as naming
 import src.core.tool_pass.tool_pass as tp
 import src.core.abaqus.abaqus_shim as shim
-import src.core.material_properties.material_properties as mp
-import src.core.residual_stress.residual_stress as rs
-import src.core.real_world_data.real_world_data as rwd
 
 from src.util.debug import *
 
@@ -32,13 +37,13 @@ from src.util.debug import *
 
 class MachiningProcess:
 
-    def __init__(self, init_part: part.InitialPart, boundary_conditions: list[bc.BC],
-                 save_path: str) -> None:
+    def __init__(self, init_part: str, boundary_conditions: list[bc.BC],
+                 material: mp.ElasticMaterial, save_path: str) -> None:
         """Defines the machining process for a single part.
    
            Args:
-               init_part:           The initial geometry of the part (i.e., the
-                                        blank).
+               init_part:           Absolute path to .stl file defining the geometry
+                                        of the blank.
                boundary_conditions: The boundary conditions which should be used
                                         for all simulations in this machining
                                         process. Usually, these reflect the
@@ -47,6 +52,7 @@ class MachiningProcess:
                                         finite element simulation is
                                         unconstrained. Thus, there should always
                                         be at least one boundary condition.
+               material:            The material that the part is made out of.
                save_path:           Absolute path to desired save location of
                                         .cae file. This path should end with
                                         .cae.
@@ -61,18 +67,17 @@ class MachiningProcess:
         if len(boundary_conditions) == 0:
             raise RuntimeError("At least one boundary condition must be supplied.")
 
-        self.commitment_phase_metadata = []
-        self.boundary_conditions = boundary_conditions 
-        
-        mdb, mdb_md = shim.create_mdb_from_mesh(init_part.path_to_stl, save_path)
+        self.commitment_phase_metadata: list[md.CommitmentPhaseMetadata] = []
+        self.invariants: _MachiningInvariants = _MachiningInvariants(boundary_conditions, material, init_part)
+            
+        mdb, mdb_md = shim.create_mdb_from_mesh(init_part, save_path)
         shim.save_mdb(mdb)
         shim.close_mdb(mdb)
 
         min_part = part.MinimalPart(mdb_md.path_to_mdb)
 
-        first_commit_md = md.CommitmentPhaseMetadata(min_part, boundary_conditions)
+        first_commit_md = md.CommitmentPhaseMetadata(min_part)
         first_commit_md.first_commitment_phase = True
-        first_commit_md.blank = init_part
         self.commitment_phase_metadata.append(first_commit_md)
 
 
@@ -295,7 +300,7 @@ class MachiningProcess:
         tool_pass = self.commitment_phase_metadata[-1].committed_tpp[1].plan[0]
         
         if cur_commit_phase_md.first_commitment_phase:
-            target_geometry_data = cur_commit_phase_md.blank.path_to_stl
+            target_geometry_data = self.invariants.blank
         else:
             prev_commit_phase_md = self.commitment_phase_metadata[-2]
             target_geometry_data = prev_commit_phase_md.real_world_data
@@ -303,7 +308,8 @@ class MachiningProcess:
         deformed_geometry_data = cur_commit_phase_md.real_world_data
 
         return sim.estimate_residual_stresses(deformed_geometry_data, target_geometry_data,
-                                              tool_pass, cur_commit_phase_md, path)
+                                              tool_pass, self.invariants, path)
+
 
 
     def add_real_world_machining_data(self, real_world_data: str) -> None:
@@ -454,12 +460,20 @@ class MachiningProcess:
 
         if cur_commit_md.init_stress is not None:
             # If there is an estimated stress profile for this commitment phase, use it.
-            sim.sim_tool_pass_plan(tool_pass_plan, save_name, save_dir, cur_commit_md, 
+            sim.sim_tool_pass_plan(tool_pass_plan, save_name, save_dir, self.invariants, 
                                    mdb_md, mdb, cur_commit_md.init_stress)
         else:
-            sim.sim_tool_pass_plan(tool_pass_plan, save_name, save_dir, cur_commit_md,
-                                   mdb_md, mdb)
+            # Otherwise, use the stress state which resulted from the last committed
+            #     tool pass plan being simulated.
 
+            # Warn the user!
+            dump_banner("A stress profile which resulted from simulation is"\
+                        " being used!")
+            dump_banner_end()
+
+            prev_commit_md = self.commitment_phase_metadata[-2]
+            sim.sim_tool_pass_plan(tool_pass_plan, save_name, save_dir, self.invariants, 
+                                   mdb_md, mdb, prev_commit_md.sim_path)
 
 
     def _start_new_commitment_phase(self, save_name: str, save_dir: str) -> None:
@@ -497,6 +511,7 @@ class MachiningProcess:
         #     next commitment phase to set the initial stress state.
         sim_file_name = naming.last_sim_file_name(committed_tpp_mdb_md)
         sim_file_path = os.path.join(path_committed_tpp, sim_file_name) 
+        old_commit_phase_md.sim_path = sim_file_path
 
         # Create the new subdirectory if the target path is unoccuppied. 
         new_subdir_path = os.path.join(save_dir, save_name)
@@ -534,23 +549,12 @@ class MachiningProcess:
         shim.save_mdb(mdb)
 
         abaqus_part = part.MinimalPart(new_mdb_path)
-        new_phase_md = md.CommitmentPhaseMetadata(abaqus_part, self.boundary_conditions)
+        new_phase_md = md.CommitmentPhaseMetadata(abaqus_part)
         self.commitment_phase_metadata.append(new_phase_md)
         
         new_commit_phase_md = self.commitment_phase_metadata[-1]
         
-        if old_commit_phase_md.next_phase_init_stress is None:
-            # If the user did not provide a stress estimate for the old commitment
-            #     phase, then the stresses produced from the simulation will need 
-            #     to be used.
-            new_commit_phase_md.path_last_commit_sim_file = sim_file_path
-
-            # Warn the user!
-            dump_banner("No stress estimate was supplied for the last commitment"\
-                        " phase. Thus, the stress field which resulted from "\
-                        " simulation is being used!")
-            dump_banner_end()
-        else:
+        if old_commit_phase_md.next_phase_init_stress is not None:
             # Propagate the user-defined stress profile.
             new_commit_phase_md.init_stress = old_commit_phase_md.next_phase_init_stress
 
@@ -563,3 +567,35 @@ class MachiningProcess:
         if cur_commitment_phase_md.committed_tpp is not None:
             return True
         return False
+
+
+
+"""
+This class is basically a data structure which holds data that does not change
+    during the machining process.
+For example, it is assumed that the boundary conditions (aka the clamping
+    conditions) do not change during the machining process.
+"""
+class _MachiningInvariants:
+    
+    def __init__(self, boundary_conditions: list[bc.BC], 
+                 material: mp.ElasticMaterial, blank: str):
+        """Populates the data structure.
+
+           Args:
+               boundary_conditions: The boundary conditions valid for the whole
+                                        machining process.
+               material:            The material that the part is made out of.
+               blank:               Absolute path to .stl file defining the
+                                        geometry of the blank.
+
+           Returns:
+               None.
+
+           Raises:
+               None.
+        """
+
+        self.boundary_conditions = boundary_conditions
+        self.material = material
+        self.blank = blank

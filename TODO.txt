@@ -21,6 +21,9 @@ Simulating Material Removal - Short Term TODO:
 
 General - Short Term TODO:
 
+0) Clean up imports and incorporate the cyclic import protection code where
+       necessary.
+
 1) Implement checkpointing to save time debugging.
 
 2) Write general testing framework for whole system. It should generate, or
@@ -59,7 +62,16 @@ Code Organization / Structure / Documentation TODO:
     
     *** MYPY ISSUE WITH NONE ***
     Fix the mypy " | None" issue that is causing it to generate lots of false-
-       positives.
+        positives.
+
+    *** CONSISTENT USE OF EXCEPTIONS VS ASSERTIONS ***
+    The codebase is currently inconsistent in its use of exceptions vs assertions.
+        I currently think that an exception should be raised when an exceptional
+        circumstance, outside of the control of the executing program, occurs and
+        can be recovered from. An assert should be used to detect a programming 
+        error. Note that asserts can be removed at runtime. The tricky thing is
+        that, if the library caller makes a programming error, I think the library
+        should raise an exception??
 
 
 Adding/Modifying Features TODO:

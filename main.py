@@ -20,9 +20,6 @@ os.environ["ABA_DISABLE_DSL_USUB_CHECK"] = "1"
 # *******
 
 
-import pathlib
-import shutil
-
 import numpy as np
 
 import src.core.machining.machining as mach
@@ -31,24 +28,9 @@ import src.core.part.part as part
 import src.core.tool_pass.tool_pass as tp
 import src.core.boundary_conditions.boundary_conditions as bc
 import src.core.material_properties.material_properties as mp
-import src.core.simulation.simulation as sim
-import src.core.abaqus.abaqus_shim as shim
 
-import src.util.all_in_simulation as all_in_sim
+import src.util.general_util as util
 from src.util.debug import *
-
-
-
-def nuke_and_remake(path: str) -> None:
-    """Deletes the directory tree rooted at path and then recreates is."""
-
-    fs_path = pathlib.Path(path)
-    if fs_path.exists():
-        if fs_path.is_dir():
-            shutil.rmtree(fs_path)
-        else:
-            raise RuntimeError("Something exists but it's not a directory!") 
-    os.mkdir(fs_path)
 
 
 
@@ -71,9 +53,9 @@ if __name__ == "__main__":
         STRESS_FIELD_ESTIMATE = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/stress_fields/stress_field_estimate/stress_field_estimate-std.o"
 
         # ----- Main Sim: Directory Cleanup -----
-        nuke_and_remake(INIT_CAE_DIR)
-        nuke_and_remake(TP_DIR)
-        nuke_and_remake(TP_STRESS_ESTIMATION_DIR)
+        util.nuke_and_remake(INIT_CAE_DIR)
+        util.nuke_and_remake(TP_DIR)
+        util.nuke_and_remake(TP_STRESS_ESTIMATION_DIR)
 
         # ----- Real Life Sim: FS Paths -----
         INIT_CAE_DIR_REAL_LIFE = "/home/andlars/Desktop/RS_TP_Adaptation/experiments/experiments/full_flow/in_real_life/initial_geom/"
@@ -83,22 +65,17 @@ if __name__ == "__main__":
         real_life_cae_names = committed_tpp_names
 
         # ----- Real Life Sim: Directory Cleanup -----
-        nuke_and_remake(INIT_CAE_DIR_REAL_LIFE)
-        nuke_and_remake(PARALLEL_TP_DIR)
+        util.nuke_and_remake(INIT_CAE_DIR_REAL_LIFE)
+        util.nuke_and_remake(PARALLEL_TP_DIR)
 
 
         # **********************
         #   Simulation Setup 
         # **********************
+        
+        # ----- Both: Material, Boundary Conditions ----- 
 
-        # ----- Main Sim: Specifying Initial Geometry -----
         material = mp.ElasticMaterial(.3, 10**(9))
-        main_sim_init_part = part.InitialPart(INIT_STL, material)
-
-        # ----- Real Life Sim: Specifying Initial Geometry -----
-        real_life_init_part = part.InitialPart(INIT_STL, material)
-
-        # ----- Both: Boundary Conditions ----- 
 
         # Clamp on one side of bar.
         v1 = geom.Point3D(np.array([0, 10, 0]))
@@ -125,12 +102,10 @@ if __name__ == "__main__":
         BCs = [BC1, BC2]
 
         # ----- Real Life Sim: Top Level Machining Object -----
-        real_life_machining = mach.MachiningProcess(real_life_init_part, BCs, 
-                                                    os.path.join(INIT_CAE_DIR_REAL_LIFE, INIT_CAE_NAME))
+        real_life_machining = mach.MachiningProcess(INIT_STL, BCs, material, os.path.join(INIT_CAE_DIR_REAL_LIFE, INIT_CAE_NAME))
 
         # ----- Main Sim: Top Level Machining Object -----
-        main_machining = mach.MachiningProcess(main_sim_init_part, BCs, 
-                                               os.path.join(INIT_CAE_DIR, INIT_CAE_NAME))
+        main_machining = mach.MachiningProcess(INIT_STL, BCs, material, os.path.join(INIT_CAE_DIR, INIT_CAE_NAME))
 
         # ----- Real Life Sim: Specifying Actual Stress Profile ----- 
         real_life_machining.use_stress_profile(ACTUAL_STRESS_FIELD)
@@ -195,10 +170,10 @@ if __name__ == "__main__":
         # *******************************
 
         # ----- Main Sim: Simulate Potential TPP -----
-        p1 = geom.Point3D(np.array((20, 5, -50)))
-        p2 = geom.Point3D(np.array((20, 5, 120)))
+        p1 = geom.Point3D(np.array((20, 5, 100)))
+        p2 = geom.Point3D(np.array((20, 5, 300)))
         path = geom.PlanarCubicC2Spline3D([p1, p2])
-        tp3 = tp.ToolPass(path, 1, 10)
+        tp3 = tp.ToolPass(path, 3, 10)
 
         potential_tpp_3 = tp.ToolPassPlan([tp3])
 

@@ -9,12 +9,12 @@ import src.core.boundary_conditions.boundary_conditions as bc
 import src.core.metadata.abaqus_metadata as abq_md
 import src.core.tool_pass.tool_pass as tp
 import src.core.real_world_data.real_world_data as rwd
+import src.core.material_properties.material_properties as mp
 
 
 class CommitmentPhaseMetadata:
 
-    def __init__(self, init_part: part.MinimalPart | part.InitialPart, 
-                 BCs: list[bc.BC]) -> None:
+    def __init__(self, init_part: part.MinimalPart) -> None:
         """Creates a data structure associated with a single commitment phase.
 
            The system flow is assumed to be something like:
@@ -34,15 +34,10 @@ class CommitmentPhaseMetadata:
                This data structure records information about what occurred during 
                a phase.
            
-           Also, note that there is an alternative system flow wherein everything
-               is done in simulation and no machining is done in real life. However, 
-               from the perspective of this data structure, nothing changes.
-           
            Args:
-               init_part:   The part at the beginning of this phase. Note that 
-                                this part may have had some material removed 
-                                from it already.
-               BCs:         The boundary conditions active during this phase.
+               init_part: The part at the beginning of this phase. Note that 
+                              this part may have had some material removed 
+                              from it already.
 
            Returns:
                None.
@@ -56,29 +51,9 @@ class CommitmentPhaseMetadata:
         # Flag indicating if this commitment phase is the very first one.
         self.first_commitment_phase: bool = False
         
-        # The very first commitment phase stores an initial part. For all other 
-        #     commitment phases, this won't be present.
-        # This asymmetry results from the fact that real world data is stored
-        #     in a commitment phase after a tool pass plan is committed. In the
-        #     first commitment phase, there is real world data (i.e. the geometry
-        #     of the blank) before any tool pass plan has been committed.
-        self.blank: part.InitialPart | None = None
-
-        # The absolute path to the .sim file from the commitment phase which preceded
-        #     this commitment phase.
-        # This stress profile is sometimes used as the starting stress profile for
-        #     this commitment phase.
-        # This is really a convenience. It would not be hard to lookup the
-        #     the .sim file which resulted from the committed tool pass plan in 
-        #     the commitment phase which precedes this one.
-        self.path_last_commit_sim_file: str | None = None
-        
         # The state of the part as it exists at the beginning of this commitment 
         #     phase.
         self.init_part: part.MinimalPart = init_part
-
-        # The boundary conditions for this commitment phase.
-        self.BCs: list[bc.BC] = BCs
 
 
         # ----- User-Provided Initial Stress State -----
@@ -114,6 +89,12 @@ class CommitmentPhaseMetadata:
         # The name, tool pass plan, and absolute path to directory of simulation
         #     results.
         self.committed_tpp: tuple[str, tp.ToolPassPlan, str] | None = None
+
+        # Absolute path to .sim file resulting from the committed tool pass plan.
+        #     This .sim file may be used as the starting stress state for simulations
+        #     in the next commitment phase if the user doesn't provide an estimated
+        #     state of stress.
+        self.sim_path: str | None = None
 
 
         # ----- Estimating Stress -----

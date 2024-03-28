@@ -9,29 +9,6 @@ import src.core.material_properties.material_properties as mp
 import src.core.abaqus.abaqus_shim as shim
 
 
-class InitialPart():
-    
-    def __init__(self, path: str, material: mp.ElasticMaterial) -> None:
-        """Creates a part based on one which exists in Abaqus.
-
-           Assumes that the part, as it is defined in Abaqus, is defined in a basic
-               way.
-
-           Args:
-               path:     Absolute path to .stl defining the part geometry. 
-               material: The material that the part is made out of.
-
-           Returns:
-               None.
-
-           Raises:
-               None.
-        """
-
-        self.material = material
-        self.path_to_stl = path
-
-
 
 class MinimalPart():
     
