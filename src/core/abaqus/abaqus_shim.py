@@ -1762,7 +1762,7 @@ def mesh(part_instance: Any, size: float, model_name: str, mdb: Any) -> None:
     mdb.models[model_name].rootAssembly.setMeshControls(part_instance.cells, elemShape=TET, technique=FREE)
 
     seq = (part_instance, )
-    mdb.models[model_name].rootAssembly.seedPartInstance(seq, size, deviationFactor=.03, minSizeFactor=.0001, constraint=FREE)
+    mdb.models[model_name].rootAssembly.seedPartInstance(seq, size, deviationFactor=.1, minSizeFactor=.0001, constraint=FREE)
     mdb.models[model_name].rootAssembly.generateMesh(regions=seq)
 
     while mdb.models[model_name].rootAssembly.getUnmeshedRegions() is not None:
@@ -1773,7 +1773,7 @@ def mesh(part_instance: Any, size: float, model_name: str, mdb: Any) -> None:
 
         dp("An attempt at meshing failed. Decreasing global element size to " + str(size) + " and giving it another go.") 
         mdb.models[model_name].rootAssembly.deleteSeeds(seq)
-        mdb.models[model_name].rootAssembly.seedPartInstance(seq, size, deviationFactor=.03, minSizeFactor=.0001, constraint=FREE)
+        mdb.models[model_name].rootAssembly.seedPartInstance(seq, size, deviationFactor=.1, minSizeFactor=.0001, constraint=FREE)
         mdb.models[model_name].rootAssembly.generateMesh(regions=seq)
 
     mesh_stats = mdb.models[model_name].rootAssembly.getMeshStats(regions=seq)
@@ -1977,7 +1977,7 @@ def _print_job_messages(job: Any) -> None:
         dp("")
         dp("A message of type " + str(message.type) + " was received when the job ran!")
         for key in message.data:
-            dp("For the key " + str(key) + " the associated value is " + str(message.data[key]))
+            dp("For the key '" + str(key) + "' the associated value is '" + str(message.data[key]) + "'")
     
     dp("")
     dump_banner_end()
@@ -2064,19 +2064,49 @@ def build_region_with_face(face: Any, obj: Any) -> Any:
     #    GeomSequence.
     # In order to go from a single Abaqus Face object to an Abaqus FaceArray
     #    object with only a single Abaqus Face object in it, the following
-    #    sequence of steps is necessary.
-    # Also, note that the findAt() method for a FaceArray object always returns 
-    #    an Abaqus FaceArray object, even though the documentation says that 
-    #    if it only finds a single Face object, then a single Face object is
-    #    returned. ACTUALLY, I'M NOT SURE IF THIS IS TRUE...
+    #    sequence of steps is necessary. The trick here is that the pointOn
+    #    attribute is a tuple of tuples.
     point_on_face = face.pointOn
     face_seq = obj.faces.findAt(coordinates=point_on_face)
     region = regionToolset.Region(faces=face_seq)
 
     return region
+
+
+
+def build_region_with_vertices(vertices: list[geom.Point3D], obj: Any):
+    """Creates a region composed of some vertices.
+
+       Args:
+           vertices: List of vertices to include in the region. These vertices
+                         must exactly match up equivalent vertices on the object. 
+           obj:      Abaqus Part object, Abaqus PartInstance object, or Abaqus
+                         Assembly  object. The vertices must be on this object.
+                         Be very careful - it's likely that you should pass
+                         either an Abaqus Part object or and Abaqus PartInstance
+                         object.
+
+       Returns:
+           Abaqus Region object. 
+
+       Raises:
+           None.
+    """
     
+    seq_of_seq_of_seq_of_floats = [(v.components(), ) for v in vertices]
+    # The findAt() method takes a variable number of arguments when the coordinates
+    #     keyword is not specified. 
+    vertex_seq = obj.vertices.findAt(*seq_of_seq_of_seq_of_floats)     
 
+    assert len(vertex_seq) == len(vertices), "Couldn't find matches for all vertices."
 
+    # TODO: Should really compare the located vertices with the passed vertices
+    #     and ensure that they are sufficiently close together.
+    
+    return regionToolset.Region(vertices=vertex_seq)
+         
+    
+    
 def build_region_with_elem_face(face: Any, part: Any) -> Any:
     """Builds a region from the face of an element in a mesh.
 
@@ -2196,7 +2226,7 @@ def add_solid_from_faces(part: Any) -> Any:
     """
 
     feature = part.AddCells(part.faces)
-    assert(feature is not None)
+    assert feature is not None
 
     return feature 
 

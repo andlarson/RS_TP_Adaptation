@@ -80,25 +80,30 @@ if __name__ == "__main__":
         # Clamp on one side of bar.
         v1 = geom.Point3D(np.array([0, 10, 0]))
         v2 = geom.Point3D(np.array([40, 10, 0]))
-        v3 = geom.Point3D(np.array([40, 10, 40]))
-        v4 = geom.Point3D(np.array([0, 10, 40]))
-        clamp_surface_vertices = [v1, v2, v3, v4]
-        clamp_surface1 = geom.NGon3D(clamp_surface_vertices)
+        v3 = geom.Point3D(np.array([0, 0, 0]))
+        v4 = geom.Point3D(np.array([40, 0, 0]))
+        clamp_surface_vertices1 = [v1, v2, v3, v4]
+        # clamp_surface1 = geom.NGon3D(clamp_surface_vertices1)
 
         # Clamp on other side of bar.
         v1 = geom.Point3D(np.array([0, 10, 400]))
-        v2 = geom.Point3D(np.array([0, 10, 360]))
-        v3 = geom.Point3D(np.array([40, 10, 360]))
-        v4 = geom.Point3D(np.array([40, 10, 400]))
-        clamp_surface_vertices = [v1, v2, v3, v4]
-        clamp_surface2 = geom.NGon3D(clamp_surface_vertices)
+        v2 = geom.Point3D(np.array([40, 10, 400]))
+        v3 = geom.Point3D(np.array([0, 0, 400]))
+        v4 = geom.Point3D(np.array([40, 0, 400]))
+        clamp_surface_vertices2 = [v1, v2, v3, v4]
+        # clamp_surface2 = geom.NGon3D(clamp_surface_vertices2)
 
         # Approximate how clamps restrict part movement. 
         BC_settings = bc.DisplacementBCSettings(True, True, True, True, True, True)
+        
+        # Surface boundary conditions are buggy right now.
+        # BC1 = bc.SurfaceBC(clamp_surface1, BC_settings)
+        # BC2 = bc.SurfaceBC(clamp_surface2, BC_settings)
+        # BCs = [BC1, BC2]
 
-        BC1 = bc.SurfaceBC(clamp_surface1, BC_settings)
-        BC2 = bc.SurfaceBC(clamp_surface2, BC_settings)
-
+        # Vertex boundary conditions.
+        BC1 = bc.VertexBC(clamp_surface_vertices1, BC_settings) 
+        BC2 = bc.VertexBC(clamp_surface_vertices2, BC_settings) 
         BCs = [BC1, BC2]
 
         # ----- Real Life Sim: Top Level Machining Object -----
@@ -148,7 +153,7 @@ if __name__ == "__main__":
         # ----- Main Sim: Commit to a TPP -----
         committed_plan = potential_tpp_1
         main_machining.commit_tool_passes(committed_plan, committed_tpp_names[0], TP_DIR)
-        
+
         # ----- Real Life Sim: Simulate Committed TPP -----
 
         # TODO: Need to increase mesh density to better simulate real life. 

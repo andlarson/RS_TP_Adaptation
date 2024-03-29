@@ -84,6 +84,8 @@ class VertexBC():
 
            Args:
                vertices:    The points on which to create the boundary conditions.
+                                These points must line up exactly with vertices
+                                of the blank and every subsequent deformed geometry.
                bc_settings: The restrictions on the points.
 
            Returns:
@@ -102,20 +104,10 @@ BC = TypeVar("BC", SurfaceBC, VertexBC)
 
 def apply_BCs(BCs: list[BC], step_name: str, part_instance: Any, model_name: str, 
               mdb: Any) -> None:
-    """Applies boundary conditions to an assembly.
+    """Applies boundary conditions.
 
        Note that boundary conditions can only be applied to an Abaqus Assembly, they
            cannot be applied to an Abaqus Part.
-
-       In order to apply boundary conditions to regions which don't already exist, 
-           it's necessary to partition pre-existing features. In general, an Abaqus 
-           Part object or an Abaqus PartInstance object can be partitioned. This 
-           function creates new regions on parts, when necessary, by partitioning 
-           this single Abaqus PartInstance object.
-       Since a PartInstance object must be passed, it means that the Assembly is 
-           not empty. In my experience, if you try to create a boundary condition 
-           on a region of an Abaqus Part object and the Assembly is empty, Abaqus 
-           segfaults.
 
        Args:
            BCs:           The boundary conditions to apply.
@@ -133,16 +125,18 @@ def apply_BCs(BCs: list[BC], step_name: str, part_instance: Any, model_name: str
        Raises:
            None.
     """
+
     for bc in BCs:
         bc_cnt = shim.get_bc_cnt(model_name, mdb)
         bc_name = shim.STANDARD_BC_PREFIX + str(bc_cnt)
 
         if isinstance(bc, SurfaceBC):
+            # Partitioning is necessary because the face may not already exist.
             assembly = mdb.models[model_name].rootAssembly
             face = shim.partition_face(bc.region, instance=part_instance, assembly=assembly) 
             region = shim.build_region_with_face(face, part_instance)
         elif isinstance(bc, VertexBC):
-            assert False, "Not yet supported."
+            region = shim.build_region_with_vertices(bc.region, part_instance)
         else:
             assert False, "Not yet supported."
 

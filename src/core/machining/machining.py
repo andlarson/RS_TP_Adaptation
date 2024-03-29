@@ -467,8 +467,9 @@ class MachiningProcess:
             #     tool pass plan being simulated.
 
             # Warn the user!
-            dump_banner("A stress profile which resulted from simulation is"\
-                        " being used!")
+            dump_banner("NO STRESS ESTIMATE SUPPLIED")
+            dp("The stress field which resulted from the simulation of the"\
+               " last committed tool pass plan is being used.")
             dump_banner_end()
 
             prev_commit_md = self.commitment_phase_metadata[-2]

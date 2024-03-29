@@ -113,13 +113,11 @@ Adding/Modifying Features TODO:
     Also might be possible to speed things up by using my current approach but
       doing things outside of Abaqus.
 
-    *** VERTEX-BASED BOUNDARY CONDITIONS ***
-    Add vertex-based boundary conditions.
-
     *** IMPROVING FACE PARTITIONING ROBUSTNESS ***
     Make the partition_face() function more robust. In particular, the find_face_ngon_lives_on()
        assumes that the user doesn't make some mistake and specify an ngon that
-       doesn't actually live on any face!
+       doesn't actually live on any face! This needs to be done to make surface
+       boundary conditions more robust.
 
     *** WORKAROUND FOR INTERACTIVE MODE ***
     Figure out a workaround so we don't have to run Abaqus in interactive mode.
