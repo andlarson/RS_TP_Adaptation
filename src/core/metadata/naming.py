@@ -14,7 +14,7 @@ class ModelTypes(Enum):
     TRACTION_APP = auto()
     DEFORMED_GEOM = auto()
     TARGET_GEOM = auto()
-    SYMMETRIC_DIFF = auto()
+    INTERSECTION = auto()
 
 
 
@@ -79,8 +79,8 @@ class ModelNames:
             #     will be created which contains the deformed geometry. 
             
             # Assumed to be chosen.
+            self.deformed_geom_part_name = shim.STANDARD_DEFORMED_GEOM_PART_NAME
             self.new_model_name = shim.STANDARD_DEFORMED_GEOM_MODEL_NAME 
-            self.deformed_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
 
         elif model_type is ModelTypes.TARGET_GEOM:
             # In the process of estimating the stress, it's assumed that a model
@@ -91,11 +91,11 @@ class ModelNames:
             # Assumed to be chosen.
 
             # For target geometry importing.
+            self.target_geom_part_name = shim.STANDARD_TARGET_GEOM_PART_NAME
             self.new_model_name = shim.STANDARD_TARGET_GEOM_MODEL_NAME
-            self.target_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
 
             # For construction of post-cut, pre-deform geometry.
-            self.pre_tool_pass_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
+            self.pre_tool_pass_part_name = shim.STANDARD_TARGET_GEOM_PART_NAME
             self.tool_pass_part_name = shim.STANDARD_TOOL_PASS_PART_PREFIX
             self.post_tool_pass_part_name = shim.STANDARD_POST_TOOL_PASS_PART_PREFIX
 
@@ -111,8 +111,8 @@ class ModelNames:
             self.traction_step_name = shim.STANDARD_TRACTION_STEP_NAME
             self.traction_job_name = shim.STANDARD_JOB_PREFIX + str(model_cnt + 1)
 
-        elif model_type is ModelTypes.SYMMETRIC_DIFF:
-            # In the process of estimating the stress with the symmetric difference
+        elif model_type is ModelTypes.INTERSECTION:
+            # In the process of estimating the stress with the intersection 
             #     technique, it's assumed that a model will be created which
             #     contains two parts: 1) the result of traction application to 
             #     the post-cut, pre-deform target geometry and 2) the deformed
@@ -122,16 +122,14 @@ class ModelNames:
             #     part is assumed to exist in one of the models!
             self.target_geom_model_name = shim.STANDARD_TARGET_GEOM_MODEL_NAME
             self.deformed_geom_model_name = shim.STANDARD_DEFORMED_GEOM_MODEL_NAME
-            self.existing_deformed_geom_part_name = shim.STANDARD_INIT_GEOM_PART_NAME
+            self.existing_deformed_geom_part_name = shim.STANDARD_DEFORMED_GEOM_PART_NAME
 
             # Assumed to be chosen.
-            self.target_geom_part_name = shim.STANDARD_TARGET_GEOM_PART_NAME
+            self.post_traction_target_geom_part_name = shim.STANDARD_POST_TRACTION_TARGET_GEOM_PART_NAME
             self.deformed_geom_part_name = shim.STANDARD_DEFORMED_GEOM_PART_NAME
-            self.new_model_name = shim.STANDARD_SYMMETRIC_DIFF_MODEL_PREFIX + str(model_cnt + 1)
-            self.part1_remainder_part_name = shim.STANDARD_PART_REMAINDER_NAME
+            self.new_model_name = shim.STANDARD_INTERSECTION_MODEL_PREFIX + str(model_cnt + 1)
             self.intersection_part_name = shim.STANDARD_INTERSECTION_PART_NAME
-            self.union_part_name = shim.STANDARD_UNION_PART_NAME
-            self.symm_diff_part_name = shim.STANDARD_SYMM_DIFF_PART_NAME
+            self.remainder_part_name = shim.STANDARD_PART_REMAINDER_NAME
 
 
 

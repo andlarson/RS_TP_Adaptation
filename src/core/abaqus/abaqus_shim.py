@@ -125,14 +125,13 @@ STANDARD_DEFORMED_GEOM_MODEL_NAME = "Deformed_Geom"
 STANDARD_TARGET_GEOM_MODEL_NAME = "Target_Geom"
 STANDARD_STRESS_ESTIMATION_MDB_NAME = "Stress_Estimation.cae"
 
-# For symmetric difference computation.
-STANDARD_SYMMETRIC_DIFF_MODEL_PREFIX = "Symmetric_Difference_"
+# For intersection computation. 
+STANDARD_INTERSECTION_MODEL_PREFIX = "Intersection_"
 STANDARD_DEFORMED_GEOM_PART_NAME = "Deformed_Geom"
 STANDARD_TARGET_GEOM_PART_NAME = "Target_Geom"
+STANDARD_POST_TRACTION_TARGET_GEOM_PART_NAME = "Target_Geom_Post_Traction"
 STANDARD_PART_REMAINDER_NAME = "Remainder"
 STANDARD_INTERSECTION_PART_NAME = "Intersection"
-STANDARD_UNION_PART_NAME = "Union"
-STANDARD_SYMM_DIFF_PART_NAME = "Symmetric_Difference"
 
 
 
@@ -358,7 +357,7 @@ def compute_part_volume(part: Any) -> int:
            None.
     """
 
-    return part.queryGeometry["volume"]
+    return part.queryGeometry(printResults=False)["volume"]
 
 
 
@@ -566,6 +565,49 @@ def get_only_instance_name(model: Any) -> str:
 # *****************************************************************************
 
 
+def create_model(new_model_name: str, mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
+    """Creates a new model in the MDB.
+
+       Args:
+           new_model_name: Desired name of the new model.
+           mdb_md:         Metadata associated with the new model.
+           mdb:            Abaqus MDB object.
+
+       Returns:
+           None.
+
+       Raises:
+           None.
+    """
+
+    mdb.Model(name=new_model_name)
+    mdb_md.add_model(new_model_name)
+
+
+
+def copy_model(model_to_copy: str, new_model: str, 
+               mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
+    """Copies a model which already exists.
+        
+       Args:
+           model_to_copy: The name of the model to copy. This model must already
+                              exist in the MDB.
+           model_name:    The name of the new model.
+           mdb_metadata:  Metadata associated with the MDB.
+           mdb:           Abaqus MDB object.
+    
+       Returns:
+           None.
+    
+       Raises:
+           None.
+    """
+
+    mdb.Model(name=new_model, objectToCopy=mdb.models[model_to_copy])
+    mdb_metadata.add_copy(model_to_copy, new_model)
+
+
+
 def delete_model(model_name: str, mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
     """Deletes a model from an MDB.
 
@@ -678,38 +720,6 @@ def delete_part(part_name: str, model_name: str, mdb_md: abq_md.AbaqusMdbMetadat
 
 
 
-def import_mesh(mesh_path: str, new_model_name: str, new_part_name: str, 
-                mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any): 
-    """Imports a mesh (in a .odb or .stl file) into an MDB. The result of this
-           operation is a new model with a new part.
-       
-       Args:
-           mesh_path:      Absolute path to .stl/.odb file containing the mesh.
-           new_model_name: Desired name of the new model.
-           new_part_name:  Desired name of the new part.
-           mdb_md:         Metadata associated with the MDB.
-           mdb:            Abaqus MDB object.
-     
-       Returns:
-           None.
-    
-       Raises:
-           None.
-    """
-    
-    if mesh_path.endswith(".odb"): 
-        create_part_from_odb(new_part_name, new_model_name, mesh_path, mdb_md, mdb)
-    elif mesh_path.endswith(".stl"):
-        import_stl_to_mdb(mesh_path, new_model_name, mdb_md, mdb)
-
-        # Rename the part to conform.
-        rename_part(new_part_name, STANDARD_STL_IMPORT_PART_NAME, 
-                    new_model_name, mdb_md, mdb) 
-    else:
-        raise AssertionError("Unknown file type.") 
-
-
-
 def orphan_mesh_to_geometry_via_plugin(new_part_name: str, part_name: str, 
                                        model_name: str, mdb_md: abq_md.AbaqusMdbMetadata,
                                        mdb: Any
@@ -750,13 +760,15 @@ def orphan_mesh_to_geometry_via_plugin(new_part_name: str, part_name: str,
 
 
 
-def create_model_and_part_from_mesh(mesh_path: str, new_model_name: str,
-                                    mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
-    """Creates a new model with a part in a pre-existing MDB.
+def import_mesh(mesh_path: str, new_part_name: str, new_model_name: str,
+                mdb_md: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
+    """Creates a new model with a part from a mesh. Does the mesh to geometry
+           conversion.
 
        Args:
-           mesh_path:      Absolute path to .stl or .odb file containing the geometry
+           mesh_path:      Absolute path to .stl or .odb file containing the mesh
                                to use.
+           new_part_name:  Desired name of the new part.
            new_model_name: Desired name of the new model.
            mdb_md:         Metadata associated with the MDB.
            mdb:            Abaqus MDB object.
@@ -771,23 +783,24 @@ def create_model_and_part_from_mesh(mesh_path: str, new_model_name: str,
     if mesh_path.endswith(".stl"):
         import_stl_to_mdb(mesh_path, new_model_name, mdb_md, mdb)
 
-        orphan_mesh_to_geometry_via_plugin(STANDARD_INIT_GEOM_PART_NAME, 
+        orphan_mesh_to_geometry_via_plugin(new_part_name, 
                                            STANDARD_STL_IMPORT_PART_NAME, 
                                            new_model_name, mdb_md, mdb)
 
         delete_part(STANDARD_STL_IMPORT_PART_NAME, new_model_name, mdb_md, mdb)
         
         # By default, the plugin creates an instance in the assembly.
-        del mdb.models[STANDARD_MODEL_NAME].rootAssembly.features[STANDARD_STL_IMPORT_INSTANCE_NAME]
+        del mdb.models[new_model_name].rootAssembly.features[STANDARD_STL_IMPORT_INSTANCE_NAME]
 
     elif mesh_path.endswith(".odb"):
+        create_model(new_model_name, mdb_md, mdb)
         create_part_from_odb(TEMPORARY_NAME, new_model_name, mesh_path, mdb_md, mdb)
 
-        orphan_mesh_to_geometry_via_plugin(STANDARD_INIT_GEOM_PART_NAME, 
+        orphan_mesh_to_geometry_via_plugin(new_part_name, 
                                            TEMPORARY_NAME,
-                                           STANDARD_MODEL_NAME, mdb_md, mdb)
+                                           new_model_name, mdb_md, mdb)
 
-        delete_part(TEMPORARY_NAME, STANDARD_MODEL_NAME, mdb_md, mdb)
+        delete_part(TEMPORARY_NAME, new_model_name, mdb_md, mdb)
     
     else:
         assert False, "Unexpected file extension." 
@@ -1231,7 +1244,7 @@ def resume_assembly_feature(name: str, model: Any) -> None:
            None.
     """
     
-    model.resumeFeatures((name, ))
+    model.rootAssembly.resumeFeatures((name, ))
 
 
 
@@ -1984,31 +1997,6 @@ def _print_job_messages(job: Any) -> None:
     
 
 
-def copy_model(model_to_copy: str, new_model: str, 
-               mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any) -> None:
-    """Copies a model which already exists.
-        
-       Args:
-           model_to_copy: The name of the model to copy. This model must already
-                              exist in the MDB.
-           model_name:    The name of the new model.
-           mdb_metadata:  Metadata associated with the MDB.
-           mdb:           Abaqus MDB object.
-    
-       Returns:
-           None.
-    
-       Raises:
-           None.
-    """
-
-    mdb.Model(name=new_model, objectToCopy=mdb.models[model_to_copy])
-
-    # Do book keeping.
-    mdb_metadata.add_copy(model_to_copy, new_model)
-
-
-
 def create_part_from_odb(part_name: str, model_name: str, path_to_odb: str, 
                          mdb_metadata: abq_md.AbaqusMdbMetadata, mdb: Any
                         ) -> None:
@@ -2033,7 +2021,6 @@ def create_part_from_odb(part_name: str, model_name: str, path_to_odb: str,
 
     odb = odbAccess.openOdb(path=path_to_odb)
     mdb.models[model_name].PartFromOdb(part_name, odb, shape=DEFORMED)
-    
     odb.close()
 
     # Do book keeping.

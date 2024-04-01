@@ -165,11 +165,12 @@ if __name__ == "__main__":
 
         # ----- Main Sim: Estimate Stresses -----
         _ = main_machining.estimate_stress(TP_STRESS_ESTIMATION_DIR)
-
+        
+        """
         # ----- Main Sim: Provide Estimate of Whole Stress Field -----
         main_machining.use_stress_profile(STRESS_FIELD_ESTIMATE)
 
-
+        
         # *******************************
         #   Searching For 2nd Good TPP 
         # *******************************
@@ -187,6 +188,7 @@ if __name__ == "__main__":
         # ----- Main Sim: Commit to a TPP -----
         committed_plan = potential_tpp_3
         main_machining.commit_tool_passes(committed_plan, committed_tpp_names[1], TP_DIR) 
+        """
 
     except BaseException as e:
         dump_exception()       

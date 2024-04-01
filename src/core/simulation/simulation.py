@@ -475,24 +475,27 @@ def _prepare_for_stress_estimation(deformed_geometry: str, target_geometry: str,
     mdb = shim.create_mdb(new_mdb_name, path)
     full_path = os.path.join(path, new_mdb_name)
     mdb_md = abq_md.AbaqusMdbMetadata(full_path) 
+    
+    # TODO: Simplify geometry?
 
     names = naming.ModelNames(naming.ModelTypes.DEFORMED_GEOM, mdb_md) 
-    shim.import_mesh(deformed_geometry, names.new_model_name, names.deformed_part_name, mdb_md, mdb)
-
-    # TODO: Simplify geometry!
+    shim.import_mesh(deformed_geometry, names.deformed_geom_part_name, names.new_model_name, mdb_md, mdb)
 
     names = naming.ModelNames(naming.ModelTypes.TARGET_GEOM, mdb_md)
-    shim.import_mesh(target_geometry, names.new_model_name, names.target_part_name, mdb_md, mdb)
+    shim.import_mesh(target_geometry, names.target_geom_part_name, names.new_model_name, mdb_md, mdb)
 
     # Since tractions are going to be applied to the target geometry, it must
     #     have a material, etc.
     shim.create_material(machining_invariants.material, names.new_model_name, mdb)
     shim.create_section(names.new_model_name, mdb)
-    shim.assign_section_to_whole_part(names.target_part_name, names.new_model_name, mdb)
+    shim.assign_section_to_whole_part(names.target_geom_part_name, names.new_model_name, mdb)
 
     # Construct the post-cut, pre-deform geometry.
     # Note that this also does geometry simplification!
     _do_cut(tool_pass, names, mdb_md, mdb)
+
+    # Get rid of the model created by default.
+    shim.delete_model(shim.STANDARD_MODEL_NAME, mdb_md, mdb)
 
     return mdb_md, mdb
 
@@ -533,17 +536,16 @@ def _recover_constant_residual_stress(tool_pass: tp.ToolPass,
     """
    
     # Find a point on the trench for the tool pass.
-    tool_pass = commit_md.committed_tpp[1].plan[0]
     trench_point = _find_trench_point(tool_pass) 
-
-    # Do gradient descent on the volume difference function. 
-    cur = geom.Vec3D(np.array([100000000, 0, 0]))
+    
+    # Some heustics for gradient ascent.
+    cur = geom.Vec3D(np.array([10**9, 0, 0]))
     iteration_cnt = 3 
-    step_size = 1
+    step_size = 10**8
 
     for _ in range(iteration_cnt):
         grad = _compute_gradient(cur, trench_point, machining_invariants, path, mdb_md, mdb)
-        cur = cur - geom.Vec3D(step_size * grad.rep)
+        cur = cur + geom.Vec3D(step_size * grad.rep)
 
     # Map the "good traction vector" to the components of the stress tensor
     #     assuming a constant state of stress.
@@ -581,11 +583,11 @@ def _compute_gradient(at: geom.Vec3D,
                       mdb_md: abq_md.AbaqusMdbMetadata,
                       mdb: Any
                      ) -> geom.Vec3D:
-    """Computes an estimate of the gradient of the volume-difference function
+    """Computes an estimate of the gradient of the volume-intersection function
            at a particular point. 
        
        Implementation Details:
-       Computes the value of the volume-difference function at small offsets
+       Computes the value of the volume-intersection function at small offsets
            (in orthogonal directions) from the point of offset. Formally, this
            technique is a finite-differences style gradient estimation. 
 
@@ -618,10 +620,10 @@ def _compute_gradient(at: geom.Vec3D,
     offset_in_y = at + geom.Vec3D(np.array([0, offset, 0]))
     offset_in_z = at + geom.Vec3D(np.array([0, 0, offset]))
     
-    vol_diff = _evaluate_vol_diff(at, point_near_face, machining_invariants, path, mdb_md, mdb)
-    vol_diff_x = _evaluate_vol_diff(offset_in_x, point_near_face, machining_invariants, path, mdb_md, mdb)
-    vol_diff_y = _evaluate_vol_diff(offset_in_y, point_near_face, machining_invariants, path, mdb_md, mdb)
-    vol_diff_z = _evaluate_vol_diff(offset_in_z, point_near_face, machining_invariants, path, mdb_md, mdb)
+    vol_diff = _evaluate_vol_intersec(at, point_near_face, machining_invariants, path, mdb_md, mdb)
+    vol_diff_x = _evaluate_vol_intersec(offset_in_x, point_near_face, machining_invariants, path, mdb_md, mdb)
+    vol_diff_y = _evaluate_vol_intersec(offset_in_y, point_near_face, machining_invariants, path, mdb_md, mdb)
+    vol_diff_z = _evaluate_vol_intersec(offset_in_z, point_near_face, machining_invariants, path, mdb_md, mdb)
     
     # Moving in the direction of the slope is equivalent to moving in the direction
     #     of greatest ascent.
@@ -633,23 +635,23 @@ def _compute_gradient(at: geom.Vec3D,
     
 
 
-def _evaluate_vol_diff(at: geom.Vec3D, 
-                       point_near_face: geom.Point3D,
-                       machining_invariants: mach._MachiningInvariants,
-                       path: str,
-                       mdb_md: abq_md.AbaqusMdbMetadata,
-                       mdb: Any
-                      ) -> int :
-    """Evaluates the volume difference function at some point. 
+def _evaluate_vol_intersec(at: geom.Vec3D, 
+                           point_near_face: geom.Point3D,
+                           machining_invariants: mach._MachiningInvariants,
+                           path: str,
+                           mdb_md: abq_md.AbaqusMdbMetadata,
+                           mdb: Any
+                          ) -> int :
+    """Evaluates the volume intersection function at some point. 
 
-       The volume-difference function is a function with domain which is the
+       The volume-intersection function is a function with domain which is the
            set of all possible traction vectors and range which is all positive 
            reals. It is defined for a particular target geometry, a particular
            deformed geometry, and a face. To evaluate the function at a point, 
            you simply apply the traction (the point) to the target geometry on 
            the specified face, overlap the resulting geometry in space with the 
-           deformed geometry, and compute the volume of the pieces which are not
-           in the intersection of the volumes (i.e. the symmetric difference).
+           deformed geometry, and compute the volume of the pieces which are
+           in the intersection of the volumes.
 
        Implementation Details:
        By applying traction to the target geometry, and not the deformed geometry,
@@ -671,7 +673,7 @@ def _evaluate_vol_diff(at: geom.Vec3D,
                                      part, the post-cut, pre-deformed geometry.
     
        Returns:
-           The value of the volume difference function (a scalar representing the
+           The value of the volume intersection function (a scalar representing the
                volume) when evaluated at the point of interest.
     
        Raises:
@@ -681,12 +683,12 @@ def _evaluate_vol_diff(at: geom.Vec3D,
     # Step 1:
     # Simulate the traction application.
 
-    names = naming.ModelNames(naming.ModelTypes.SYMMETRIC_DIFF, mdb_md)
+    names = naming.ModelNames(naming.ModelTypes.INTERSECTION, mdb_md)
 
     # Change the CWD to fix location of simulation results.
     orig_cwd = os.getcwd()
     os.chdir(path)
-    job_name = _simulate_traction_app(at, point_near_face, names.deformed_geom_model_name,
+    job_name = _simulate_traction_app(at, point_near_face, names.target_geom_model_name,
                                       machining_invariants, mdb_md, mdb)
     path_to_odb = os.path.join(path, job_name) + ".odb"
     os.chdir(orig_cwd)
@@ -695,8 +697,7 @@ def _evaluate_vol_diff(at: geom.Vec3D,
     # Create the model in the MDB for computing symmetric difference. 
 
     # Create the model by importing the result of traction application.
-    shim.import_mesh(path_to_odb, names.new_model_name, names.target_geom_part_name,
-                     mdb_md, mdb)
+    shim.import_mesh(path_to_odb, names.post_traction_target_geom_part_name, names.new_model_name, mdb_md, mdb)
     
     # Copy the deformed geometry part into the model.
     shim.copy_part(names.deformed_geom_part_name, names.existing_deformed_geom_part_name,
@@ -704,17 +705,87 @@ def _evaluate_vol_diff(at: geom.Vec3D,
                    mdb_md, mdb) 
 
     # Step 3:
-    # Compute the symmetric difference.
-    volume = _compute_symmetric_diff(names, mdb_md, mdb)
+    # Compute the volume of the intersection.
+    volume = _compute_vol_intersection(names, mdb_md, mdb)
 
     return volume 
 
 
 
+def _compute_vol_intersection(names: naming.ModelNames, 
+                              mdb_md: abq_md.AbaqusMdbMetadata, 
+                              mdb: Any) -> int:
+    """Computes the volume of the intersection between two parts. 
+
+       Args:
+           names:  Names for a intersection operation. 
+           mdb_md: Metadata associated with the MDB.
+           mdb:    Abaqus MDB object. Assumed to contain a model ready for the
+                       intersection operation. 
+    
+       Returns:
+           Volume of the symmetric difference.
+    
+       Raises:
+           None.
+    """
+
+    model_name = names.new_model_name
+    part1_name = names.post_traction_target_geom_part_name
+    part2_name = names.deformed_geom_model_name
+    intersection_part_name = names.intersection_part_name
+    part1_remainder_name = names.remainder_part_name
+
+    # Step 1: 
+    # Instance the parts into the assembly.
+    part1 = mdb.models[model_name].parts[part1_name]
+    part1_instance = shim.instance_part_into_assembly(part1_name, part1, False, model_name, mdb)
+
+    part2 = mdb.models[model_name].parts[part2_name]
+    part2_instance = shim.instance_part_into_assembly(part2_name, part2, False, model_name, mdb)
+
+    # Step 2:
+    # Find the intersection of the two parts.
+    # Cut, out of first part, the overlapping portion of the second part. Some
+    #     portion of the first part remains. Cut this remaining portion out
+    #     of the first part. This yields the intersection of the two parts.
+
+    # Cut out the overlapping portion of the second part.
+    part1_remainder = shim.cut_instances_in_assembly(part1_remainder_name, part1_instance,
+                                                     (part2_instance,), model_name, mdb_md,
+                                                     mdb)
+    
+    remainder_part_instance = shim.instance_part_into_assembly(part1_remainder_name, 
+                                                               part1_remainder, False, 
+                                                               model_name, mdb)
+    
+    # Unsuppress the instance of part1 so it can be used in the subsequent cutting
+    #     operation.
+    shim.resume_assembly_feature(part1_name, mdb.models[model_name])
+    part1_instance = mdb.models[model_name].rootAssembly.instances[part1_name]
+
+    # Do the cut to get the intersection.
+    intersection = shim.cut_instances_in_assembly(intersection_part_name, part1_instance, 
+                                                  (remainder_part_instance,), model_name,
+                                                  mdb_md, mdb)
+
+    # Step 3:
+    # Compute the volume of the intersection.
+    return shim.compute_part_volume(intersection)
+
+
+
+# *****************************************************************************
+#                                 DEPRECATED 
+# *****************************************************************************
+
+
 def _compute_symmetric_diff(names: naming.ModelNames, 
                             mdb_md: abq_md.AbaqusMdbMetadata, 
                             mdb: Any) -> int:
-    """Computes the symmetric difference in volume between two part geometries. 
+    """DEBRECATED. Replaced by computing the intserction.
+    
+       Computes the symmetric difference in volume between two part geometries. 
 
        In set theory, the symmetric difference between two sets A, B is the set
            of elements which are in either A, B and are not in the intersection
@@ -734,7 +805,7 @@ def _compute_symmetric_diff(names: naming.ModelNames,
     """
 
     model_name = names.new_model_name
-    part1_name = names.target_geom_part_name
+    part1_name = names.post_traction_target_geom_part_name
     part2_name = names.deformed_geom_model_name
     part1_remainder_name = names.part1_remainder_part_name
     intersection_part_name = names.intersection_part_name
@@ -800,11 +871,6 @@ def _compute_symmetric_diff(names: naming.ModelNames,
     # Compute the volume of the symmetric difference. 
     return shim.compute_part_volume(symmetric_difference)
 
-
-
-# *****************************************************************************
-#                                 DEPRECATED 
-# *****************************************************************************
 
 
 def _recover_linear_relationships(points: list[geom.Point3D], 

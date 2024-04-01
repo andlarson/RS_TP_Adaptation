@@ -216,7 +216,7 @@ class Vec3D:
     def __add__(self, other: "Vec3D") -> "Vec3D":
         """Overloads addition."""
         op1 = self.components()
-        op2 = self.components()
+        op2 = other.components()
         return Vec3D(np.array((op1[0] + op2[0], op1[1] + op2[1], op1[2] + op2[2])))
 
 
