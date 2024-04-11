@@ -2,11 +2,9 @@
 
 Recovering Residual Stress - Short Term TODO:
 
-1) Get the mesh -> geometry conversion plugin working.
+1) Get symmetric difference-based gradient descent up and running.
 
-2) Get symmetric difference-based gradient descent up and running.
-
-3) Fix the traction vector application routine so that it is capable of applying
+2) Fix the traction vector application routine so that it is capable of applying
        traction to many faces which may exist on a trench. 
 
 
@@ -15,14 +13,13 @@ Simulating Material Removal - Short Term TODO:
 
 1) Add C++ support for defining some simple stress profiles.
    As part of this, account for the case when the user specifies a stress profile
-      which is far from equilbirium. 
+      which is far from equilibrium. 
 
 
 
 General - Short Term TODO:
 
-0) Clean up imports and incorporate the cyclic import protection code where
-       necessary.
+0) Use Abaqus' solver only. Don't use Abaqus' preprocessor at all!
 
 1) Implement checkpointing to save time debugging.
 
@@ -79,11 +76,6 @@ Adding/Modifying Features TODO:
     *** TOOL PATH AND PART GEOMETRY DONT INTERSECT ***
     Deal with possibility that a tool path doesn't intersect the part geometry. If this
       is the case, the PartFromBooleanCut() method will throw an exception.
-
-    *** MESHING ROBUSTNESS ***
-    Make meshing more robust. Currently we just try some parameters (seed density,
-      mesh shape, etc.) and if those parameters don't work we try some other
-      parameters.
 
     *** MAPPING ORPHAN MESH TO GEOEMTRY ***
     There is an awful lot of runtime spent mapping an orphan mesh to a new geometry.
