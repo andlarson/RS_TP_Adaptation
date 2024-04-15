@@ -1,4 +1,23 @@
 
+Reading TODO:
+
+Add the distortion papers to repo.
+
+Read all remaining printed papers which are unread.
+
+Read about the 3 techniques cited in the "Prediction of Resisudal Stresses in
+    Components Using the Contour Methdo" for doing point cloud to surface mesh
+    conversion.
+
+Look at papers cited in "Distortion caused by residual stresses in machining
+    aeronautical aluminum alloy parts: recent advances".
+
+Look at papers which cite "An industrial workflow to minimize part distortion
+    for machining of large monolithic components in aerospace industry".
+
+Re-check list of papers cited by 1st version of proposal and look through
+    list of papers cited by newer version of proposal.
+
 
 Recovering Residual Stress - Short Term TODO:
 
