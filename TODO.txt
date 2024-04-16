@@ -1,13 +1,18 @@
 
 Reading TODO:
 
-Add the distortion papers to repo.
-
-Read all remaining printed papers which are unread.
+Look at paper "Influence of the machining sequence on the residual stress
+     redistribution and machining quality: analysis and improvement using
+     numerical simulations". And look at "Effects of cut depth on the
+     redistribution of residual stress and deformation during the milling
+     of thin-walled part."
 
 Read about the 3 techniques cited in the "Prediction of Resisudal Stresses in
     Components Using the Contour Methdo" for doing point cloud to surface mesh
-    conversion.
+    conversion. Also, look at the PyCM automation claims.
+
+Look at papers which cite and are cited by "Modeling of machining distortion 
+    for thin-walled components based on the internal stress field evolution".
 
 Look at papers cited in "Distortion caused by residual stresses in machining
     aeronautical aluminum alloy parts: recent advances".
