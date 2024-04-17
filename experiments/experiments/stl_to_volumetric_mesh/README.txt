@@ -109,4 +109,9 @@ Results:
                          Stop Energy 10 + Req. Manifold:       Success in 14s.
             00000029/ -> Skipped testing.
 
-
+        It turns out that allowing an epsilon-envelope makes our life hard. The
+            trench may have moved during the meshing process! What happens to
+            runtime if we set epsilon=0? The following tests include this
+            modification.
+            00000001/ -> Stop Energy 10 + Req. Manifold + Epsilon=0: Cancelled test after 10 minutes.
+            00000007/ -> Stop Energy 10 + Req. Manifold + Epsilon=0: Cancelled test after 5 minutes.

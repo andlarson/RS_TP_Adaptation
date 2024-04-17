@@ -1,27 +1,41 @@
+Literature Review TODO:
 
-Reading TODO:
+Got here from: Unknown
+    Look at: 
+        "Geometric distortion analysis using a combination of the contour method and machining simulation"
+        "Influence of the machining sequence on the residual stress redistribution and machining quality: analysis and improvement using numerical simulations"
+        "Towards advanced prediction and control of machining distortion: a comprehensive review"
+        "The finite cell method for the prediction of machining distortion caused by initial residual stresses in milling"
 
-Look at paper "Influence of the machining sequence on the residual stress
-     redistribution and machining quality: analysis and improvement using
-     numerical simulations". And look at "Effects of cut depth on the
-     redistribution of residual stress and deformation during the milling
-     of thin-walled part."
+Got here from: "Prediction and control of residual stress-based distortions in the machining of aerospace parts"
+    Look at the cited papers:
+        
 
-Read about the 3 techniques cited in the "Prediction of Resisudal Stresses in
-    Components Using the Contour Methdo" for doing point cloud to surface mesh
-    conversion. Also, look at the PyCM automation claims.
+Got here from: "Parallel finite element tool to predict distortion..."
+    Look at the cited papers:
+        "Finite element method based machining simulation environment for analyzing part errors during milling of thin-walled components"
+        "A new approach for FEM simulation of NC Machining processes"
+        "Distortions prediction during the multi-pass machining simulations by using the level-set method"
 
-Look at papers which cite and are cited by "Modeling of machining distortion 
-    for thin-walled components based on the internal stress field evolution".
+Got here from: Unknown
+    Look at: 
+        "Influence of the machining sequence on the residual stress redistribution and machining quality: analysis and improvement using numerical simulations" 
+        "Effects of cut depth on the redistribution of residual stress and deformation during the milling of thin-walled part."
 
-Look at papers cited in "Distortion caused by residual stresses in machining
-    aeronautical aluminum alloy parts: recent advances".
+Got here from: "Prediction of Resisudal Stresses in Components Using the Contour Method"
+    Read about the 3 techniques for doing point cloud to surface mesh conversion. Also, look at the PyCM automation claims.
 
-Look at papers which cite "An industrial workflow to minimize part distortion
-    for machining of large monolithic components in aerospace industry".
+Got here from: "Modeling of machining distortion for thin-walled components based on the internal stress field evolution"
+    Look at papers which cite and are cited by.
+
+Got here from: "Distortion caused by residual stresses in machining aeronautical aluminum alloy parts: recent advances".
+    Look at papers cited by.
 
 Re-check list of papers cited by 1st version of proposal and look through
     list of papers cited by newer version of proposal.
+
+Figure out what CIRP is and look at past work in the CIRP Modeling of Machining
+    Operation sub-conference?
 
 
 Recovering Residual Stress - Short Term TODO:
@@ -42,6 +56,8 @@ Simulating Material Removal - Short Term TODO:
 
 
 General - Short Term TODO:
+
+-1) Follow up re: AdvantEdge, Forge
 
 0) Use Abaqus' solver only. Don't use Abaqus' preprocessor at all!
 
