@@ -2,6 +2,14 @@
 
 Literature Review - Short Term TODO:
 
+Got here from: "Real time finite element structural analysis in augmented reality"
+    Look at papers which it cites:
+        "A Responsive Finite Element Method to Aid Interactive Geometric Modeling"
+        "Applying virtual reality techniques to the interactive stress analysis of a tractor arm"
+        "Analyses using VR/AR Visualization"
+        "Augmented reality for urban simulation visualization"
+        "Augmented reality sandbox"
+
 Got here from: Unknown
     Look at: 
         "MODELING OF RESIDUAL STRESS AND MACHINING DISTORTION IN AEROSPACE COMPONENTS (PREPRINT)" - Air Force Research Laboratory
@@ -11,6 +19,12 @@ Got here from: Unknown
         "Influence of the machining sequence on the residual stress redistribution and machining quality: analysis and improvement using numerical simulations" 
         "Effects of cut depth on the redistribution of residual stress and deformation during the milling of thin-walled part."
         "Modelling of part distortion due to residual stresses relaxation: An aeronautical case study"
+
+Got here from: "A novel in-process machining deformation perception and control method."
+    Look at papers that it cites:
+        "A method to minimize the workpiece deformation using a concept of intelligent fixture"
+        "Effects of depth of cut on the redistribution of residual ...."
+        "An adaptive machining approach based on in-process inspection of interim machining states for large-scaled and thin-walled complex parts"
 
 Got here from: "Methodology for aluminium part machining quality improvement considering mechanical properties and process conditions"
     Look at papers that it cites:
