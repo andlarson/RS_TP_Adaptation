@@ -1,41 +1,51 @@
-Literature Review TODO:
+
+
+Literature Review - Short Term TODO:
 
 Got here from: Unknown
     Look at: 
-        "Geometric distortion analysis using a combination of the contour method and machining simulation"
-        "Influence of the machining sequence on the residual stress redistribution and machining quality: analysis and improvement using numerical simulations"
-        "Towards advanced prediction and control of machining distortion: a comprehensive review"
-        "The finite cell method for the prediction of machining distortion caused by initial residual stresses in milling"
+        "MODELING OF RESIDUAL STRESS AND MACHINING DISTORTION IN AEROSPACE COMPONENTS (PREPRINT)" - Air Force Research Laboratory
+        "Residual stress and distortion modeling on aeronautical aluminum alloy parts for machining sequence optimization"
+        "A New Method for Inferencing and Representing a Workpiece Residual Stress Field Using Monitored Deformation Force Data"
+        "Simulation-Based Investigation of the Distortion of Milled Thin-Walled Aluminum Structural Parts Due to Residual Stresses"
+        "Influence of the machining sequence on the residual stress redistribution and machining quality: analysis and improvement using numerical simulations" 
+        "Effects of cut depth on the redistribution of residual stress and deformation during the milling of thin-walled part."
+        "Modelling of part distortion due to residual stresses relaxation: An aeronautical case study"
+
+Got here from: "Methodology for aluminium part machining quality improvement considering mechanical properties and process conditions"
+    Look at papers that it cites:
+        "Prediction of machining quality due to the initial residual stress redistribution of aerospace structural parts made of low-density aluminium alloy rolled plates"
+    Look at papers which cite it:
+        "Digital twin of forged part to reduce distortion in machining"
+        "Energy principle and material removal sequence optimization method in machining of aircraft monolithic parts"
 
 Got here from: "Prediction and control of residual stress-based distortions in the machining of aerospace parts"
     Look at the cited papers:
-        
+        "Effects of toolpath and clamping strategies in machining distortion of stainless-steel parts"
+        "A novel in-process machining deformation perception and control method" 
+        "Machining Distortion of Titanium Alloys Aero Engine Case Based on the Energy Principles"
+        "Thin-Wall Machining of Light Alloys: A Review of Models and Industrial Approaches"
 
 Got here from: "Parallel finite element tool to predict distortion..."
     Look at the cited papers:
         "Finite element method based machining simulation environment for analyzing part errors during milling of thin-walled components"
         "A new approach for FEM simulation of NC Machining processes"
-        "Distortions prediction during the multi-pass machining simulations by using the level-set method"
 
-Got here from: Unknown
-    Look at: 
-        "Influence of the machining sequence on the residual stress redistribution and machining quality: analysis and improvement using numerical simulations" 
-        "Effects of cut depth on the redistribution of residual stress and deformation during the milling of thin-walled part."
+Got here from: "Geometric distortion analysis using a combination of the contour method and machining simulation"
+    Look at the papers:
+        "Arbitrary discontinuities in finite elements"
+        "Geometric distortion analysis using CAD/CAM based manufacturing simulation"
 
-Got here from: "Prediction of Resisudal Stresses in Components Using the Contour Method"
-    Read about the 3 techniques for doing point cloud to surface mesh conversion. Also, look at the PyCM automation claims.
+Got here from: "An approach to predict the distortion of thin-walled parts affected by residual stress during..."
+    Look at the papers:
+        "Error compensation strategy in milling flexible thin-wall parts"
 
-Got here from: "Modeling of machining distortion for thin-walled components based on the internal stress field evolution"
-    Look at papers which cite and are cited by.
 
-Got here from: "Distortion caused by residual stresses in machining aeronautical aluminum alloy parts: recent advances".
-    Look at papers cited by.
+Literature Review - Long Term TODO:
+        
+Confirm that the "The finite cell method for the prediction of machining distortion cuased by initial residual stresses in milling"
+    is flawed in the way that I think it is.
 
-Re-check list of papers cited by 1st version of proposal and look through
-    list of papers cited by newer version of proposal.
-
-Figure out what CIRP is and look at past work in the CIRP Modeling of Machining
-    Operation sub-conference?
 
 
 Recovering Residual Stress - Short Term TODO:
@@ -57,7 +67,7 @@ Simulating Material Removal - Short Term TODO:
 
 General - Short Term TODO:
 
--1) Follow up re: AdvantEdge, Forge
+-1) Follow up re: AdvantEdge, Forge, email to X. Cerutti and K. Mocellin, Manufacturing Automation Laboratories, MORFEO
 
 0) Use Abaqus' solver only. Don't use Abaqus' preprocessor at all!
 
