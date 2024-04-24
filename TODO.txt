@@ -1,4 +1,34 @@
 
+Potential problems with new estimation technique for residual stress field:
+    
+1) Need to ensure that all the nodes present in the mesh of the blank also exist
+       in all subsequent meshes. These nodes are basically atomic fiducials
+       and their density dictates the maximum stress field variation which can
+       be resolved.
+   There is danger when doing boolean operations. At a minimum, in a boolean
+       operation new mesh nodes will need to be introduced. We need to
+       ensure that existing nodes (in the remainder of the workpiece) are
+       not deleted. This would destroy the fiducials and prevent canonicalization.
+
+2) Error will be accumulated if the tractions do not cause the mesh to exactly
+       bend back to the initial shape. The error will not break the canonicalization,
+       but it will cause our stress estimates to be of poor quality.
+
+
+Other notes about new estimation technique:
+
+1) When a stress estimate is recovered in a region of space, we can identify the
+       nodes inside that volume of material. In the mesh of the blank, we can
+       then say that the stress estimate is valid for those nodes.
+
+2) The mesh density in the mesh of the blank dictates all simulation runtimes
+       and it dictates the resolution at which the stress field can be resolved.
+   Can we decouple these things by introducing nodes which exist in the canonical
+       mesh but aren't included in all the simulations. I don't that we can
+       because, in a deformed configuration, we don't know where these nodes are
+       without including them in the FEM simulation!
+
+
 
 Literature Review - Short Term TODO:
 
