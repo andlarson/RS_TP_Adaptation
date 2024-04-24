@@ -2,14 +2,6 @@
 
 Literature Review - Short Term TODO:
 
-Got here from: "Real time finite element structural analysis in augmented reality"
-    Look at papers which it cites:
-        "A Responsive Finite Element Method to Aid Interactive Geometric Modeling"
-        "Applying virtual reality techniques to the interactive stress analysis of a tractor arm"
-        "Analyses using VR/AR Visualization"
-        "Augmented reality for urban simulation visualization"
-        "Augmented reality sandbox"
-
 Got here from: Unknown
     Look at: 
         "MODELING OF RESIDUAL STRESS AND MACHINING DISTORTION IN AEROSPACE COMPONENTS (PREPRINT)" - Air Force Research Laboratory
