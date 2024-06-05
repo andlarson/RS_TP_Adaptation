@@ -1,12 +1,13 @@
 ---
-# !!!UPDATE!!! #
+# UPDATE #
 
-Significant changes to the software architecture are necessary. The functionality 
-that we desire is not natively supported by Abaqus. In particular, Abaqus' meshing
-routines are not robust, material removal is not natively supported in Abaqus
-(and workarounds to do material removal in Abaqus do not fulfill our needs), and 
-we need custom meshing algorithms to support canonicalization. As such, we are
-in the process of rewriting a large portion of this repository.
+Significant changes to the software architecture and implementation are necessary. 
+The functionality that we desire is not natively supported by Abaqus. In particular, 
+Abaqus' meshing routines are not robust, material removal is not natively 
+supported in Abaqus (and workarounds to do material removal in Abaqus do not 
+fulfill our needs), and we need custom meshing algorithms to support 
+canonicalization. As such, we are in the process of rewriting a large portion of 
+this repository. This is primarily being done on the `migrate_to_cpp` branch.
 
 ---
 
