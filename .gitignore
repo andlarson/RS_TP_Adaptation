@@ -23,6 +23,8 @@ __pycache__/
 *.pyc        
 *.npz        
 *.npy
+.venv/
+venv/
 
 # C / C++
 *.o
