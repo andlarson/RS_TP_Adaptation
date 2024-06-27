@@ -34,25 +34,10 @@ into a geometry that does not satisfy allowed tolerances).
 
 ---
 
-# Project File Structure # 
-
-## TODO ##
-
----
-
-
----
-
 # Dependencies #
 
-This project assumes that its dependencies are available on the user's system.
-Precisely, it expects that its dependencies are available 
+- The fTetWild executable.
 
-The software depends on:
-1. Header files for the Geogram, Threads, `TODO: Add more as necessary.` libraries.
-2. Static libraries including:
-   fTetWild. Precisely, the static library produced when fTetWild is built. This
-   static library contains code from fTetWild, Geogram, GMP, IGL, Threads, etc. 
 
 ---
 
@@ -62,13 +47,11 @@ The software depends on:
 
 # Build Instructions #
 
-1. Create a `build/` directory under `RS_TP_Adaptation/`.
-2. `cd build/`
+1. `mkdir build`
+2. `cd build`
 3. `cmake ..`
 4. `cmake --build .`
-5. Now the `build/` directory should contain the executable `rs_tp_adaptation`. Run the executable by issuing `./rs_tp_adaptation`.
-
-Right now, automated installation is not provided. 
+5. `./rs_tp_adaptation --help` 
 
 ---
 
