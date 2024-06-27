@@ -1,5 +1,3 @@
----
-
 # UPDATE #
 
 Significant changes to the software architecture and implementation are necessary. 
@@ -10,11 +8,6 @@ fulfill our needs), and we need custom meshing algorithms to support
 canonicalization. As such, we are in the process of rewriting a large portion of 
 this repository. This is primarily being done on the `migrate_to_cpp` branch.
 
----
-
-
-
----
 
 # Improving Machining Yield in the Presence of Residual Stress #
 
@@ -28,31 +21,21 @@ yield for blanks which have problematic residual stress fields (i.e. residual
 stress fields that cause the workpiece to deform during and after machining
 into a geometry that does not satisfy allowed tolerances).
 
----
-
-
-
----
 
 # Dependencies #
 
-- The fTetWild executable.
+- fTetWild 
 
-
----
-
-
-
----
 
 # Build Instructions #
 
-1. `mkdir build`
-2. `cd build`
-3. `cmake ..`
-4. `cmake --build .`
-5. `./rs_tp_adaptation --help` 
+```
+mkdir build
+cd build
+cmake ..
+cmake --build .
+./rs_tp_adaptation --help 
+```
 
----
 
 
