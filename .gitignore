@@ -17,6 +17,8 @@
 *.SMABulk
 *.env
 *.exception
+*.inp
+*.lck
 
 # Python
 __pycache__/ 
@@ -32,3 +34,7 @@ __pycache__/
 build/
 CMakeCache.txt
 CMakeFiles/
+
+# 3D models
+*.stl
+*.msh
