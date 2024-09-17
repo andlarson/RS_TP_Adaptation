@@ -29,12 +29,15 @@ __pycache__/
 # C / C++
 *.o
 *.so
+*.dylib
 
 # CMake
 build/
-CMakeCache.txt
 CMakeFiles/
 
-# 3D models
+# Geometric Modeling
 *.stl
 *.msh
+
+# General
+.cache/
