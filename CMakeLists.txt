@@ -8,24 +8,32 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 #                               Dependencies
 # -------------------------------------------------------------------------
 
-# When installed, Geogram provides a find module.
+# When installed, Geogram provides a find module. The find module still needs
+#     a hint about where Geogram was installed, though.
+# When I built and installed Geogram, the fresh version of GLFW3 was built
+#     and installed. It lives at the installation location of Geogram. However,
+#     the find module happens to look for system-installs of GLFW3 before looking
+#     in the Geogram install directory. For this reason the system-install of
+#     GLFW3 is used.
 list(APPEND CMAKE_MODULE_PATH "/Users/andrewlarson/Desktop/misc/programming/misc_installs/geogram_debug/lib/cmake/modules")
+set(GEOGRAM_INSTALL_PREFIX "/Users/andrewlarson/Desktop/misc/programming/misc_installs/geogram_debug/")
 find_package(Geogram REQUIRED MODULE)
-
-# When I built Geogram, I set it up to also build GLFW. When installed,
-#     Geogram also contains GLFW. GLFW provides a CMake package configuration 
-#     file.
-# set(glfw3_ROOT "/Users/andrewlarson/Desktop/misc/programming/misc_installs/geogram_debug/lib/cmake/glfw3/")
-# find_package(glfw3 REQUIRED CONFIG)
-
 
 # -------------------------------------------------------------------------
 #                               This Library     
 # -------------------------------------------------------------------------
 
 add_library(rs_tp_adaptation SHARED
-            "${CMAKE_SOURCE_DIR}/src/main.cpp"
+            "${CMAKE_SOURCE_DIR}/src/estimation.cpp"
+            "${CMAKE_SOURCE_DIR}/src/scan.cpp"
+            "${CMAKE_SOURCE_DIR}/src/stress.cpp"
+            "${CMAKE_SOURCE_DIR}/src/toolpath.cpp"
+            "${CMAKE_SOURCE_DIR}/src/mesh_utilities.cpp"
            )
+
+target_include_directories(rs_tp_adaptation 
+                           PUBLIC "include/"
+                           PRIVATE "src/include/")
 
 target_link_libraries(rs_tp_adaptation 
                       Geogram::geogram
@@ -35,3 +43,9 @@ target_link_libraries(rs_tp_adaptation
 # -------------------------------------------------------------------------
 #                                   Tests 
 # -------------------------------------------------------------------------
+
+add_executable(test "${CMAKE_SOURCE_DIR}/test/test.cpp")
+
+target_link_libraries(test
+                      rs_tp_adaptation
+                     )
