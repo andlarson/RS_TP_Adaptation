@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 #                               Dependencies
 # -------------------------------------------------------------------------
 
+# *** Geogram ***
 # When installed, Geogram provides a find module. The find module still needs
 #     a hint about where Geogram was installed, though.
 # When I built and installed Geogram, the fresh version of GLFW3 was built
@@ -15,9 +16,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 #     the find module happens to look for system-installs of GLFW3 before looking
 #     in the Geogram install directory. For this reason the system-install of
 #     GLFW3 is used.
-list(APPEND CMAKE_MODULE_PATH "/Users/andrewlarson/Desktop/misc/programming/misc_installs/geogram_debug/lib/cmake/modules")
-set(GEOGRAM_INSTALL_PREFIX "/Users/andrewlarson/Desktop/misc/programming/misc_installs/geogram_debug/")
-find_package(Geogram REQUIRED MODULE)
+# list(APPEND CMAKE_MODULE_PATH "/Users/andrewlarson/Desktop/misc/programming/misc_installs/geogram_debug/lib/cmake/modules")
+# set(GEOGRAM_INSTALL_PREFIX "/Users/andrewlarson/Desktop/misc/programming/misc_installs/geogram_debug/")
+# find_package(Geogram REQUIRED MODULE)
+
+# *** CGAL ***
+find_package(CGAL REQUIRED COMPONENTS Qt5)
 
 # -------------------------------------------------------------------------
 #                               This Library     
@@ -36,8 +40,8 @@ target_include_directories(rs_tp_adaptation
                            PRIVATE "src/include/")
 
 target_link_libraries(rs_tp_adaptation 
-                      Geogram::geogram
-                      Geogram::geogram_gfx
+                      CGAL::CGAL
+                      CGAL::CGAL_Basic_viewer
                      )
 
 # -------------------------------------------------------------------------

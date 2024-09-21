@@ -3,4 +3,8 @@
 // Standard library.
 #include <filesystem>
 
-bool is_watertight(std::filesystem::path surface_mesh);
+// Library private.
+#include "cgal_kernels_switch.hxx"
+
+bool is_watertight(const std::filesystem::path& surface_mesh);
+bool cgal_surface_mesh_is_watertight(const SurfaceMesh& m);

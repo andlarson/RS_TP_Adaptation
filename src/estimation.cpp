@@ -8,7 +8,6 @@
 #include <filesystem>
 
 // Third party.
-#include "geogram/basic/command_line.h"
 
 // Public includes.
 #include "estimator.hxx"
@@ -16,7 +15,6 @@
 
 // Private includes.
 #include "include/mesh_utilities.hxx"
-
 
 /*
     Sets up to do residual stress estimation.
@@ -38,9 +36,6 @@
 ResidualStressEstimator::ResidualStressEstimator(const std::vector<std::filesystem::path>& scans,
                                                  const std::vector<std::filesystem::path>& tool_paths)
 {
-    // Initialize Geogram.
-    GEO::initialize(GEO::GEOGRAM_INSTALL_ALL);
-
     for (const auto& scan : scans)
     {
         assert(std::filesystem::exists(scan));

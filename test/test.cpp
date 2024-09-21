@@ -11,7 +11,7 @@
 
 int main()
 {
-    std::vector<std::filesystem::path> machining_scans {"/Users/andrewlarson/Downloads/corner.stl", 
+    std::vector<std::filesystem::path> machining_scans {// "/Users/andrewlarson/Downloads/corner.stl", 
                                                         "/Users/andrewlarson/Downloads/straight_line.stl" 
                                                        };
 
