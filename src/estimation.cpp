@@ -36,15 +36,20 @@
 ResidualStressEstimator::ResidualStressEstimator(const std::vector<std::filesystem::path>& scans,
                                                  const std::vector<std::filesystem::path>& tool_paths)
 {
+    // assert(scans.size() == tool_paths.size());
+
+    const std::string STL_FILE_EXTENSION {".stl"};
     for (const auto& scan : scans)
     {
         assert(std::filesystem::exists(scan));
+        assert(scan.extension() == STL_FILE_EXTENSION);
         assert(is_watertight(scan));
     }
 
     for (const auto& tool_path : tool_paths)
     {
         assert(std::filesystem::exists(tool_path));
+        assert(tool_path.extension() == STL_FILE_EXTENSION);
         assert(is_watertight(tool_path));
     }
 }

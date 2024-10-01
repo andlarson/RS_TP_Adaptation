@@ -11,11 +11,11 @@
 
 int main()
 {
-    std::vector<std::filesystem::path> machining_scans {// "/Users/andrewlarson/Downloads/corner.stl", 
-                                                        "/Users/andrewlarson/Downloads/straight_line.stl" 
-                                                       };
+    std::vector<std::filesystem::path> machining_scans {};
 
-    std::vector<std::filesystem::path> tool_paths {"/Users/andrewlarson/Downloads/zigzag.stl", 
+    std::vector<std::filesystem::path> tool_paths {// "/Users/andrewlarson/Downloads/corner.stl"
+                                                   "/Users/andrewlarson/Downloads/straight_line.stl",
+                                                   "/Users/andrewlarson/Downloads/zigzag.stl", 
                                                    "/Users/andrewlarson/Downloads/horseshoe.stl" 
                                                   };
 
