@@ -29,15 +29,13 @@ find_package(CGAL REQUIRED COMPONENTS Qt5)
 
 add_library(rs_tp_adaptation SHARED
             "${CMAKE_SOURCE_DIR}/src/estimation.cpp"
-            "${CMAKE_SOURCE_DIR}/src/scan.cpp"
             "${CMAKE_SOURCE_DIR}/src/stress.cpp"
-            "${CMAKE_SOURCE_DIR}/src/toolpath.cpp"
             "${CMAKE_SOURCE_DIR}/src/mesh_utilities.cpp"
            )
 
 target_include_directories(rs_tp_adaptation 
                            PUBLIC "include/"
-                           PRIVATE "src/include/")
+                           PRIVATE "${CMAKE_SOURCE_DIR}/src/include")
 
 target_link_libraries(rs_tp_adaptation 
                       CGAL::CGAL
