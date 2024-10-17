@@ -1,7 +1,3 @@
-/*
-    Top level functionality to estimate residual stress during machining.
-*/
-
 // Standard library.
 #include <vector>
 #include <string>
@@ -23,9 +19,6 @@
 
 // DEBUG!?
 #include "CGAL/draw_surface_mesh.h"
-#include "CGAL/Polygon_mesh_processing/self_intersections.h"
-#include "CGAL/boost/graph/graph_traits_Surface_mesh.h"
-#include <iterator>
 
 // *****************************************************************************
 //                      RSEstimator: PImpl Forwarding
@@ -51,23 +44,35 @@ RSEstimator& RSEstimator::operator=(RSEstimator &&) noexcept = default;
 // *****************************************************************************
 
 /*
-    Sets up to do residual stress estimation.
+    Main object for residual stress estimation.
+
+    Requires:
+        (1) The scans are watertight, 2-manifold, and have no self
+                intersections.
+        (2) There is one more scan than toolpath.
+        (3) The toolpaths are watertight, 2-manifold, and have no self
+                intersections.
+
+    Assumes:
+        (1) The scans and toolpaths exist in the same coordinate system and have
+                the same units.
+        (2) The scans are properly oriented.
+        (3) The toolpaths are properly oriented.
+
+    Note: This function does a small amount of repair and orientation.
+        As such, it is not strictly required that the scans and toolpaths
+        are watertight, 2-manifold, lack self-intersections, and are properly
+        oriented. However, the repair and orientation that this function does
+        are neither thorough nor robust. As such, the aforementioned
+        requirements and assumptions really should be met.
 
     Arguments:
         scans:                Absolute paths to surface meshes, in .stl format,
                                   containing the scan data captured during
-                                  machining. Must be watertight and have
-                                  correctly-oriented surface normals. 
-                              The scans and toolpaths need to exist in the same
-                                  coordinate system and have the same units.
-                              There must be one more scan than toolpath.
-        toolpaths:            Absolute paths to surface meshes, in .stl format, containing 
-                                  the path that the machine tool followed
-                                  during machining. Must be watertight and have
-                                  correctly-oriented surface normals. 
-    
-    Return:
-        None.
+                                  machining.  
+        toolpaths:            Absolute paths to surface meshes, in .stl format, 
+                                  containing the path that the machine tool
+                                  followed during machining. 
 */
 RSEstimator::RSEstimator_Impl::RSEstimator_Impl(const std::vector<std::filesystem::path>& scans,
                                                 const std::vector<std::filesystem::path>& tool_paths)
@@ -105,21 +110,25 @@ RSEstimator::RSEstimator_Impl::RSEstimator_Impl(const std::vector<std::filesyste
 
 /*
     Estimates residual stress for a single estimation interval.    
+
+    Requires:
+        (1) If there are n scans, then the interval must be a subset of {0, 1,
+                2, 3, ..., n-1} with cardinality 2.
+
+    Assumes:
+        (1) The interval is inclusive. An interval [0, 2] yields an estimate of
+                residual stress using data from scan 0, scan 2, toolpath 0, and
+                toolpath 1.
     
     Arguments:
         estimation_interval: Interval across which the residual stress estimate
                                  will be produced.
-                             If there are n scans, then the valid intervals are
-                                 all subsets of [0, n-1] with cardinality two.
-                             The interval is inclusive. An interval (0, 2) yields
-                                 an estimate of residual stress using data from
-                                 scan 0, scan 2, toolpath 0, and toolpath 1.
     
     Return:
         A single stress tensor, with some unknown components. Assuming the
-            estimation interval is of the form [a, b], then the estimate of
+            estimation interval is of the form {a, b}, then the estimate of
             stress is valid in the region of space occupied by toolpaths
-            [a, b].
+            {a, a+1, a+2, a+3, ..., b-2, b-1, b}.
         In other words, the stress estimate is valid for all material removed
             in toolpath a, a+1, a+2, ..., b-1.
 */
@@ -133,8 +142,11 @@ StressTensor RSEstimator::RSEstimator_Impl::estimate(const std::pair<unsigned in
     */
 
     // DEBUG!? 
-    SurfaceMesh diff;
-    bool res {CGAL::Polygon_mesh_processing::corefine_and_compute_difference(scans[0], tool_paths[0], diff)};
-    assert(res);
+    SurfaceMesh diff {scans[0]};
+    for (int i {0}; i < 5; ++i)
+    {
+        bool res {CGAL::Polygon_mesh_processing::corefine_and_compute_difference(diff, tool_paths[i], diff)};
+        assert(res);
+    }
     draw(diff);
 }

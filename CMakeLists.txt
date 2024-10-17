@@ -29,7 +29,6 @@ find_package(CGAL REQUIRED COMPONENTS Qt5)
 
 add_library(rs_tp_adaptation SHARED
             "${CMAKE_SOURCE_DIR}/src/estimation.cpp"
-            "${CMAKE_SOURCE_DIR}/src/stress.cpp"
             "${CMAKE_SOURCE_DIR}/src/mesh_utilities.cpp"
            )
 

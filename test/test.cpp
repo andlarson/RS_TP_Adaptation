@@ -1,34 +1,36 @@
-/*
-    Tests for residual stress estimation technique.
-*/
-
 // Standard library.
 #include <iostream>
 #include <filesystem>
+#include <string>
 
 // Third party.
 #include "estimation.hxx"
 #include "stress.hxx"
 
+using namespace std;
+
 int main()
 {
-    std::vector<std::filesystem::path> machining_scans {
-                                                        "/Users/andrewlarson/Desktop/umich/RS_TP_Adaptation_notes/bending_bar_experiment/cleaned_scans/2manifold_and_watertight/pre_machining.stl",
-                                                        // "/Users/andrewlarson/Desktop/umich/RS_TP_Adaptation_notes/bending_bar_experiment/cleaned_scans/2manifold_and_watertight/inc1.stl",
-                                                        // "/Users/andrewlarson/Desktop/umich/RS_TP_Adaptation_notes/bending_bar_experiment/cleaned_scans/2manifold_and_watertight/inc2.stl",
-                                                        // BAD: "/Users/andrewlarson/Desktop/umich/RS_TP_Adaptation_notes/bending_bar_experiment/cleaned_scans/2manifold_and_watertight/inc3.stl",
-                                                        // "/Users/andrewlarson/Desktop/umich/RS_TP_Adaptation_notes/bending_bar_experiment/cleaned_scans/2manifold_and_watertight/inc4.stl",
-                                                        // BAD: "/Users/andrewlarson/Desktop/umich/RS_TP_Adaptation_notes/bending_bar_experiment/cleaned_scans/2manifold_and_watertight/inc5.stl"
-                                                       };
+    const string scan_path_prefix {"/Users/andrewlarson/Desktop/umich/RS_TP_Adaptation/RS_TP_Adaptation_physical_experiments/bending_bar_experiment/cleaned_scans/translated/"};
+    const vector<filesystem::path> machining_scans {
+                                                     scan_path_prefix + "pre_machining.stl",
+                                                     // scan_path_prefix + "inc1.stl",
+                                                     // scan_path_prefix + "inc2.stl",
+                                                     // BAD: scan_path_prefix + "inc3.stl"
+                                                     // scan_path_prefix + "inc4.stl",
+                                                     // BAD: scan_path_prefix + "inc5.stl"
+                                                   };
+    
+    const string toolpath_path_prefix {"/Users/andrewlarson/Desktop/umich/RS_TP_Adaptation/RS_TP_Adaptation_physical_experiments/bending_bar_experiment/gcode/cleaned_toolpath_surface_meshes/"};
+    const vector<filesystem::path> toolpaths {
+                                               toolpath_path_prefix + "move_0_linear_and_arc_of_circle.stl",
+                                               toolpath_path_prefix + "move_1_arc_of_circle.stl",
+                                               toolpath_path_prefix + "move_2_arc_of_circle.stl",
+                                               toolpath_path_prefix + "move_3_arc_of_circle.stl",
+                                               toolpath_path_prefix + "move_4_arc_of_circle.stl"
+                                             };
 
-    std::vector<std::filesystem::path> tool_paths {
-                                                   // BAD: "/Users/andrewlarson/Downloads/corner.stl"
-                                                   "/Users/andrewlarson/Downloads/straight_line_scaled.stl",
-                                                   // "/Users/andrewlarson/Downloads/zigzag.stl", 
-                                                   // BAD: "/Users/andrewlarson/Downloads/horseshoe.stl" 
-                                                  };
-
-    RSEstimator estimator {machining_scans, tool_paths};
+    RSEstimator estimator {machining_scans, toolpaths};
     estimator.estimate({0, 1});
 
     return EXIT_SUCCESS;
