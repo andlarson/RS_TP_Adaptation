@@ -3,7 +3,6 @@
 #include <iostream>
 
 // Third party.
-#include "CGAL/Surface_mesh.h"
 #include "CGAL/Polygon_mesh_processing/orientation.h"
 #include "CGAL/Polygon_mesh_processing/self_intersections.h"
 

@@ -21,7 +21,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # find_package(Geogram REQUIRED MODULE)
 
 # *** CGAL ***
-find_package(CGAL REQUIRED COMPONENTS Qt5)
+find_package(CGAL REQUIRED COMPONENTS Qt6)
 
 # -------------------------------------------------------------------------
 #                               This Library     

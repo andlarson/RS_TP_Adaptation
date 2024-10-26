@@ -17,7 +17,7 @@ class RSEstimator
 
 public:
     RSEstimator(const std::vector<std::filesystem::path>& scans,
-                const std::vector<std::filesystem::path>& tool_paths);
+                const std::vector<std::filesystem::path>& toolpaths);
 
     ~RSEstimator();
     RSEstimator(RSEstimator&&) noexcept;

@@ -14,13 +14,13 @@
 class RSEstimator::RSEstimator_Impl
 {
     std::vector<std::filesystem::path> scan_files;
-    std::vector<std::filesystem::path> tool_path_files;
+    std::vector<std::filesystem::path> toolpath_files;
 
     std::vector<SurfaceMesh> scans;
-    std::vector<SurfaceMesh> tool_paths;
+    std::vector<SurfaceMesh> toolpaths;
 
 public:
     RSEstimator_Impl(const std::vector<std::filesystem::path>& scans,
-                     const std::vector<std::filesystem::path>& tool_paths);
+                     const std::vector<std::filesystem::path>& toolpaths);
     StressTensor estimate(const std::pair<unsigned int, unsigned int>& estimation_interval);
 };

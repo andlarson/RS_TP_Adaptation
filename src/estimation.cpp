@@ -19,14 +19,16 @@
 
 // DEBUG!?
 #include "CGAL/draw_surface_mesh.h"
+#include "CGAL/Graphics_scene.h"
+#include "CGAL/Qt/Basic_viewer.h"
 
 // *****************************************************************************
 //                      RSEstimator: PImpl Forwarding
 // *****************************************************************************
 
 RSEstimator::RSEstimator(const std::vector<std::filesystem::path>& scans,
-                         const std::vector<std::filesystem::path>& tool_paths)
-    : pimpl{std::make_unique<RSEstimator_Impl>(scans, tool_paths)} 
+                         const std::vector<std::filesystem::path>& toolpaths)
+    : pimpl{std::make_unique<RSEstimator_Impl>(scans, toolpaths)} 
 {
 }
 
@@ -75,12 +77,9 @@ RSEstimator& RSEstimator::operator=(RSEstimator &&) noexcept = default;
                                   followed during machining. 
 */
 RSEstimator::RSEstimator_Impl::RSEstimator_Impl(const std::vector<std::filesystem::path>& scans,
-                                                const std::vector<std::filesystem::path>& tool_paths)
+                                                const std::vector<std::filesystem::path>& toolpaths)
 {
-    // DEBUG!?
-    /*
-    assert(scans.size() == tool_paths.size() + 1);
-    */
+    assert(scans.size() == toolpaths.size() + 1);
 
     const std::string STL_FILE_EXTENSION {".stl"};
     for (const auto& scan : scans)
@@ -95,17 +94,17 @@ RSEstimator::RSEstimator_Impl::RSEstimator_Impl(const std::vector<std::filesyste
     }
     this->scan_files = scans;
 
-    for (const auto& tool_path : tool_paths)
+    for (const auto& toolpath : toolpaths)
     {
         SurfaceMesh sm;
-        assert(std::filesystem::exists(tool_path));
-        assert(tool_path.extension() == STL_FILE_EXTENSION);
-        assert(CGAL::Polygon_mesh_processing::IO::read_polygon_mesh(tool_path.string(), sm, CGAL::parameters::verbose(true)));
+        assert(std::filesystem::exists(toolpath));
+        assert(toolpath.extension() == STL_FILE_EXTENSION);
+        assert(CGAL::Polygon_mesh_processing::IO::read_polygon_mesh(toolpath.string(), sm, CGAL::parameters::verbose(true)));
         assert(!has_self_intersections(sm));
         assert(is_watertight(sm));
-        this->tool_paths.push_back(sm);
+        this->toolpaths.push_back(sm);
     }
-    this->tool_path_files = tool_paths;
+    this->toolpath_files = toolpaths;
 }
 
 /*
@@ -134,19 +133,24 @@ RSEstimator::RSEstimator_Impl::RSEstimator_Impl(const std::vector<std::filesyste
 */
 StressTensor RSEstimator::RSEstimator_Impl::estimate(const std::pair<unsigned int, unsigned int>& estimation_interval)
 {
-    // DEBUG!?
-    /*
     assert(estimation_interval.first < estimation_interval.second);
     assert(estimation_interval.first >= 0);
     assert(estimation_interval.second < scan_files.size());
-    */
 
     // DEBUG!? 
     SurfaceMesh diff {scans[0]};
-    for (int i {0}; i < 5; ++i)
-    {
-        bool res {CGAL::Polygon_mesh_processing::corefine_and_compute_difference(diff, tool_paths[i], diff)};
-        assert(res);
-    }
-    draw(diff);
+    bool res {CGAL::Polygon_mesh_processing::corefine_and_compute_difference(diff, toolpaths[0], diff)};
+    assert(res);
+    res = CGAL::Polygon_mesh_processing::corefine_and_compute_difference(diff, toolpaths[1], diff);
+    assert(res);
+    res = CGAL::Polygon_mesh_processing::corefine_and_compute_difference(diff, toolpaths[2], diff);
+    assert(res);
+    res = CGAL::Polygon_mesh_processing::corefine_and_compute_difference(diff, toolpaths[3], diff);
+    assert(res);
+    
+    CGAL::Graphics_scene scene;
+    // CGAL::add_to_graphics_scene(scans[0], scene);
+    // CGAL::add_to_graphics_scene(toolpaths[0], scene);
+    CGAL::add_to_graphics_scene(diff, scene);
+    CGAL::draw_graphics_scene(scene);
 }
