@@ -1,44 +1,26 @@
----
-# !!!UPDATE!!! #
+Significant changes to the software architecture are currently being made. These
+are being carried out on the `rewrite` branch. 
 
-Significant changes to the software architecture are necessary. The functionality 
-that we desire is not natively supported by Abaqus. In particular, Abaqus' meshing
-routines are not robust, material removal is not natively supported in Abaqus
-(and workarounds to do material removal in Abaqus do not fulfill our needs), and 
-we need custom meshing algorithms to support canonicalization. As such, we are
-in the process of rewriting a large portion of this repository.
+It turns out that using Abaqus' preprocessor alone, via Abaqus' Python API, for
+geometric manipulations is entirely insufficient for the goals of this project.
+Other than being generally difficult to work with (e.g., Abaqus' Python API can
+only be accessed through a custom Python interpreter, the only way to debug code
+is a broken GUI-based debugger, etc.), Abaqus' preprocessor:
+    1. Doesn't offer meshing routines that are robust without humans in the
+       loop.
+    2. Doesn't allow the user to control how surface meshes are generated on
+       boundary representations (i.e. the .stl export functionality is a black
+       box).
+    3. Requires expensive, unnecessary, and error-prone conversions between boundary
+       representation of geometric objects and discretized representation of
+       geometric objects.
+    4. Makes it hard to do canonicalization. 
 
----
-
-
-
----
-
-# Improving Machining Yield in the Presence of Residual Stress #
-
-This repository contains software that makes it easy to:
-1. Estimate the residual stress state of a workpiece by utilizing real-world
-   measurement data collected after the workpiece has deformed due to machining.
-2. Simulate sequences of potential tool passes. 
-
-This software supports the larger, project-level goal of improving machining 
-yield for blanks which have problematic residual stress fields (i.e. residual
-stress fields that cause the workpiece to deform during and after machining
-into a geometry that does not satisfy allowed tolerances).
-
----
-
-
-
----
-
-# Project File Structure # 
-
-## TODO ##
-
----
-
-
-
-
-
+The new software architecture, being developed on the `rewrite` branch, uses a
+suite of specialized libraries:
+    1. OCCT, an open source geometry kernel.
+    2. CGAL, an open source computational geometry algorithms library.
+    3. fTetWild, an open source robust meshing algorithm.
+    4. Abaqus, a closed source FEA software. 
+You won't find uses of OCCT and fTetWild in this repository, but they are used
+in other repositories to prepare the inputs to this repository.
