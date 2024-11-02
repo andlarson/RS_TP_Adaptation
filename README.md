@@ -22,5 +22,6 @@ suite of specialized libraries:
 2. CGAL, an open source computational geometry algorithms library.
 3. fTetWild, an open source robust meshing algorithm.
 4. Abaqus, a closed source FEA software. 
+
 You won't find uses of OCCT and fTetWild in this repository, but they are used
 in other repositories to prepare the inputs to this repository.
