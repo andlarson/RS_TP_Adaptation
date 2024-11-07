@@ -38,6 +38,7 @@ CMakeFiles/
 # Geometric Modeling
 *.stl
 *.msh
+*.blend
 
 # General
 .cache/
