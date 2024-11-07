@@ -136,7 +136,7 @@ StressTensor RSEstimator::RSEstimator_Impl::estimate(const std::pair<unsigned in
     assert(estimation_interval.first < estimation_interval.second);
     assert(estimation_interval.first >= 0);
     assert(estimation_interval.second < scan_files.size());
-
+    
     // DEBUG!? 
     SurfaceMesh diff {scans[0]};
     bool res {CGAL::Polygon_mesh_processing::corefine_and_compute_difference(diff, toolpaths[0], diff)};
